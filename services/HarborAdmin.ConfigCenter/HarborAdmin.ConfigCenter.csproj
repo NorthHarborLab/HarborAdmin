@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <NoWarn>$(NoWarn);1591</NoWarn>
+        <UserSecretsId>dotnet-HarborAdmin.ConfigCenter-607e9824-cf0d-42a7-a8fc-4da20111cd66</UserSecretsId>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.8"/>
+    </ItemGroup>
+
+    <ItemGroup>
+       
+        <ProjectReference Include="..\..\modules\HarborAdmin.Modules.ConfigCenter\HarborAdmin.Modules.ConfigCenter.csproj" />
+    </ItemGroup>
+
+</Project>
