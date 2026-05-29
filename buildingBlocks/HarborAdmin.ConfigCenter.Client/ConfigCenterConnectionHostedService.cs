@@ -6,11 +6,11 @@ using Microsoft.Extensions.Options;
 namespace HarborAdmin.ConfigCenter.Client;
 
 /// <summary>
-/// 后台维护与 ConfigCenter 的 TCP 长连接：握手、拉取配置、订阅变更并在变更时刷新 <see cref="ConfigCenterConfigurationProvider"/>。
+/// 后台维护与 ConfigCenter 的 TCP 长连接:握手、拉取配置、订阅变更并在变更时刷新 <see cref="ConfigCenterConfigurationProvider"/>
 /// </summary>
-/// <param name="options">客户端选项。</param>
-/// <param name="source">配置源（用于更新 Provider）。</param>
-/// <param name="logger">日志。</param>
+/// <param name="options">客户端选项</param>
+/// <param name="source">配置源(用于更新 Provider)</param>
+/// <param name="logger">日志</param>
 public sealed class ConfigCenterConnectionHostedService(
     IOptions<ConfigCenterOptions> options,
     ConfigCenterConfigurationSource source,

@@ -1,7 +1,7 @@
 namespace HarborAdmin.ConfigCenter.Client;
 
 /// <summary>
-/// Harbor ConfigCenter 客户端连接选项（对应 <c>Harbor:ConfigCenter</c> 配置节）。
+/// Harbor ConfigCenter 客户端连接选项(对应 <c>Harbor:ConfigCenter</c> 配置节)
 /// </summary>
 public sealed class ConfigCenterOptions
 {

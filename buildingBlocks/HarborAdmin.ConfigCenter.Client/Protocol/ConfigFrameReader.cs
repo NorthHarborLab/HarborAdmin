@@ -4,28 +4,36 @@ using System.Net.Sockets;
 namespace HarborAdmin.ConfigCenter.Client.Protocol;
 
 /// <summary>
-/// 从 <see cref="NetworkStream"/> 按长度前缀协议读取完整 JSON 帧。
+/// 从 <see cref="NetworkStream"/> 按长度前缀协议读取完整 JSON 帧
 /// </summary>
 public sealed class ConfigFrameReader
 {
-    /// <summary>长度前缀缓冲区（4 字节）。</summary>
+    /// <summary>
+    /// 长度前缀缓冲区（4 字节）
+    /// </summary>
     private readonly byte[] _lengthBuffer = new byte[4];
 
-    /// <summary>已读入的长度前缀字节数。</summary>
+    /// <summary>
+    /// 已读入的长度前缀字节数
+    /// </summary>
     private int _lengthBytesRead;
 
-    /// <summary>当前帧 payload 缓冲区。</summary>
+    /// <summary>
+    /// 当前帧 payload 缓冲区
+    /// </summary>
     private byte[]? _payloadBuffer;
 
-    /// <summary>已读入的 payload 字节数。</summary>
+    /// <summary>
+    /// 已读入的 payload 字节数
+    /// </summary>
     private int _payloadBytesRead;
 
     /// <summary>
-    /// 异步读取下一帧；连接关闭且未收到完整帧时返回 <see langword="null"/>。
+        /// 异步读取下一帧;连接关闭且未收到完整帧时返回 <see langword="null"/>
     /// </summary>
-    /// <param name="stream">TCP 网络流。</param>
-    /// <param name="cancellationToken">取消令牌。</param>
-    /// <exception cref="InvalidOperationException">帧长度非法（0 或超过 16MB）。</exception>
+    /// <param name="stream">TCP 网络流</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <exception cref="InvalidOperationException">帧长度非法(0 或超过 16MB)</exception>
     public async Task<ConfigMessage?> ReadFrameAsync(NetworkStream stream, CancellationToken cancellationToken)
     {
         while (true)
