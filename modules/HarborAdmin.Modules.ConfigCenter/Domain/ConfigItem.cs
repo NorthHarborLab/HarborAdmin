@@ -1,18 +1,14 @@
 using FreeSql.DataAnnotations;
+using HarborAdmin.BuildingBlocks.Abstractions.Domain;
 
 namespace HarborAdmin.Modules.ConfigCenter.Domain;
 
 /// <summary>
 /// 草稿配置项;发布前仅在此表维护,发布后快照写入 <see cref="ConfigReleaseItem"/>.
 /// </summary>
-public class ConfigItem
+[DbKey("ConfigCenterDb")]
+public class ConfigItem : EntityBase
 {
-    /// <summary>
-    /// 主键
-    /// </summary>
-    [Column(IsIdentity = true, IsPrimary = true)]
-    public long Id { get; set; }
-
     /// <summary>
     /// 所属应用标识
     /// </summary>
@@ -24,7 +20,7 @@ public class ConfigItem
     public string Environment { get; set; } = string.Empty;
 
     /// <summary>
-    /// 配置分组,对应 <c>IConfiguration</c> 中的节名
+    /// 配置显示分组;不参与最终 <c>IConfiguration</c> 扁平键生成。
     /// </summary>
     public string Group { get; set; } = string.Empty;
 
@@ -36,6 +32,7 @@ public class ConfigItem
     /// <summary>
     /// 配置值
     /// </summary>
+    [Column(StringLength = -1)]
     public string Value { get; set; } = string.Empty;
 
     /// <summary>
@@ -51,10 +48,10 @@ public class ConfigItem
     /// <summary>
     /// 最后更新时间（UTC）
     /// </summary>
-    public DateTime UpdatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
 
     /// <summary>
-    /// 扁平化配置键,格式为 <c>Group:Key</c>;当 <see cref="Group"/> 为空时仅为 <see cref="Key"/>。
+    /// 扁平化配置键。分组仅用于管理端展示,真实键由 <see cref="Key"/> 完整表达。
     /// </summary>
-    public string ConfigKey => string.IsNullOrEmpty(Group) ? Key : $"{Group}:{Key}";
+    public string ConfigKey => Key;
 }

@@ -1,18 +1,13 @@
-using FreeSql.DataAnnotations;
+using HarborAdmin.BuildingBlocks.Abstractions.Domain;
 
 namespace HarborAdmin.Modules.ConfigCenter.Domain;
 
 /// <summary>
 /// 配置中心注册的应用(业务服务标识)
 /// </summary>
-public class ConfigApplication
+[DbKey("ConfigCenterDb")]
+public class ConfigApplication : EntityBase
 {
-    /// <summary>
-    /// 主键
-    /// </summary>
-    [Column(IsIdentity = true, IsPrimary = true)]
-    public long Id { get; set; }
-
     /// <summary>
     /// 应用唯一标识,例如 <c>order-service</c>
     /// </summary>
@@ -31,5 +26,5 @@ public class ConfigApplication
     /// <summary>
     /// 创建时间（UTC）
     /// </summary>
-    public DateTime CreatedAt { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
 }

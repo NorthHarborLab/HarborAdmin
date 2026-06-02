@@ -1,25 +1,21 @@
 using FreeSql.DataAnnotations;
+using HarborAdmin.BuildingBlocks.Abstractions.Domain;
 
 namespace HarborAdmin.Modules.ConfigCenter.Domain;
 
 /// <summary>
 /// 发布快照中的单条配置,发布时从 <see cref="ConfigItem"/> 草稿复制
 /// </summary>
-public class ConfigReleaseItem
+[DbKey("ConfigCenterDb")]
+public class ConfigReleaseItem : EntityBase
 {
-    /// <summary>
-    /// 主键
-    /// </summary>
-    [Column(IsIdentity = true, IsPrimary = true)]
-    public long Id { get; set; }
-
     /// <summary>
     /// 所属发布记录 <see cref="ConfigRelease.Id"/>
     /// </summary>
     public long ReleaseId { get; set; }
 
     /// <summary>
-    /// 配置分组
+    /// 配置显示分组;不参与最终 <c>IConfiguration</c> 扁平键生成。
     /// </summary>
     public string Group { get; set; } = string.Empty;
 
@@ -31,6 +27,7 @@ public class ConfigReleaseItem
     /// <summary>
     /// 配置值
     /// </summary>
+    [Column(StringLength = -1)]
     public string Value { get; set; } = string.Empty;
 
     /// <summary>
@@ -39,7 +36,7 @@ public class ConfigReleaseItem
     public string ValueType { get; set; } = "string";
 
     /// <summary>
-    /// 扁平化配置键,格式为 <c>Group:Key</c>;当 <see cref="Group"/> 为空时仅为 <see cref="Key"/>。
+    /// 扁平化配置键。分组仅用于管理端展示,真实键由 <see cref="Key"/> 完整表达。
     /// </summary>
-    public string ConfigKey => string.IsNullOrEmpty(Group) ? Key : $"{Group}:{Key}";
+    public string ConfigKey => Key;
 }

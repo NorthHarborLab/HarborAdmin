@@ -6,129 +6,127 @@ namespace HarborAdmin.Modules.ConfigCenter.Infrastructure;
 /// <summary>
 /// 基于 FreeSql 的 <see cref="IConfigCenterRepository"/> 实现。
 /// </summary>
-/// <param name="freeSql">FreeSql 实例。</param>
-public sealed class FreeSqlConfigCenterRepository(IFreeSql freeSql) : IConfigCenterRepository
+public sealed class FreeSqlConfigCenterRepository(IConfigCenterDbContext db) : IConfigCenterRepository
 {
-    /// <inheritdoc cref="IConfigCenterRepository.ListApplicationsAsync" />
+    private IFreeSql FreeSql => db.Orm;
+
+    /// <inheritdoc />
     public Task<IReadOnlyList<ConfigApplication>> ListApplicationsAsync(CancellationToken cancellationToken = default) =>
-        freeSql.Select<ConfigApplication>().OrderBy(a => a.AppId).ToListAsync(cancellationToken)
+        FreeSql.Select<ConfigApplication>().OrderBy(a => a.AppId).ToListAsync(cancellationToken)
             .ContinueWith(t => (IReadOnlyList<ConfigApplication>)t.Result, cancellationToken);
 
-    /// <inheritdoc cref="IConfigCenterRepository.GetApplicationByAppIdAsync" />
+    /// <inheritdoc />
     public Task<ConfigApplication?> GetApplicationByAppIdAsync(string appId, CancellationToken cancellationToken = default) =>
-        freeSql.Select<ConfigApplication>().Where(a => a.AppId == appId).FirstAsync(cancellationToken);
+        FreeSql.Select<ConfigApplication>().Where(a => a.AppId == appId).FirstAsync(cancellationToken);
 
-    /// <inheritdoc cref="IConfigCenterRepository.InsertApplicationAsync" />
+    /// <inheritdoc />
     public async Task<ConfigApplication> InsertApplicationAsync(ConfigApplication application, CancellationToken cancellationToken = default)
     {
-        var inserted = await freeSql.Insert(application).ExecuteInsertedAsync(cancellationToken);
+        var inserted = await FreeSql.Insert(application).ExecuteInsertedAsync(cancellationToken);
         application.Id = inserted.First().Id;
         return application;
     }
 
-    /// <inheritdoc cref="IConfigCenterRepository.UpdateApplicationAsync" />
+    /// <inheritdoc />
     public Task UpdateApplicationAsync(ConfigApplication application, CancellationToken cancellationToken = default) =>
-        freeSql.Update<ConfigApplication>().SetSource(application).ExecuteAffrowsAsync(cancellationToken);
+        FreeSql.Update<ConfigApplication>().SetSource(application).ExecuteAffrowsAsync(cancellationToken);
 
-    /// <inheritdoc cref="IConfigCenterRepository.DeleteApplicationAsync" />
+    /// <inheritdoc />
     public async Task DeleteApplicationAsync(string appId, CancellationToken cancellationToken = default)
     {
-        var releaseIds = await freeSql.Select<ConfigRelease>()
+        var releaseIds = await FreeSql.Select<ConfigRelease>()
             .Where(r => r.AppId == appId)
             .ToListAsync(r => r.Id, cancellationToken);
 
         if (releaseIds.Count > 0)
         {
-            await freeSql.Delete<ConfigReleaseItem>()
+            await FreeSql.Delete<ConfigReleaseItem>()
                 .Where(i => releaseIds.Contains(i.ReleaseId))
                 .ExecuteAffrowsAsync(cancellationToken);
         }
 
-        await freeSql.Delete<ConfigItem>().Where(i => i.AppId == appId).ExecuteAffrowsAsync(cancellationToken);
-        await freeSql.Delete<ConfigRelease>().Where(r => r.AppId == appId).ExecuteAffrowsAsync(cancellationToken);
-        await freeSql.Delete<ConfigApplication>().Where(a => a.AppId == appId).ExecuteAffrowsAsync(cancellationToken);
+        await FreeSql.Delete<ConfigItem>().Where(i => i.AppId == appId).ExecuteAffrowsAsync(cancellationToken);
+        await FreeSql.Delete<ConfigRelease>().Where(r => r.AppId == appId).ExecuteAffrowsAsync(cancellationToken);
+        await FreeSql.Delete<ConfigApplication>().Where(a => a.AppId == appId).ExecuteAffrowsAsync(cancellationToken);
     }
 
-    /// <inheritdoc cref="IConfigCenterRepository.ListItemsAsync" />
+    /// <inheritdoc />
     public Task<IReadOnlyList<ConfigItem>> ListItemsAsync(string appId, string environment, CancellationToken cancellationToken = default) =>
-        freeSql.Select<ConfigItem>()
+        FreeSql.Select<ConfigItem>()
             .Where(i => i.AppId == appId && i.Environment == environment)
             .OrderBy(i => i.Group)
             .OrderBy(i => i.Key)
             .ToListAsync(cancellationToken)
             .ContinueWith(t => (IReadOnlyList<ConfigItem>)t.Result, cancellationToken);
 
-    /// <inheritdoc cref="IConfigCenterRepository.GetItemAsync" />
+    /// <inheritdoc />
     public Task<ConfigItem?> GetItemAsync(long id, CancellationToken cancellationToken = default) =>
-        freeSql.Select<ConfigItem>().Where(i => i.Id == id).FirstAsync(cancellationToken);
+        FreeSql.Select<ConfigItem>().Where(i => i.Id == id).FirstAsync(cancellationToken);
 
-    /// <inheritdoc cref="IConfigCenterRepository.InsertItemAsync" />
+    /// <inheritdoc />
     public async Task<ConfigItem> InsertItemAsync(ConfigItem item, CancellationToken cancellationToken = default)
     {
-        var inserted = await freeSql.Insert(item).ExecuteInsertedAsync(cancellationToken);
+        var inserted = await FreeSql.Insert(item).ExecuteInsertedAsync(cancellationToken);
         item.Id = inserted.First().Id;
         return item;
     }
 
-    /// <inheritdoc cref="IConfigCenterRepository.UpdateItemAsync" />
+    /// <inheritdoc />
     public Task UpdateItemAsync(ConfigItem item, CancellationToken cancellationToken = default) =>
-        freeSql.Update<ConfigItem>().SetSource(item).ExecuteAffrowsAsync(cancellationToken);
+        FreeSql.Update<ConfigItem>().SetSource(item).ExecuteAffrowsAsync(cancellationToken);
 
-    /// <inheritdoc cref="IConfigCenterRepository.DeleteItemAsync" />
+    /// <inheritdoc />
     public Task DeleteItemAsync(long id, CancellationToken cancellationToken = default) =>
-        freeSql.Delete<ConfigItem>().Where(i => i.Id == id).ExecuteAffrowsAsync(cancellationToken);
+        FreeSql.Delete<ConfigItem>().Where(i => i.Id == id).ExecuteAffrowsAsync(cancellationToken);
 
-    /// <inheritdoc cref="IConfigCenterRepository.ListReleasesAsync" />
+    /// <inheritdoc />
     public Task<IReadOnlyList<ConfigRelease>> ListReleasesAsync(string appId, string environment, CancellationToken cancellationToken = default) =>
-        freeSql.Select<ConfigRelease>()
+        FreeSql.Select<ConfigRelease>()
             .Where(r => r.AppId == appId && r.Environment == environment)
             .OrderByDescending(r => r.Version)
             .ToListAsync(cancellationToken)
             .ContinueWith(t => (IReadOnlyList<ConfigRelease>)t.Result, cancellationToken);
 
-    /// <inheritdoc cref="IConfigCenterRepository.GetLatestReleaseAsync" />
+    /// <inheritdoc />
     public Task<ConfigRelease?> GetLatestReleaseAsync(string appId, string environment, CancellationToken cancellationToken = default) =>
-        freeSql.Select<ConfigRelease>()
+        FreeSql.Select<ConfigRelease>()
             .Where(r => r.AppId == appId && r.Environment == environment)
             .OrderByDescending(r => r.Version)
             .FirstAsync(cancellationToken);
 
-    /// <inheritdoc cref="IConfigCenterRepository.GetReleaseByIdAsync" />
+    /// <inheritdoc />
     public Task<ConfigRelease?> GetReleaseByIdAsync(long releaseId, CancellationToken cancellationToken = default) =>
-        freeSql.Select<ConfigRelease>().Where(r => r.Id == releaseId).FirstAsync(cancellationToken);
+        FreeSql.Select<ConfigRelease>().Where(r => r.Id == releaseId).FirstAsync(cancellationToken);
 
-    /// <inheritdoc cref="IConfigCenterRepository.ListReleaseItemsAsync" />
+    /// <inheritdoc />
     public Task<IReadOnlyList<ConfigReleaseItem>> ListReleaseItemsAsync(long releaseId, CancellationToken cancellationToken = default) =>
-        freeSql.Select<ConfigReleaseItem>()
+        FreeSql.Select<ConfigReleaseItem>()
             .Where(i => i.ReleaseId == releaseId)
             .OrderBy(i => i.Group)
             .OrderBy(i => i.Key)
             .ToListAsync(cancellationToken)
             .ContinueWith(t => (IReadOnlyList<ConfigReleaseItem>)t.Result, cancellationToken);
 
-    /// <inheritdoc cref="IConfigCenterRepository.InsertReleaseAsync" />
+    /// <inheritdoc />
     public async Task<ConfigRelease> InsertReleaseAsync(
         ConfigRelease release,
         IReadOnlyList<ConfigReleaseItem> items,
         CancellationToken cancellationToken = default)
     {
-        freeSql.Transaction(() =>
+        var inserted = await FreeSql.Insert(release).ExecuteInsertedAsync(cancellationToken);
+        release.Id = inserted.First().Id;
+        if (release.Id == 0)
         {
-            var inserted = freeSql.Insert(release).ExecuteInserted().First();
-            release.Id = inserted.Id;
-            if (release.Id == 0)
-            {
-                release.Id = freeSql.Select<ConfigRelease>()
-                    .Where(r => r.AppId == release.AppId && r.Environment == release.Environment && r.Version == release.Version)
-                    .First(r => r.Id);
-            }
+            release.Id = await FreeSql.Select<ConfigRelease>()
+                .Where(r => r.AppId == release.AppId && r.Environment == release.Environment && r.Version == release.Version)
+                .FirstAsync(r => r.Id, cancellationToken);
+        }
 
-            foreach (var item in items)
-            {
-                item.ReleaseId = release.Id;
-                freeSql.Insert(item).ExecuteAffrows();
-            }
-        });
+        foreach (var item in items)
+        {
+            item.ReleaseId = release.Id;
+            await FreeSql.Insert(item).ExecuteAffrowsAsync(cancellationToken);
+        }
 
         return release;
     }

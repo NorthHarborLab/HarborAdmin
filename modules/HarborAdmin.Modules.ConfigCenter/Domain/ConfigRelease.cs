@@ -1,18 +1,13 @@
-using FreeSql.DataAnnotations;
+using HarborAdmin.BuildingBlocks.Abstractions.Domain;
 
 namespace HarborAdmin.Modules.ConfigCenter.Domain;
 
 /// <summary>
 /// 一次配置发布记录,同一应用+环境下版本号单调递增
 /// </summary>
-public class ConfigRelease
+[DbKey("ConfigCenterDb")]
+public class ConfigRelease : EntityBase
 {
-    /// <summary>
-    /// 主键
-    /// </summary>
-    [Column(IsIdentity = true, IsPrimary = true)]
-    public long Id { get; set; }
-
     /// <summary>
     /// 所属应用标识
     /// </summary>
@@ -36,5 +31,5 @@ public class ConfigRelease
     /// <summary>
     /// 发布时间(UTC)
     /// </summary>
-    public DateTime PublishedAt { get; set; }
+    public DateTimeOffset PublishedAt { get; set; }
 }

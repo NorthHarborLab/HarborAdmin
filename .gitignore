@@ -1,0 +1,9 @@
+.idea/
+.git/
+obj/
+bin/
+data/*.db
+data/*.db-*
+*.db
+.CodeGraph
+data/
