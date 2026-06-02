@@ -44,7 +44,7 @@ public static class ServiceCollectionExtensions
             foreach (var db in databases)
             {
                 // 每个 DbConfig 条目注册为一个 FreeSqlCloud 实例，真正使用时通过 cloud.Use(dbKey) 取出。
-                DbRegistration.RegisterDb(cloud, db, currentUser);
+                DbRegistration.RegisterDb(cloud, db, currentUser, options.SnowflakeWorkerId);
             }
 
             foreach (var group in entityMappings.GroupBy(mapping => mapping.DbKey, StringComparer.OrdinalIgnoreCase))

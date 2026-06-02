@@ -37,6 +37,7 @@ public sealed class UnitOfWorkManagerCloud : IDisposable
     /// <inheritdoc />
     public void Dispose()
     {
+        // Dispose 可能被容器和调用方重复触发，这里保证每个 UnitOfWorkManager 只释放一次。
         if (Interlocked.Increment(ref _disposeCounter) != 1)
         {
             return;
@@ -51,6 +52,7 @@ public sealed class UnitOfWorkManagerCloud : IDisposable
             }
             catch (Exception e)
             {
+                // 继续释放剩余管理器，最后再抛出最后一次失败，避免资源被提前中断。
                 ex = e;
             }
         }

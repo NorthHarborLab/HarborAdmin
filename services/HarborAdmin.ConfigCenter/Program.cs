@@ -10,7 +10,10 @@ var builder = Host.CreateApplicationBuilder(args);
 
 ResolveEnvironmentPlaceholders(builder.Configuration);
 
-builder.Services.AddHarborFreeSql(builder.Configuration.GetSection(DbConfig.SectionName));
+builder.Services.AddHarborFreeSql(builder.Configuration.GetSection(DbConfig.SectionName), options =>
+{
+    options.SnowflakeWorkerId = GetYitterWorkId(builder.Configuration);
+});
 
 builder.Services.AddConfigCenterModule(builder.Configuration);
 builder.Services.AddSingleton<ConfigSubscriptionHub>();
@@ -30,6 +33,11 @@ static void ResolveEnvironmentPlaceholders(ConfigurationManager configuration)
         }
     }
 }
+
+static ushort GetYitterWorkId(IConfiguration configuration) =>
+    configuration.GetValue<ushort?>("YitterWorkId")
+    ?? configuration.GetValue<ushort?>("Base:YitterWorkId")
+    ?? 1;
 
 static void ResolveValue(ConfigurationManager configuration, string key)
 {

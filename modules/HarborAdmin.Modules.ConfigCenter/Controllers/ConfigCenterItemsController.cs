@@ -60,6 +60,6 @@ public sealed class ConfigCenterItemsController(ConfigCenterService service) : C
     public async Task<IActionResult> Delete(long id, CancellationToken cancellationToken)
     {
         await service.DeleteItemAsync(id, cancellationToken);
-        return NoContent();
+        return Ok(true);
     }
 }

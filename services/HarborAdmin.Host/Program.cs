@@ -32,7 +32,10 @@ builder.Services.AddCors(options =>
     });
 });
 
-builder.Services.AddHarborFreeSql(builder.Configuration.GetSection(DbConfig.SectionName));
+builder.Services.AddHarborFreeSql(builder.Configuration.GetSection(DbConfig.SectionName), options =>
+{
+    options.SnowflakeWorkerId = GetYitterWorkId(builder.Configuration);
+});
 
 builder.Services.AddHarborCap(builder.Configuration, cap =>
 {
@@ -55,3 +58,8 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+static ushort GetYitterWorkId(IConfiguration configuration) =>
+    configuration.GetValue<ushort?>("YitterWorkId")
+    ?? configuration.GetValue<ushort?>("Base:YitterWorkId")
+    ?? 1;

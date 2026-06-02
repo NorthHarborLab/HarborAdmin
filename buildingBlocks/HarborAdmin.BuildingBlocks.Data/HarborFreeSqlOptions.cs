@@ -10,6 +10,11 @@ public sealed class HarborFreeSqlOptions
     private readonly List<Assembly> _entityAssemblies = [];
 
     /// <summary>
+    /// Yitter 雪花 ID 的 WorkerId；不同 Host 实例应配置不同值。
+    /// </summary>
+    public ushort SnowflakeWorkerId { get; set; } = 1;
+
+    /// <summary>
     /// 追加需要扫描实体的程序集。默认会扫描当前应用引用的 <c>HarborAdmin.Modules.*</c> 程序集。
     /// </summary>
     public HarborFreeSqlOptions AddEntityAssembly(Assembly assembly)

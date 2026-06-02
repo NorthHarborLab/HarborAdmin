@@ -40,7 +40,8 @@ public sealed class ConfigCenterAppsController(ConfigCenterService service) : Co
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>更新后的应用。</returns>
     [HttpPut("{appId}")]
-    public async Task<ActionResult<ConfigApplicationDto>> Update(string appId, [FromBody] UpdateConfigApplicationRequest request, CancellationToken cancellationToken) =>
+    public async Task<ActionResult<ConfigApplicationDto>> Update(string appId, [FromBody] UpdateConfigApplicationRequest request,
+        CancellationToken cancellationToken) =>
         Ok(await service.UpdateApplicationAsync(appId, request, cancellationToken));
 
     /// <summary>删除应用及其全部配置数据。</summary>
@@ -50,6 +51,6 @@ public sealed class ConfigCenterAppsController(ConfigCenterService service) : Co
     public async Task<IActionResult> Delete(string appId, CancellationToken cancellationToken)
     {
         await service.DeleteApplicationAsync(appId, cancellationToken);
-        return NoContent();
+        return Ok(true);
     }
 }
