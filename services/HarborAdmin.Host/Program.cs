@@ -3,11 +3,14 @@
 using HarborAdmin.BuildingBlocks.Data;
 using HarborAdmin.BuildingBlocks.Data.Configs;
 using HarborAdmin.BuildingBlocks.EventBus;
+using HarborAdmin.BuildingBlocks.Caching;
+using HarborAdmin.BuildingBlocks.Caching.Options;
 using HarborAdmin.ConfigCenter.Client;
 using HarborAdmin.Host.Infrastructure;
 using HarborAdmin.Modules.ConfigCenter;
 using HarborAdmin.Modules.ConfigCenter.Contracts;
 using HarborAdmin.Modules.ConfigCenter.Infrastructure;
+using HarborAdmin.Modules.International;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,18 +35,22 @@ builder.Services.AddCors(options =>
     });
 });
 
+builder.Services.AddHarborCaching(builder.Configuration.GetSection(HarborCacheOptions.SectionName));
+
 builder.Services.AddHarborFreeSql(builder.Configuration.GetSection(DbConfig.SectionName), options =>
 {
     options.SnowflakeWorkerId = GetYitterWorkId(builder.Configuration);
+    options.AddCurdAfterHandler(CacheInvalidationAopBridge.Dispatch);
 });
-
-builder.Services.AddHarborCap(builder.Configuration, cap =>
-{
-    cap.DefaultGroupName = "harbor.admin.host";
-});
+//
+// builder.Services.AddHarborCap(builder.Configuration, cap =>
+// {
+//     cap.DefaultGroupName = "harbor.admin.host";
+// });
 
 builder.Services.AddSingleton<IConfigCenterNotifyClient, TcpConfigCenterNotifyClient>();
 builder.Services.AddHarborConfigCenter(configCenterSource, configCenterSection);
+builder.Services.AddInternationalModule();
 builder.Services.AddConfigCenterModule(builder.Configuration);
 
 var app = builder.Build();
@@ -60,6 +67,4 @@ app.MapControllers();
 app.Run();
 
 static ushort GetYitterWorkId(IConfiguration configuration) =>
-    configuration.GetValue<ushort?>("YitterWorkId")
-    ?? configuration.GetValue<ushort?>("Base:YitterWorkId")
-    ?? 1;
+    configuration.GetValue<ushort?>("Harbor:YitterWorkId") ?? 1;
