@@ -7,21 +7,13 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="FreeSql" />
-        <PackageReference Include="FreeSql.Cloud" />
-        <PackageReference Include="FreeSql.Repository" />
-        <PackageReference Include="FreeSql.Provider.Sqlite" />
-        <PackageReference Include="FreeSql.Provider.PostgreSQL" />
-        <PackageReference Include="FreeSql.Provider.SqlServer" />
+        <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" />
+        <PackageReference Include="Microsoft.Extensions.Caching.Memory" />
+        <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" />
         <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
         <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
-        <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
         <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
-        <PackageReference Include="Yitter.IdGenerator" />
-    </ItemGroup>
-
-    <ItemGroup>
-        <ProjectReference Include="..\HarborAdmin.BuildingBlocks.Abstractions\HarborAdmin.BuildingBlocks.Abstractions.csproj" />
+        <PackageReference Include="StackExchange.Redis" />
     </ItemGroup>
 </Project>
