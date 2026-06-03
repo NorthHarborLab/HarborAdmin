@@ -18,7 +18,7 @@ public static class ServiceCollectionExtensions
     /// 注册 Harbor FreeSql 多库基础设施。
     /// </summary>
     /// <param name="services">服务集合。</param>
-    /// <param name="configurationSection">数据库配置节（<c>DbConfig</c>）。</param>
+    /// <param name="configurationSection">数据库配置节（<c>Harbor:DbConfig</c>）。</param>
     /// <param name="configure">可选注册选项，例如追加实体扫描程序集。</param>
     public static IServiceCollection AddHarborFreeSql(this IServiceCollection services, IConfigurationSection configurationSection,
         Action<HarborFreeSqlOptions>? configure = null)
@@ -26,7 +26,7 @@ public static class ServiceCollectionExtensions
         var dbConfig = configurationSection.Get<DbConfig>() ?? new DbConfig();
         var databases = dbConfig.Databases;
         _ = databases.FirstOrDefault()
-            ?? throw new InvalidOperationException("DbConfig must contain at least one database.");
+            ?? throw new InvalidOperationException("Harbor:DbConfig must contain at least one database.");
         var options = new HarborFreeSqlOptions();
         configure?.Invoke(options);
         ValidateDatabases(databases);
@@ -46,7 +46,7 @@ public static class ServiceCollectionExtensions
 
             foreach (var db in databases)
             {
-                // 每个 DbConfig 条目注册为一个 FreeSqlCloud 实例，真正使用时通过 cloud.Use(dbKey) 取出。
+                // 每个 Harbor:DbConfig 条目注册为一个 FreeSqlCloud 实例，真正使用时通过 cloud.Use(dbKey) 取出。
                 DbRegistration.RegisterDb(cloud, db, currentUser, options.SnowflakeWorkerId, sp, options.CurdAfterHandlers);
             }
 
@@ -82,22 +82,22 @@ public static class ServiceCollectionExtensions
         {
             if (string.IsNullOrWhiteSpace(db.Key))
             {
-                throw new InvalidOperationException("DbConfig:Databases contains a database with empty Key.");
+                throw new InvalidOperationException("Harbor:DbConfig:Databases contains a database with empty Key.");
             }
 
             if (string.IsNullOrWhiteSpace(db.DataType))
             {
-                throw new InvalidOperationException($"DbConfig:Databases:{db.Key} must define DataType.");
+                throw new InvalidOperationException($"Harbor:DbConfig:Databases:{db.Key} must define DataType.");
             }
 
             if (string.IsNullOrWhiteSpace(db.ConnectionString))
             {
-                throw new InvalidOperationException($"DbConfig:Databases:{db.Key} must define ConnectionString.");
+                throw new InvalidOperationException($"Harbor:DbConfig:Databases:{db.Key} must define ConnectionString.");
             }
 
             if (!configuredKeys.Add(db.Key))
             {
-                throw new InvalidOperationException($"DbConfig:Databases contains duplicate database Key '{db.Key}'.");
+                throw new InvalidOperationException($"Harbor:DbConfig:Databases contains duplicate database Key '{db.Key}'.");
             }
         }
     }
@@ -198,7 +198,7 @@ public static class ServiceCollectionExtensions
         if (attribute is null || string.IsNullOrWhiteSpace(attribute.Key))
         {
             throw new InvalidOperationException(
-                $"Entity '{entityType.FullName}' must declare [DbKey(\"...\")] when DbConfig contains multiple databases.");
+                $"Entity '{entityType.FullName}' must declare [DbKey(\"...\")] when Harbor:DbConfig contains multiple databases.");
         }
 
         // 保留配置文件中的原始大小写，避免后续 cloud.Use(dbKey) 与注册 key 表示不一致。
@@ -209,7 +209,7 @@ public static class ServiceCollectionExtensions
         }
 
         throw new InvalidOperationException(
-            $"Entity '{entityType.FullName}' declares database key '{attribute.Key}', but DbConfig:Databases does not contain it.");
+            $"Entity '{entityType.FullName}' declares database key '{attribute.Key}', but Harbor:DbConfig:Databases does not contain it.");
     }
 
     /// <summary>

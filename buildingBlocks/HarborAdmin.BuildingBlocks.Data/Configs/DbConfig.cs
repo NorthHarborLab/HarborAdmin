@@ -6,9 +6,9 @@ namespace HarborAdmin.BuildingBlocks.Data.Configs;
 public sealed class DbConfig
 {
     /// <summary>
-    /// 配置节名称：<c>DbConfig</c>
+    /// 配置节名称：<c>Harbor:DbConfig</c>
     /// </summary>
-    public const string SectionName = "DbConfig";
+    public const string SectionName = "Harbor:DbConfig";
 
     /// <summary>
     /// 数据库配置列表。
