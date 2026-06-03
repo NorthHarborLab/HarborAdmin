@@ -20,12 +20,12 @@ public class ConfigItem : EntityBase
     public string Environment { get; set; } = string.Empty;
 
     /// <summary>
-    /// 配置显示分组;不参与最终 <c>IConfiguration</c> 扁平键生成。
+    /// 配置根路径；非空时会参与最终 <c>IConfiguration</c> 扁平键生成。
     /// </summary>
     public string Group { get; set; } = string.Empty;
 
     /// <summary>
-    /// 配置键名
+    /// 配置键名。
     /// </summary>
     public string Key { get; set; } = string.Empty;
 
@@ -51,7 +51,7 @@ public class ConfigItem : EntityBase
     public DateTimeOffset UpdatedAt { get; set; }
 
     /// <summary>
-    /// 扁平化配置键。分组仅用于管理端展示,真实键由 <see cref="Key"/> 完整表达。
+    /// 扁平化配置键。存在 <see cref="Group"/> 时生成 <c>Group:Key</c>，否则保留 <see cref="Key"/>。
     /// </summary>
-    public string ConfigKey => Key;
+    public string ConfigKey => string.IsNullOrWhiteSpace(Group) ? Key : $"{Group.Trim()}:{Key}";
 }

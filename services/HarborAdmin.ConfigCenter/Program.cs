@@ -1,4 +1,4 @@
-// HarborAdmin.ConfigCenter 服务入口：FreeSql 只读查询 + TCP JSON 监听（默认端口 9500）。
+// HarborAdmin.ConfigCenter 服务入口：FreeSql 只读查询 + TCP JSON 监听（默认端口 50000）。
 
 using HarborAdmin.BuildingBlocks.Data;
 using HarborAdmin.BuildingBlocks.Data.Configs;
@@ -24,7 +24,7 @@ host.Run();
 
 static void ResolveEnvironmentPlaceholders(ConfigurationManager configuration)
 {
-    foreach (var database in configuration.GetSection("DbConfig:Databases").GetChildren())
+    foreach (var database in configuration.GetSection($"{DbConfig.SectionName}:Databases").GetChildren())
     {
         ResolveValue(configuration, $"{database.Path}:ConnectionString");
         foreach (var slave in database.GetSection("SlaveList").GetChildren())
@@ -35,9 +35,7 @@ static void ResolveEnvironmentPlaceholders(ConfigurationManager configuration)
 }
 
 static ushort GetYitterWorkId(IConfiguration configuration) =>
-    configuration.GetValue<ushort?>("YitterWorkId")
-    ?? configuration.GetValue<ushort?>("Base:YitterWorkId")
-    ?? 1;
+    configuration.GetValue<ushort?>("Harbor:YitterWorkId") ?? 1;
 
 static void ResolveValue(ConfigurationManager configuration, string key)
 {

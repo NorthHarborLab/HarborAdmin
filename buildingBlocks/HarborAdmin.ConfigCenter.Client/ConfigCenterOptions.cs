@@ -16,9 +16,9 @@ public sealed class ConfigCenterOptions
     public string Host { get; set; } = "127.0.0.1";
 
     /// <summary>
-    /// ConfigCenter TCP 端口
+    /// ConfigCenter TCP 端口。
     /// </summary>
-    public int Port { get; set; } = 9500;
+    public int Port { get; set; } = 50000;
 
     /// <summary>
     /// 本应用在配置中心注册的应用标识

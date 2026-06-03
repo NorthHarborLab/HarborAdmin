@@ -23,8 +23,8 @@ public sealed record UpdateConfigApplicationRequest(string Name, string? Descrip
 /// <param name="Id">主键</param>
 /// <param name="AppId">应用标识</param>
 /// <param name="Environment">环境</param>
-/// <param name="Group">显示分组,不参与最终配置键生成</param>
-/// <param name="Key">完整配置键</param>
+/// <param name="Group">配置根路径，非空时参与最终配置键生成</param>
+/// <param name="Key">配置键名</param>
 /// <param name="Value">值</param>
 /// <param name="ValueType">值类型</param>
 /// <param name="Remark">备注</param>
@@ -41,8 +41,8 @@ public sealed record ConfigItemDto(
     DateTimeOffset UpdatedAt);
 
 /// <summary>创建配置项请求</summary>
-/// <param name="Group">显示分组,不参与最终配置键生成</param>
-/// <param name="Key">完整配置键</param>
+/// <param name="Group">配置根路径，非空时参与最终配置键生成</param>
+/// <param name="Key">配置键名</param>
 /// <param name="Value">值</param>
 /// <param name="ValueType">值类型</param>
 /// <param name="Remark">备注</param>
@@ -54,8 +54,8 @@ public sealed record CreateConfigItemRequest(
     string? Remark);
 
 /// <summary>更新配置项请求</summary>
-/// <param name="Group">显示分组,不参与最终配置键生成</param>
-/// <param name="Key">完整配置键</param>
+/// <param name="Group">配置根路径，非空时参与最终配置键生成</param>
+/// <param name="Key">配置键名</param>
 /// <param name="Value">值</param>
 /// <param name="ValueType">值类型</param>
 /// <param name="Remark">备注</param>
@@ -92,5 +92,5 @@ public sealed record PublishConfigResult(long ReleaseId, int Version);
 
 /// <summary>已发布配置快照,供 TCP 客户端拉取</summary>
 /// <param name="Version">版本号</param>
-/// <param name="Data">扁平化键值对；普通项直接使用完整 Key，options/json 项会从完整 Key 开始展开为 <c>Section:Property</c> 层级键。</param>
+/// <param name="Data">扁平化键值对；存在 Group 时从 <c>Group:Key</c> 展开，options/json 项会继续展开为 <c>Section:Property</c> 层级键。</param>
 public sealed record PublishedConfigSnapshot(int Version, IReadOnlyDictionary<string, string> Data);
