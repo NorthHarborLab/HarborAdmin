@@ -1,3 +1,5 @@
+using HarborAdmin.BuildingBlocks.Abstractions.Auth;
+
 namespace HarborAdmin.BuildingBlocks.Data.Auth;
 
 /// <summary>

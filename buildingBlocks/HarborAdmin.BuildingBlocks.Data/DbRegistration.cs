@@ -2,8 +2,8 @@ using System.Reflection;
 using FreeSql;
 using FreeSql.Aop;
 using FreeSql.DataAnnotations;
+using HarborAdmin.BuildingBlocks.Abstractions.Auth;
 using HarborAdmin.BuildingBlocks.Abstractions.Domain;
-using HarborAdmin.BuildingBlocks.Data.Auth;
 using HarborAdmin.BuildingBlocks.Data.Configs;
 using Yitter.IdGenerator;
 
@@ -19,7 +19,8 @@ public static class DbRegistration
     /// <summary>
     /// 向 <see cref="HarborFreeSqlCloud"/> 注册单个数据库
     /// </summary>
-    public static void RegisterDb(HarborFreeSqlCloud cloud, DbConnectionConfig dbConfig, ICurrentUser? currentUser, ushort snowflakeWorkerId)
+    public static void RegisterDb(HarborFreeSqlCloud cloud, DbConnectionConfig dbConfig, ICurrentUser? currentUser, ushort snowflakeWorkerId,
+        IServiceProvider serviceProvider, IReadOnlyList<Action<IServiceProvider, object>> curdAfterHandlers)
     {
         InitializeSnowflakeIdGenerator(snowflakeWorkerId);
 
@@ -58,11 +59,26 @@ public static class DbRegistration
                     e.Value = DateTimeOffset.UtcNow;
                 }
 
+                // 新增时记录创建人；如果业务层已经显式设置非默认值，则保留业务层输入。
+                if (e.AuditValueType is AuditValueType.Insert or AuditValueType.InsertOrUpdate &&
+                    e.Property.Name == nameof(IAuditable.CreatedBy) &&
+                    ShouldFillUserId(e.Value))
+                {
+                    e.Value = currentUser?.Id ?? 0;
+                }
+
                 // 更新和插入更新场景都刷新 UpdatedAt，确保写入路径上的修改时间一致。
                 if (e.AuditValueType is AuditValueType.Update or AuditValueType.InsertOrUpdate &&
                     e.Property.Name == nameof(IAuditable.UpdatedAt))
                 {
                     e.Value = DateTimeOffset.UtcNow;
+                }
+
+                // 更新时记录最后操作人；该字段表示最新写入上下文，因此不保留旧值。
+                if (e.AuditValueType is AuditValueType.Update or AuditValueType.InsertOrUpdate &&
+                    e.Property.Name == nameof(IAuditable.UpdatedBy))
+                {
+                    e.Value = currentUser?.Id ?? 0;
                 }
             };
             fsql.Aop.ConfigEntityProperty += (_, e) =>
@@ -90,6 +106,17 @@ public static class DbRegistration
                 e.ModifyResult.MapType = typeof(DateTime);
                 e.ModifyResult.DbType = "timestamp with time zone";
             };
+            if (curdAfterHandlers.Count > 0)
+            {
+                fsql.Aop.CurdAfter += (_, e) =>
+                {
+                    // Data 只发布 FreeSql 写入完成事件；缓存、事件总线等旁路能力由组合层接入。
+                    foreach (var handler in curdAfterHandlers)
+                    {
+                        handler(serviceProvider, e);
+                    }
+                };
+            }
 
             if (dbConfig.SyncStructure)
             {
@@ -155,7 +182,7 @@ public static class DbRegistration
         return e.Value switch
         {
             null => true,
-            long id => id == default,
+            long id => id == 0,
             _ => false
         };
     }
@@ -177,4 +204,15 @@ public static class DbRegistration
     /// </summary>
     private static bool HasIdentityColumn(PropertyInfo property) =>
         property.GetCustomAttribute<ColumnAttribute>(false) is { IsIdentity: true };
+
+    /// <summary>
+    /// 判断用户主键字段是否需要由审计 AOP 填充。
+    /// </summary>
+    private static bool ShouldFillUserId(object? value) =>
+        value switch
+        {
+            null => true,
+            long id => id == 0,
+            _ => false
+        };
 }

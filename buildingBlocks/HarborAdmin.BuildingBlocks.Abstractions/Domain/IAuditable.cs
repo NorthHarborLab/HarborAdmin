@@ -1,7 +1,7 @@
 namespace HarborAdmin.BuildingBlocks.Abstractions.Domain;
 
 /// <summary>
-/// 可审计实体（创建/更新时间，UTC）
+/// 可审计实体。
 /// </summary>
 public interface IAuditable
 {
@@ -14,4 +14,14 @@ public interface IAuditable
     /// 最后更新时间（UTC）
     /// </summary>
     DateTimeOffset? UpdatedAt { get; set; }
+
+    /// <summary>
+    /// 创建人用户主键；系统或未登录上下文为 0。
+    /// </summary>
+    long CreatedBy { get; set; }
+
+    /// <summary>
+    /// 最后更新人用户主键；系统或未登录上下文为 0。
+    /// </summary>
+    long UpdatedBy { get; set; }
 }

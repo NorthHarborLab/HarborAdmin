@@ -1,9 +1,11 @@
 using System.Reflection;
+using HarborAdmin.BuildingBlocks.Abstractions.Auth;
 using HarborAdmin.BuildingBlocks.Abstractions.Domain;
 using HarborAdmin.BuildingBlocks.Data.Auth;
 using HarborAdmin.BuildingBlocks.Data.Configs;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace HarborAdmin.BuildingBlocks.Data;
 
@@ -18,15 +20,16 @@ public static class ServiceCollectionExtensions
     /// <param name="services">服务集合。</param>
     /// <param name="configurationSection">数据库配置节（<c>DbConfig</c>）。</param>
     /// <param name="configure">可选注册选项，例如追加实体扫描程序集。</param>
-    public static IServiceCollection AddHarborFreeSql(this IServiceCollection services, IConfigurationSection configurationSection, Action<HarborFreeSqlOptions>? configure = null)
+    public static IServiceCollection AddHarborFreeSql(this IServiceCollection services, IConfigurationSection configurationSection,
+        Action<HarborFreeSqlOptions>? configure = null)
     {
         var dbConfig = configurationSection.Get<DbConfig>() ?? new DbConfig();
-        var databases = dbConfig.GetDatabases();
+        var databases = dbConfig.Databases;
         _ = databases.FirstOrDefault()
-                         ?? throw new InvalidOperationException("DbConfig must contain at least one database.");
+            ?? throw new InvalidOperationException("DbConfig must contain at least one database.");
         var options = new HarborFreeSqlOptions();
         configure?.Invoke(options);
-        ValidateDatabaseKeys(databases);
+        ValidateDatabases(databases);
         var databaseMap = databases.ToDictionary(db => db.Key, StringComparer.OrdinalIgnoreCase);
 
         // 扫描模块实体并建立“实体类型 -> 数据库 Key”映射，后续仓储和 UoW 都依赖这份注册表定位数据库。
@@ -34,7 +37,7 @@ public static class ServiceCollectionExtensions
         var entityRegistry = DbEntityRegistry.Create(entityMappings);
         var defaultDbKey = databases[0].Key;
 
-        services.AddSingleton<ICurrentUser, NullCurrentUser>();
+        services.TryAddSingleton<ICurrentUser, NullCurrentUser>();
         services.AddSingleton(entityRegistry);
         services.AddSingleton<HarborFreeSqlCloud>(sp =>
         {
@@ -44,7 +47,7 @@ public static class ServiceCollectionExtensions
             foreach (var db in databases)
             {
                 // 每个 DbConfig 条目注册为一个 FreeSqlCloud 实例，真正使用时通过 cloud.Use(dbKey) 取出。
-                DbRegistration.RegisterDb(cloud, db, currentUser, options.SnowflakeWorkerId);
+                DbRegistration.RegisterDb(cloud, db, currentUser, options.SnowflakeWorkerId, sp, options.CurdAfterHandlers);
             }
 
             foreach (var group in entityMappings.GroupBy(mapping => mapping.DbKey, StringComparer.OrdinalIgnoreCase))
@@ -70,9 +73,9 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>
-    /// 校验数据库配置中的 Key，避免空 key 或重复 key 导致 FreeSqlCloud 注册冲突。
+    /// 校验数据库配置，避免缺失字段或重复 key 导致 FreeSqlCloud 注册冲突。
     /// </summary>
-    private static void ValidateDatabaseKeys(IReadOnlyList<DbConnectionConfig> databases)
+    private static void ValidateDatabases(IReadOnlyList<DbConnectionConfig> databases)
     {
         var configuredKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var db in databases)
@@ -80,6 +83,16 @@ public static class ServiceCollectionExtensions
             if (string.IsNullOrWhiteSpace(db.Key))
             {
                 throw new InvalidOperationException("DbConfig:Databases contains a database with empty Key.");
+            }
+
+            if (string.IsNullOrWhiteSpace(db.DataType))
+            {
+                throw new InvalidOperationException($"DbConfig:Databases:{db.Key} must define DataType.");
+            }
+
+            if (string.IsNullOrWhiteSpace(db.ConnectionString))
+            {
+                throw new InvalidOperationException($"DbConfig:Databases:{db.Key} must define ConnectionString.");
             }
 
             if (!configuredKeys.Add(db.Key))

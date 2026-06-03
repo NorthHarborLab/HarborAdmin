@@ -8,6 +8,7 @@ namespace HarborAdmin.BuildingBlocks.Data;
 public sealed class HarborFreeSqlOptions
 {
     private readonly List<Assembly> _entityAssemblies = [];
+    private readonly List<Action<IServiceProvider, object>> _curdAfterHandlers = [];
 
     /// <summary>
     /// Yitter 雪花 ID 的 WorkerId；不同 Host 实例应配置不同值。
@@ -23,7 +24,21 @@ public sealed class HarborFreeSqlOptions
         return this;
     }
 
+    /// <summary>
+    /// 追加 FreeSql 写入完成后的旁路处理器。
+    /// </summary>
+    /// <remarks>
+    /// 处理器不应影响数据库写入结果；需要保证自身异常隔离。
+    /// </remarks>
+    public HarborFreeSqlOptions AddCurdAfterHandler(Action<IServiceProvider, object> handler)
+    {
+        _curdAfterHandlers.Add(handler);
+        return this;
+    }
+
     internal IReadOnlyList<Assembly> EntityAssemblies => _entityAssemblies;
+
+    internal IReadOnlyList<Action<IServiceProvider, object>> CurdAfterHandlers => _curdAfterHandlers;
 }
 
 /// <summary>

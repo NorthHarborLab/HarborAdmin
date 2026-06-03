@@ -10,4 +10,10 @@ public abstract class AuditableEntity : EntityBase, IAuditable
 
     /// <inheritdoc />
     public DateTimeOffset? UpdatedAt { get; set; }
+
+    /// <inheritdoc />
+    public long CreatedBy { get; set; }
+
+    /// <inheritdoc />
+    public long UpdatedBy { get; set; }
 }
