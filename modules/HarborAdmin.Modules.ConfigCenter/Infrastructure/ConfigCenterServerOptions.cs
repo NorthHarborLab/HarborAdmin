@@ -16,9 +16,9 @@ public sealed class ConfigCenterServerOptions
     public string Host { get; set; } = "0.0.0.0";
 
     /// <summary>
-    /// TCP 监听端口,默认 9500
+    /// TCP 监听端口,默认 50000。
     /// </summary>
-    public int Port { get; set; } = 9500;
+    public int Port { get; set; } = 50000;
 
     /// <summary>
     /// 数据库配置
