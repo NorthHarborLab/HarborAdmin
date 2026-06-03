@@ -6,8 +6,12 @@ namespace HarborAdmin.BuildingBlocks.EventBus;
 public interface IEventPublisher
 {
     /// <summary>
-    /// 发布集成事件（参与当前 CAP 事务时需先 <see cref="UnitOfWorkCapExtensions.BeginCapTran"/>）
+    /// 发布集成事件。
     /// </summary>
-    Task PublishAsync<T>(string name, T payload, CancellationToken cancellationToken = default)
-        where T : class;
+    Task PublishAsync<T>(string name, T payload, CancellationToken cancellationToken = default) where T : class;
+
+    /// <summary>
+    /// 发布强类型集成事件。
+    /// </summary>
+    Task PublishAsync<TEvent>(TEvent @event, CancellationToken cancellationToken = default) where TEvent : class, IIntegrationEvent;
 }
