@@ -1,6 +1,0 @@
-@HarborAdmin.Host_HostAddress = http://localhost:50001
-
-GET {{HarborAdmin.Host_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###

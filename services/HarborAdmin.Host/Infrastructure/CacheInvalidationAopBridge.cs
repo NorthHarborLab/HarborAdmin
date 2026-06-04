@@ -9,7 +9,17 @@ internal static class CacheInvalidationAopBridge
 {
     public static void Dispatch(IServiceProvider serviceProvider, object eventArgs)
     {
-        var invalidator = serviceProvider.GetService<IHarborEntityCacheInvalidator>();
+        IHarborEntityCacheInvalidator? invalidator;
+        try
+        {
+            invalidator = serviceProvider.GetService<IHarborEntityCacheInvalidator>();
+        }
+        catch
+        {
+            // 缓存失效是旁路能力，缓存基础设施不可用时不能影响数据库读写主链路。
+            return;
+        }
+
         if (invalidator is null)
         {
             return;

@@ -6,6 +6,9 @@ using HarborAdmin.BuildingBlocks.EventBus;
 using HarborAdmin.BuildingBlocks.Caching;
 using HarborAdmin.BuildingBlocks.Caching.Options;
 using HarborAdmin.BuildingBlocks.Mapping;
+using HarborAdmin.BuildingBlocks.Secrets.DependencyInjection;
+using HarborAdmin.BuildingBlocks.Secrets.Domain;
+using HarborAdmin.Client.AI;
 using HarborAdmin.Client.ConfigCenter;
 using HarborAdmin.Host.Infrastructure;
 using HarborAdmin.Modules.ConfigCenter;
@@ -14,6 +17,7 @@ using HarborAdmin.Modules.ConfigCenter.Infrastructure.Clients;
 using HarborAdmin.Modules.AI;
 using HarborAdmin.Modules.International;
 using HarborAdmin.Modules.International.Application.Services;
+using HarborAdmin.Modules.Secrets;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -45,8 +49,10 @@ builder.Services.AddHarborMapping(moduleAssemblies.ToArray());
 builder.Services.AddHarborFreeSql(builder.Configuration.GetSection(DbConfig.SectionName), options =>
 {
     options.SnowflakeWorkerId = GetYitterWorkId(builder.Configuration);
+    options.AddEntityAssembly(typeof(HarborSecret).Assembly);
     options.AddCurdAfterHandler(CacheInvalidationAopBridge.Dispatch);
 });
+builder.Services.AddHarborSecrets();
 builder.Services
     .AddHarborCap(builder.Configuration, cap =>
     {
@@ -56,9 +62,11 @@ builder.Services
 
 builder.Services.AddSingleton<IConfigCenterNotifyClient, TcpConfigCenterNotifyClient>();
 builder.Services.AddHarborConfigCenter(configCenterSource, configCenterSection);
+builder.Services.AddAiClient(builder.Configuration);
 builder.Services.AddAiModule(builder.Configuration);
 builder.Services.AddInternationalModule();
 builder.Services.AddConfigCenterModule(builder.Configuration);
+builder.Services.AddSecretsModule(builder.Configuration);
 
 var app = builder.Build();
 
