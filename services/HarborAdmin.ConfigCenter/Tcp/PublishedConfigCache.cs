@@ -8,10 +8,10 @@ namespace HarborAdmin.ConfigCenter.Tcp;
 /// 已发布配置快照的进程内内存缓存(ConfigCenter TCP 服务读路径使用)。
 /// </summary>
 /// <param name="memoryCache">内存缓存</param>
-/// <param name="configCenterService">用于缓存未命中时从数据库加载</param>
+/// <param name="snapshotService">用于缓存未命中时从数据库加载</param>
 public sealed class PublishedConfigCache(
     IMemoryCache memoryCache,
-    ConfigCenterService configCenterService)
+    ConfigCenterSnapshotService snapshotService)
 {
     private static string CacheKey(string appId) => $"config:{appId}";
 
@@ -25,7 +25,7 @@ public sealed class PublishedConfigCache(
     {
         if (version > 0)
         {
-            return await configCenterService.GetPublishedSnapshotAsync(appId, version, cancellationToken);
+            return await snapshotService.GetResolvedPublishedSnapshotAsync(appId, version, cancellationToken);
         }
 
         var key = CacheKey(appId);
@@ -34,7 +34,7 @@ public sealed class PublishedConfigCache(
             return cached;
         }
 
-        var snapshot = await configCenterService.GetPublishedSnapshotAsync(appId, 0, cancellationToken);
+        var snapshot = await snapshotService.GetResolvedPublishedSnapshotAsync(appId, 0, cancellationToken);
         if (snapshot is not null)
         {
             memoryCache.Set(key, snapshot);
@@ -54,11 +54,11 @@ public sealed class PublishedConfigCache(
         PublishedConfigSnapshot? snapshot;
         if (releaseId.HasValue)
         {
-            snapshot = await configCenterService.GetPublishedSnapshotByReleaseIdAsync(releaseId.Value, cancellationToken);
+            snapshot = await snapshotService.GetResolvedPublishedSnapshotByReleaseIdAsync(releaseId.Value, cancellationToken);
         }
         else
         {
-            snapshot = await configCenterService.GetPublishedSnapshotAsync(appId, 0, cancellationToken);
+            snapshot = await snapshotService.GetResolvedPublishedSnapshotAsync(appId, 0, cancellationToken);
         }
 
         if (snapshot is not null)

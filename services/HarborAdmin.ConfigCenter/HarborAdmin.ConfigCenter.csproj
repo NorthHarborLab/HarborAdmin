@@ -15,6 +15,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\..\buildingBlocks\HarborAdmin.BuildingBlocks.Data\HarborAdmin.BuildingBlocks.Data.csproj" />
+        <ProjectReference Include="..\..\buildingBlocks\HarborAdmin.BuildingBlocks.Secrets\HarborAdmin.BuildingBlocks.Secrets.csproj" />
         <ProjectReference Include="..\..\modules\HarborAdmin.Modules.ConfigCenter\HarborAdmin.Modules.ConfigCenter.csproj" />
     </ItemGroup>
 

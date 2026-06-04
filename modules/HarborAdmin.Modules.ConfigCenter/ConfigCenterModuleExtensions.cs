@@ -32,6 +32,7 @@ public static class ConfigCenterModuleExtensions
         services.AddSingleton<IConfigCenterRepository, FreeSqlConfigCenterRepository>();
         services.TryAddSingleton<IConfigCenterNotifyClient, NoOpConfigCenterNotifyClient>();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHarborFreeSqlPreSyncHook, ConfigCenterLegacyEnvironmentMigration>());
+        services.AddScoped<ConfigCenterSnapshotService>();
         services.AddScoped<ConfigCenterService>();
 
         return services;

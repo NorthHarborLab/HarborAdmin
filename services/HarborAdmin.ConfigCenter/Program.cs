@@ -2,6 +2,8 @@
 
 using HarborAdmin.BuildingBlocks.Data;
 using HarborAdmin.BuildingBlocks.Data.Configs;
+using HarborAdmin.BuildingBlocks.Secrets.DependencyInjection;
+using HarborAdmin.BuildingBlocks.Secrets.Domain;
 using HarborAdmin.ConfigCenter.Tcp;
 using HarborAdmin.Modules.ConfigCenter;
 using System.Text.RegularExpressions;
@@ -13,7 +15,9 @@ ResolveEnvironmentPlaceholders(builder.Configuration);
 builder.Services.AddHarborFreeSql(builder.Configuration.GetSection(DbConfig.SectionName), options =>
 {
     options.SnowflakeWorkerId = GetYitterWorkId(builder.Configuration);
+    options.AddEntityAssembly(typeof(HarborSecret).Assembly);
 });
+builder.Services.AddHarborSecrets();
 
 builder.Services.AddConfigCenterModule(builder.Configuration);
 builder.Services.AddMemoryCache();

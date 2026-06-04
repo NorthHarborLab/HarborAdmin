@@ -1,4 +1,7 @@
+using HarborAdmin.BuildingBlocks.Abstractions.Secrets;
 using HarborAdmin.BuildingBlocks.Data;
+using HarborAdmin.BuildingBlocks.Mapping;
+using HarborAdmin.BuildingBlocks.Secrets.References;
 using HarborAdmin.Modules.ConfigCenter.Contracts.Dtos;
 using HarborAdmin.Modules.ConfigCenter.Contracts.Requests;
 using HarborAdmin.Modules.ConfigCenter.Application.Abstractions;
@@ -16,16 +19,20 @@ public sealed class ConfigCenterService(
     IConfigCenterDbContext dbContext,
     DbEntityRegistry entityRegistry,
     UnitOfWorkManagerCloud unitOfWorkManager,
-    IConfigCenterNotifyClient notifyClient)
+    IConfigCenterNotifyClient notifyClient,
+    ISecretStore secretStore,
+    ConfigCenterSnapshotService snapshotService,
+    IHarborMapper mapper)
 {
     /// <summary>
     /// 列出所有应用
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>应用列表</returns>
-    public Task<IReadOnlyList<ConfigApplicationDto>> ListApplicationsAsync(CancellationToken cancellationToken = default) =>
-        repository.ListApplicationsAsync(cancellationToken)
-            .ContinueWith(t => (IReadOnlyList<ConfigApplicationDto>)t.Result.Select(ToDto).ToList(), cancellationToken);
+    public async Task<IReadOnlyList<ConfigApplicationDto>> ListApplicationsAsync(CancellationToken cancellationToken = default) =>
+        (await repository.ListApplicationsAsync(cancellationToken))
+        .Select(application => mapper.Map<ConfigApplicationDto>(application))
+        .ToList();
 
     /// <summary>
     /// 注册新应用
@@ -54,7 +61,7 @@ public sealed class ConfigCenterService(
         };
 
         var created = await repository.InsertApplicationAsync(entity, cancellationToken);
-        return ToDto(created);
+        return mapper.Map<ConfigApplicationDto>(created);
     }
 
     /// <summary>
@@ -68,7 +75,7 @@ public sealed class ConfigCenterService(
         entity.Name = request.Name.Trim();
         entity.Description = request.Description?.Trim();
         await repository.UpdateApplicationAsync(entity, cancellationToken);
-        return ToDto(entity);
+        return mapper.Map<ConfigApplicationDto>(entity);
     }
 
     /// <summary>
@@ -89,7 +96,7 @@ public sealed class ConfigCenterService(
     {
         await RequireApplicationAsync(appId, cancellationToken);
         var items = await repository.ListItemsAsync(appId.Trim(), cancellationToken);
-        return items.Select(ToDto).ToList();
+        return items.Select(item => mapper.Map<ConfigItemDto>(item)).ToList();
     }
 
     /// <summary>
@@ -101,21 +108,23 @@ public sealed class ConfigCenterService(
         CancellationToken cancellationToken = default)
     {
         await RequireApplicationAsync(appId, cancellationToken);
-        ValidateItemRequest(request.Key, request.Value, request.ValueType);
+        var valueType = NormalizeValueType(request.ValueType);
+        var value = await NormalizeItemValueAsync(request.Value, valueType, cancellationToken);
+        ValidateItemRequest(request.Key, value, valueType);
 
         var entity = new ConfigItem
         {
             AppId = appId.Trim(),
             Group = request.Group.Trim(),
             Key = request.Key.Trim(),
-            Value = request.Value,
-            ValueType = string.IsNullOrWhiteSpace(request.ValueType) ? "string" : request.ValueType.Trim(),
+            Value = value,
+            ValueType = valueType,
             Remark = request.Remark?.Trim(),
             UpdatedAt = UtcTimestamp()
         };
 
         var created = await repository.InsertItemAsync(entity, cancellationToken);
-        return ToDto(created);
+        return mapper.Map<ConfigItemDto>(created);
     }
 
     /// <summary>
@@ -126,16 +135,18 @@ public sealed class ConfigCenterService(
     {
         var entity = await repository.GetItemAsync(id, cancellationToken) ?? throw new KeyNotFoundException($"Config item {id} not found.");
 
-        ValidateItemRequest(request.Key, request.Value, request.ValueType);
+        var valueType = NormalizeValueType(request.ValueType);
+        var value = await NormalizeItemValueAsync(request.Value, valueType, cancellationToken);
+        ValidateItemRequest(request.Key, value, valueType);
         entity.Group = request.Group.Trim();
         entity.Key = request.Key.Trim();
-        entity.Value = request.Value;
-        entity.ValueType = string.IsNullOrWhiteSpace(request.ValueType) ? "string" : request.ValueType.Trim();
+        entity.Value = value;
+        entity.ValueType = valueType;
         entity.Remark = request.Remark?.Trim();
         entity.UpdatedAt = UtcTimestamp();
 
         await repository.UpdateItemAsync(entity, cancellationToken);
-        return ToDto(entity);
+        return mapper.Map<ConfigItemDto>(entity);
     }
 
     /// <summary>
@@ -157,7 +168,7 @@ public sealed class ConfigCenterService(
     {
         await RequireApplicationAsync(appId, cancellationToken);
         var releases = await repository.ListReleasesAsync(appId.Trim(), cancellationToken);
-        return releases.Select(ToDto).ToList();
+        return releases.Select(release => mapper.Map<ConfigReleaseDto>(release)).ToList();
     }
 
     /// <summary>
@@ -182,13 +193,17 @@ public sealed class ConfigCenterService(
             PublishedAt = UtcTimestamp()
         };
 
-        var releaseItems = draftItems.Select(item => new ConfigReleaseItem
+        var releaseItems = new List<ConfigReleaseItem>(draftItems.Count);
+        foreach (var item in draftItems)
         {
-            Group = item.Group,
-            Key = item.Key,
-            Value = item.Value,
-            ValueType = item.ValueType
-        }).ToList();
+            releaseItems.Add(new ConfigReleaseItem
+            {
+                Group = item.Group,
+                Key = item.Key,
+                Value = await PinSecretReferencesAsync(item.Value, item.ValueType, cancellationToken),
+                ValueType = item.ValueType
+            });
+        }
 
         ConfigRelease created;
         using var uow = unitOfWorkManager.Begin(entityRegistry.GetDbKey<ConfigRelease>());
@@ -212,44 +227,29 @@ public sealed class ConfigCenterService(
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>不存在时返回 null</returns>
     public async Task<PublishedConfigSnapshot?> GetPublishedSnapshotAsync(string appId, int version = 0,
-        CancellationToken cancellationToken = default)
-    {
-        var normalizedAppId = appId.Trim();
+        CancellationToken cancellationToken = default) =>
+        await snapshotService.GetPublishedSnapshotAsync(appId, version, cancellationToken);
 
-        ConfigRelease? release;
-        if (version > 0)
-        {
-            var releases = await repository.ListReleasesAsync(normalizedAppId, cancellationToken);
-            release = releases.FirstOrDefault(r => r.Version == version);
-        }
-        else
-        {
-            release = await repository.GetLatestReleaseAsync(normalizedAppId, cancellationToken);
-        }
-
-        if (release is null)
-        {
-            return null;
-        }
-
-        var items = await repository.ListReleaseItemsAsync(release.Id, cancellationToken);
-        var data = BuildSnapshotData(items);
-        return new PublishedConfigSnapshot(release.Version, data);
-    }
+    /// <summary>
+    /// 获取已发布配置快照并在内存中解析 Secret 引用，供 ConfigCenter TCP 下发使用。
+    /// </summary>
+    public async Task<PublishedConfigSnapshot?> GetResolvedPublishedSnapshotAsync(string appId, int version = 0,
+        CancellationToken cancellationToken = default) =>
+        await snapshotService.GetResolvedPublishedSnapshotAsync(appId, version, cancellationToken);
 
     /// <summary>
     /// 按发布主键获取配置快照
     /// </summary>
     /// <exception cref="KeyNotFoundException">发布记录不存在</exception>
-    public async Task<PublishedConfigSnapshot> GetPublishedSnapshotByReleaseIdAsync(long releaseId, CancellationToken cancellationToken = default)
-    {
-        var release = await repository.GetReleaseByIdAsync(releaseId, cancellationToken)
-                      ?? throw new KeyNotFoundException($"Release {releaseId} not found.");
+    public async Task<PublishedConfigSnapshot> GetPublishedSnapshotByReleaseIdAsync(long releaseId, CancellationToken cancellationToken = default) =>
+        await snapshotService.GetPublishedSnapshotByReleaseIdAsync(releaseId, cancellationToken);
 
-        var items = await repository.ListReleaseItemsAsync(release.Id, cancellationToken);
-        var data = BuildSnapshotData(items);
-        return new PublishedConfigSnapshot(release.Version, data);
-    }
+    /// <summary>
+    /// 按发布主键获取配置快照并在内存中解析 Secret 引用，供 ConfigCenter TCP 下发使用。
+    /// </summary>
+    public async Task<PublishedConfigSnapshot> GetResolvedPublishedSnapshotByReleaseIdAsync(long releaseId,
+        CancellationToken cancellationToken = default) =>
+        await snapshotService.GetResolvedPublishedSnapshotByReleaseIdAsync(releaseId, cancellationToken);
 
     /// <summary>
     /// 确保应用存在,否则抛出 <see cref="KeyNotFoundException"/>
@@ -291,90 +291,102 @@ public sealed class ConfigCenterService(
         }
     }
 
-    /// <summary>
-    /// 将发布项转换成 IConfiguration 可识别的扁平键值。object/options/model/json 会按 JSON 结构展开。
-    /// </summary>
-    private static IReadOnlyDictionary<string, string> BuildSnapshotData(IEnumerable<ConfigReleaseItem> items)
-    {
-        var data = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var item in items)
-        {
-            var configKey = item.ConfigKey;
-            if (IsStructuredValueType(item.ValueType))
-            {
-                AddStructuredValue(data, configKey, item.Value);
-                continue;
-            }
-
-            data[configKey] = item.Value;
-        }
-
-        return data;
-    }
-
     private static bool IsStructuredValueType(string valueType) =>
         valueType.Trim().ToLowerInvariant() is "json" or "object" or "options" or "model";
+
+    private static bool IsSecretValueType(string valueType) =>
+        valueType.Trim().Equals("secret", StringComparison.OrdinalIgnoreCase);
+
+    private static string NormalizeValueType(string valueType) =>
+        string.IsNullOrWhiteSpace(valueType) ? "string" : valueType.Trim().ToLowerInvariant();
+
+    private async Task<string> NormalizeItemValueAsync(string value, string valueType, CancellationToken cancellationToken)
+    {
+        if (value is null)
+        {
+            throw new ArgumentException("Value is required.");
+        }
+
+        if (IsSecretValueType(valueType))
+        {
+            return await NormalizeSecretMarkerAsync(value, cancellationToken);
+        }
+
+        await ValidateSecretReferencesAsync(value, cancellationToken);
+        return value;
+    }
+
+    private async Task<string> NormalizeSecretMarkerAsync(string value, CancellationToken cancellationToken)
+    {
+        var normalized = value.Trim();
+        if (SecretReferenceParser.TryParseSingle(normalized, out var reference))
+        {
+            await RequireSecretReferenceAsync(reference, cancellationToken);
+            return SecretReferenceParser.Format(reference.SecretRef, reference.Version);
+        }
+
+        if (!SecretReferenceParser.IsValidRef(normalized))
+        {
+            throw new ArgumentException("ValueType secret requires a SecretRef or ${secret:ref} marker.");
+        }
+
+        var descriptor = await secretStore.GetAsync(normalized, cancellationToken);
+        if (descriptor is not { Enabled: true })
+        {
+            throw new ArgumentException($"SecretRef '{normalized}' does not exist or is disabled.");
+        }
+
+        return SecretReferenceParser.Format(descriptor.SecretRef);
+    }
+
+    private async Task ValidateSecretReferencesAsync(string value, CancellationToken cancellationToken)
+    {
+        foreach (var reference in SecretReferenceParser.Find(value))
+        {
+            await RequireSecretReferenceAsync(reference, cancellationToken);
+        }
+    }
+
+    private async Task RequireSecretReferenceAsync(SecretReferenceToken reference, CancellationToken cancellationToken)
+    {
+        var descriptor = await secretStore.GetAsync(reference.SecretRef, cancellationToken);
+        if (descriptor is not { Enabled: true })
+        {
+            throw new ArgumentException($"SecretRef '{reference.SecretRef}' does not exist or is disabled.");
+        }
+
+        if (reference.Version is { } version &&
+            await secretStore.GetVersionAsync(reference.SecretRef, version, cancellationToken) is null)
+        {
+            throw new ArgumentException($"SecretRef '{reference.SecretRef}' version {version} does not exist.");
+        }
+    }
+
+    private async Task<string> PinSecretReferencesAsync(string value, string valueType, CancellationToken cancellationToken)
+    {
+        var normalized = IsSecretValueType(valueType) && !SecretReferenceParser.TryParseSingle(value.Trim(), out _)
+            ? await NormalizeSecretMarkerAsync(value, cancellationToken)
+            : value;
+        if (!SecretReferenceParser.Contains(normalized))
+        {
+            return normalized;
+        }
+
+        return await SecretReferenceParser.ReplaceAsync(normalized, async (reference, token) =>
+        {
+            await RequireSecretReferenceAsync(reference, token);
+            if (reference.Version is { } version)
+            {
+                return SecretReferenceParser.Format(reference.SecretRef, version);
+            }
+
+            var descriptor = await secretStore.GetAsync(reference.SecretRef, token)
+                             ?? throw new ArgumentException($"SecretRef '{reference.SecretRef}' does not exist.");
+            return SecretReferenceParser.Format(reference.SecretRef, descriptor.Version);
+        }, cancellationToken);
+    }
 
     private static DateTimeOffset UtcTimestamp() =>
         DateTimeOffset.UtcNow;
 
-    private static void AddStructuredValue(IDictionary<string, string> data, string baseKey, string value)
-    {
-        using var document = JsonDocument.Parse(value);
-        AddJsonElement(data, baseKey, document.RootElement);
-    }
-
-    private static void AddJsonElement(IDictionary<string, string> data, string key, JsonElement element)
-    {
-        switch (element.ValueKind)
-        {
-            case JsonValueKind.Object:
-                foreach (var property in element.EnumerateObject())
-                {
-                    AddJsonElement(data, $"{key}:{property.Name}", property.Value);
-                }
-
-                break;
-            case JsonValueKind.Array:
-                var index = 0;
-                foreach (var item in element.EnumerateArray())
-                {
-                    AddJsonElement(data, $"{key}:{index}", item);
-                    index++;
-                }
-
-                break;
-            case JsonValueKind.String:
-                data[key] = element.GetString() ?? string.Empty;
-                break;
-            case JsonValueKind.Number:
-            case JsonValueKind.True:
-            case JsonValueKind.False:
-                data[key] = element.GetRawText();
-                break;
-            case JsonValueKind.Null:
-            case JsonValueKind.Undefined:
-                data[key] = string.Empty;
-                break;
-        }
-    }
-
-    /// <summary>
-    /// 领域实体转应用 DTO
-    /// </summary>
-    private static ConfigApplicationDto ToDto(ConfigApplication entity) =>
-        new(entity.Id, entity.AppId, entity.Name, entity.Description, entity.CreatedAt);
-
-    /// <summary>
-    /// 领域实体转配置项 DTO
-    /// </summary>
-    private static ConfigItemDto ToDto(ConfigItem entity) =>
-        new(entity.Id, entity.AppId, entity.Group, entity.Key, entity.Value, entity.ValueType,
-            entity.Remark, entity.UpdatedAt);
-
-    /// <summary>
-    /// 领域实体转发布记录 DTO
-    /// </summary>
-    private static ConfigReleaseDto ToDto(ConfigRelease entity) =>
-        new(entity.Id, entity.AppId, entity.Version, entity.PublishedBy, entity.PublishedAt);
 }

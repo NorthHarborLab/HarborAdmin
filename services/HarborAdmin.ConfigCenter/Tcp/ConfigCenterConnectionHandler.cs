@@ -1,6 +1,7 @@
 using System.Net.Sockets;
 using HarborAdmin.Client.ConfigCenter.Protocol;
 using HarborAdmin.Modules.ConfigCenter.Application.Abstractions;
+using HarborAdmin.Modules.ConfigCenter.Contracts.Dtos;
 
 namespace HarborAdmin.ConfigCenter.Tcp;
 
@@ -139,7 +140,18 @@ public sealed class ConfigCenterConnectionHandler(
             return;
         }
 
-        var snapshot = await cache.GetOrLoadAsync(_appId, message.Version, cancellationToken);
+        PublishedConfigSnapshot? snapshot;
+        try
+        {
+            snapshot = await cache.GetOrLoadAsync(_appId, message.Version, cancellationToken);
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger.LogWarning(ex, "ConfigCenter secret resolution failed for app {AppId}.", _appId);
+            await SendErrorAsync(message.RequestId, "secret_resolution_failed", "Secret reference cannot be resolved.", cancellationToken);
+            return;
+        }
+
         await SendAsync(new ConfigMessage
         {
             Type = ConfigMessageTypes.GetConfigResult,
@@ -177,8 +189,18 @@ public sealed class ConfigCenterConnectionHandler(
         }
 
         var appId = message.AppId.Trim();
-        await cache.RefreshAsync(appId, message.ReleaseId > 0 ? message.ReleaseId : null, cancellationToken);
-        var snapshot = await cache.GetOrLoadAsync(appId, cancellationToken: cancellationToken);
+        PublishedConfigSnapshot? snapshot;
+        try
+        {
+            await cache.RefreshAsync(appId, message.ReleaseId > 0 ? message.ReleaseId : null, cancellationToken);
+            snapshot = await cache.GetOrLoadAsync(appId, cancellationToken: cancellationToken);
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger.LogWarning(ex, "ConfigCenter secret resolution failed for publish notify {AppId}.", appId);
+            await SendErrorAsync(message.RequestId, "secret_resolution_failed", "Secret reference cannot be resolved.", cancellationToken);
+            return;
+        }
         var version = snapshot?.Version ?? 0;
 
         await SendAsync(new ConfigMessage
