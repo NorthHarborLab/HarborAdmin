@@ -1,5 +1,4 @@
 using Mapster;
-using HarborAdmin.BuildingBlocks.Abstractions.Secrets;
 using HarborAdmin.Modules.AI.Contracts.Dtos;
 using HarborAdmin.Modules.AI.Domain.Entities;
 
@@ -22,8 +21,6 @@ public sealed class AiMappingRegister : IRegister
         config.NewConfig<AiBusiness, AiBusinessDto>()
             .Map(destination => destination.Routes,
                 source => source.Routes.OrderBy(route => route.Priority));
-
-        config.NewConfig<SecretDescriptor, AiSecretDto>();
 
         config.NewConfig<AiQuotaBucket, AiUsageLedgerDto>()
             .Map(destination => destination.RequestCount,

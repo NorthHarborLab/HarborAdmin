@@ -56,6 +56,22 @@ public sealed partial class AiManagementService
     public Task DeleteProviderAsync(long id, CancellationToken cancellationToken = default) =>
         repository.DeleteProviderAsync(id, cancellationToken);
 
+    private async Task<int> ResolveSecretVersionAsync(string? secretRef, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(secretRef))
+        {
+            return 0;
+        }
+
+        var descriptor = await secretStore.GetAsync(secretRef, cancellationToken);
+        if (descriptor is not { Enabled: true })
+        {
+            throw new ArgumentException($"SecretRef '{secretRef}' does not exist or is disabled.");
+        }
+
+        return descriptor.Version;
+    }
+
     private static IReadOnlyList<AiProviderModel> NormalizeProviderModels(SaveAiProviderRequest request, AiProvider provider, DateTimeOffset now)
     {
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
