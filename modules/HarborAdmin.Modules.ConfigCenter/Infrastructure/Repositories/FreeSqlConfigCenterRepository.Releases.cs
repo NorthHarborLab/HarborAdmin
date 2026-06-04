@@ -8,17 +8,17 @@ namespace HarborAdmin.Modules.ConfigCenter.Infrastructure.Repositories;
 public sealed partial class FreeSqlConfigCenterRepository
 {
     /// <inheritdoc />
-    public Task<IReadOnlyList<ConfigRelease>> ListReleasesAsync(string appId, string environment, CancellationToken cancellationToken = default) =>
+    public Task<IReadOnlyList<ConfigRelease>> ListReleasesAsync(string appId, CancellationToken cancellationToken = default) =>
         FreeSql.Select<ConfigRelease>()
-            .Where(r => r.AppId == appId && r.Environment == environment)
+            .Where(r => r.AppId == appId)
             .OrderByDescending(r => r.Version)
             .ToListAsync(cancellationToken)
             .ContinueWith(t => (IReadOnlyList<ConfigRelease>)t.Result, cancellationToken);
 
     /// <inheritdoc />
-    public async Task<ConfigRelease?> GetLatestReleaseAsync(string appId, string environment, CancellationToken cancellationToken = default) =>
+    public async Task<ConfigRelease?> GetLatestReleaseAsync(string appId, CancellationToken cancellationToken = default) =>
         await FreeSql.Select<ConfigRelease>()
-            .Where(r => r.AppId == appId && r.Environment == environment)
+            .Where(r => r.AppId == appId)
             .OrderByDescending(r => r.Version)
             .FirstAsync(cancellationToken);
 
@@ -46,7 +46,7 @@ public sealed partial class FreeSqlConfigCenterRepository
         if (release.Id == 0)
         {
             release.Id = await FreeSql.Select<ConfigRelease>()
-                .Where(r => r.AppId == release.AppId && r.Environment == release.Environment && r.Version == release.Version)
+                .Where(r => r.AppId == release.AppId && r.Version == release.Version)
                 .FirstAsync(r => r.Id, cancellationToken);
         }
 

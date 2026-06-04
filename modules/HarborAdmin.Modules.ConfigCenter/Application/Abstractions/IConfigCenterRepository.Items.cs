@@ -8,9 +8,9 @@ namespace HarborAdmin.Modules.ConfigCenter.Application.Abstractions;
 public partial interface IConfigCenterRepository
 {
     /// <summary>
-    /// 列出指定应用与环境下的草稿配置项。
+    /// 列出指定应用下的草稿配置项。
     /// </summary>
-    Task<IReadOnlyList<ConfigItem>> ListItemsAsync(string appId, string environment, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ConfigItem>> ListItemsAsync(string appId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 按主键查询草稿配置项。

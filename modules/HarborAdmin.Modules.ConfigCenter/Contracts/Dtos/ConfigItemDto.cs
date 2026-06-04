@@ -6,7 +6,6 @@ namespace HarborAdmin.Modules.ConfigCenter.Contracts.Dtos;
 public sealed record ConfigItemDto(
     long Id,
     string AppId,
-    string Environment,
     string Group,
     string Key,
     string Value,

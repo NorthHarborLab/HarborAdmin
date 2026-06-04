@@ -10,6 +10,11 @@ namespace HarborAdmin.Client.ConfigCenter.Protocol;
 public sealed class ConfigMessage
 {
     /// <summary>
+    /// 当前协议版本。
+    /// </summary>
+    public const int CurrentProtocolVersion = 2;
+
+    /// <summary>
     /// JSON 中消息类型字段名
     /// </summary>
     public const string TypePropertyName = "type";
@@ -21,16 +26,22 @@ public sealed class ConfigMessage
     public string Type { get; set; } = string.Empty;
 
     /// <summary>
-    /// 应用标识
+    /// 请求 ID,用于日志追踪与请求响应关联。
+    /// </summary>
+    [JsonPropertyName("requestId")]
+    public string? RequestId { get; set; }
+
+    /// <summary>
+    /// 协议版本。
+    /// </summary>
+    [JsonPropertyName("protocolVersion")]
+    public int ProtocolVersion { get; set; } = CurrentProtocolVersion;
+
+    /// <summary>
+    /// 应用标识。
     /// </summary>
     [JsonPropertyName("appId")]
     public string? AppId { get; set; }
-
-    /// <summary>
-    /// 环境名称
-    /// </summary>
-    [JsonPropertyName("environment")]
-    public string? Environment { get; set; }
 
     /// <summary>
     /// 客户端实例 ID(握手时使用)
@@ -51,7 +62,7 @@ public sealed class ConfigMessage
     public long ReleaseId { get; set; }
 
     /// <summary>
-    /// 扁平化配置键值对(<c>getConfigResponse</c> 使用)
+    /// 扁平化配置键值对(<c>getConfigResult</c> 使用)
     /// </summary>
     [JsonPropertyName("data")]
     public Dictionary<string, string>? Data { get; set; }
@@ -87,14 +98,13 @@ public sealed class ConfigMessage
     /// 构造握手请求
     /// </summary>
     /// <param name="appId">应用标识</param>
-    /// <param name="environment">环境名称</param>
     /// <param name="clientId">客户端 ID</param>
-    public static ConfigMessage HandshakeRequest(string appId, string environment, string clientId) =>
+    public static ConfigMessage HelloRequest(string appId, string clientId) =>
         new()
         {
-            Type = ConfigMessageTypes.Handshake,
+            Type = ConfigMessageTypes.Hello,
+            RequestId = NewRequestId(),
             AppId = appId,
-            Environment = environment,
             ClientId = clientId
         };
 
@@ -103,26 +113,25 @@ public sealed class ConfigMessage
     /// </summary>
     /// <param name="version">版本号,0 为最新</param>
     public static ConfigMessage GetConfigRequest(int version = 0) =>
-        new() { Type = ConfigMessageTypes.GetConfig, Version = version };
+        new() { Type = ConfigMessageTypes.GetConfig, RequestId = NewRequestId(), Version = version };
 
     /// <summary>
     /// 构造订阅请求
     /// </summary>
     public static ConfigMessage SubscribeRequest() =>
-        new() { Type = ConfigMessageTypes.Subscribe };
+        new() { Type = ConfigMessageTypes.Subscribe, RequestId = NewRequestId() };
 
     /// <summary>
     /// 构造发布通知(Host 短连接使用)
     /// </summary>
     /// <param name="appId">应用标识</param>
-    /// <param name="environment">环境名称</param>
     /// <param name="releaseId">发布主键</param>
-    public static ConfigMessage PublishNotifyRequest(string appId, string environment, long releaseId) =>
+    public static ConfigMessage PublishNotifyRequest(string appId, long releaseId) =>
         new()
         {
             Type = ConfigMessageTypes.PublishNotify,
+            RequestId = NewRequestId(),
             AppId = appId,
-            Environment = environment,
             ReleaseId = releaseId
         };
 
@@ -130,7 +139,7 @@ public sealed class ConfigMessage
     /// 构造心跳请求
     /// </summary>
     public static ConfigMessage PingRequest() => 
-        new() { Type = ConfigMessageTypes.Ping };
+        new() { Type = ConfigMessageTypes.Ping, RequestId = NewRequestId() };
 
     /// <summary>
     /// 将消息编码为完整 TCP 帧(4 字节大端长度 + UTF-8 JSON)
@@ -152,4 +161,6 @@ public sealed class ConfigMessage
     /// <returns>消息对象;payload 为空时返回 <see langword="null"/></returns>
     public static ConfigMessage? FromPayload(ReadOnlySpan<byte> payload) => 
         payload.Length == 0 ? null : JsonSerializer.Deserialize<ConfigMessage>(payload, JsonOptions);
+
+    private static string NewRequestId() => Guid.NewGuid().ToString("N");
 }

@@ -2,8 +2,10 @@ using HarborAdmin.Modules.ConfigCenter.Application.Abstractions;
 using HarborAdmin.Modules.ConfigCenter.Application.Services;
 using HarborAdmin.Modules.ConfigCenter.Infrastructure.Clients;
 using HarborAdmin.Modules.ConfigCenter.Infrastructure.Contexts;
+using HarborAdmin.Modules.ConfigCenter.Infrastructure.Migrations;
 using HarborAdmin.Modules.ConfigCenter.Infrastructure.Options;
 using HarborAdmin.Modules.ConfigCenter.Infrastructure.Repositories;
+using HarborAdmin.BuildingBlocks.Data;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -29,6 +31,7 @@ public static class ConfigCenterModuleExtensions
         services.AddSingleton<IConfigCenterDbContext, ConfigCenterDbContext>();
         services.AddSingleton<IConfigCenterRepository, FreeSqlConfigCenterRepository>();
         services.TryAddSingleton<IConfigCenterNotifyClient, NoOpConfigCenterNotifyClient>();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHarborFreeSqlPreSyncHook, ConfigCenterLegacyEnvironmentMigration>());
         services.AddScoped<ConfigCenterService>();
 
         return services;

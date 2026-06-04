@@ -7,17 +7,13 @@ namespace HarborAdmin.Modules.ConfigCenter.Domain.Entities;
 /// 草稿配置项;发布前仅在此表维护,发布后快照写入 <see cref="ConfigReleaseItem"/>.
 /// </summary>
 [DbKey("ConfigCenterDb")]
+[Index("ux_config_item_app_group_key", "AppId,Group,Key", true)]
 public class ConfigItem : EntityBase
 {
     /// <summary>
     /// 所属应用标识
     /// </summary>
     public string AppId { get; set; } = string.Empty;
-
-    /// <summary>
-    /// 环境名称,例如 <c>Development</c>,<c>Production</c>
-    /// </summary>
-    public string Environment { get; set; } = string.Empty;
 
     /// <summary>
     /// 配置根路径；非空时会参与最终 <c>IConfiguration</c> 扁平键生成。

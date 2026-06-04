@@ -23,6 +23,11 @@ public sealed class ConfigTcpClient : IAsyncDisposable
     private readonly ConfigFrameReader _frameReader = new();
 
     /// <summary>
+    /// 发送锁,避免心跳与业务请求同时写入导致帧交叉。
+    /// </summary>
+    private readonly SemaphoreSlim _sendLock = new(1, 1);
+
+    /// <summary>
     /// 是否已连接
     /// </summary>
     public bool IsConnected => _tcpClient?.Connected == true;
@@ -54,9 +59,17 @@ public sealed class ConfigTcpClient : IAsyncDisposable
             throw new InvalidOperationException("Not connected.");
         }
 
-        var frame = message.ToFrameBytes();
-        await _stream.WriteAsync(frame, cancellationToken);
-        await _stream.FlushAsync(cancellationToken);
+        await _sendLock.WaitAsync(cancellationToken);
+        try
+        {
+            var frame = message.ToFrameBytes();
+            await _stream.WriteAsync(frame, cancellationToken);
+            await _stream.FlushAsync(cancellationToken);
+        }
+        finally
+        {
+            _sendLock.Release();
+        }
     }
 
     /// <summary>

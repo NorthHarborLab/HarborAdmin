@@ -6,7 +6,6 @@ namespace HarborAdmin.Modules.ConfigCenter.Contracts.Dtos;
 public sealed record ConfigReleaseDto(
     long Id,
     string AppId,
-    string Environment,
     int Version,
     string? PublishedBy,
     DateTimeOffset PublishedAt);

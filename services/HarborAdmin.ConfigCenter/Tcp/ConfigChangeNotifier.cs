@@ -12,14 +12,13 @@ public sealed class ConfigChangeNotifier(
     /// </summary>
     public async Task NotifyPublishedAsync(
         string appId,
-        string environment,
         long releaseId,
         int fallbackVersion,
         CancellationToken cancellationToken = default)
     {
-        await cache.RefreshAsync(appId, environment, releaseId > 0 ? releaseId : null, cancellationToken);
-        var snapshot = await cache.GetOrLoadAsync(appId, environment, cancellationToken: cancellationToken);
+        await cache.RefreshAsync(appId, releaseId > 0 ? releaseId : null, cancellationToken);
+        var snapshot = await cache.GetOrLoadAsync(appId, cancellationToken: cancellationToken);
         var version = snapshot?.Version ?? fallbackVersion;
-        await subscriptionHub.BroadcastConfigChangedAsync(appId, environment, version, cancellationToken);
+        await subscriptionHub.BroadcastConfigChangedAsync(appId, version, cancellationToken);
     }
 }

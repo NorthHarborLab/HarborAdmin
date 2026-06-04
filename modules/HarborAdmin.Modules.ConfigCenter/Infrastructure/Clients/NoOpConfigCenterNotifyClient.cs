@@ -8,6 +8,6 @@ namespace HarborAdmin.Modules.ConfigCenter.Infrastructure.Clients;
 public sealed class NoOpConfigCenterNotifyClient : IConfigCenterNotifyClient
 {
     /// <inheritdoc />
-    public Task NotifyPublishedAsync(string appId, string environment, long releaseId, CancellationToken cancellationToken = default) =>
+    public Task NotifyPublishedAsync(string appId, long releaseId, CancellationToken cancellationToken = default) =>
         Task.CompletedTask;
 }

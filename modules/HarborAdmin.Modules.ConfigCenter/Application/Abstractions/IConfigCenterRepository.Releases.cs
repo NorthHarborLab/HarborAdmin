@@ -8,14 +8,14 @@ namespace HarborAdmin.Modules.ConfigCenter.Application.Abstractions;
 public partial interface IConfigCenterRepository
 {
     /// <summary>
-    /// 列出指定应用与环境下的发布历史。
+    /// 列出指定应用下的发布历史。
     /// </summary>
-    Task<IReadOnlyList<ConfigRelease>> ListReleasesAsync(string appId, string environment, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ConfigRelease>> ListReleasesAsync(string appId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 获取最新一次发布记录。
     /// </summary>
-    Task<ConfigRelease?> GetLatestReleaseAsync(string appId, string environment, CancellationToken cancellationToken = default);
+    Task<ConfigRelease?> GetLatestReleaseAsync(string appId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 按发布主键查询发布记录。

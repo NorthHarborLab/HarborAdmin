@@ -26,9 +26,9 @@ public sealed class ConfigCenterOptions
     public string AppId { get; set; } = string.Empty;
 
     /// <summary>
-    /// 环境名称，例如 <c>Development</c>
+    /// 配置中心不可用时是否阻断应用启动。
     /// </summary>
-    public string Environment { get; set; } = "Development";
+    public bool Required { get; set; } = true;
 
     /// <summary>
     /// 可选客户端 ID；未设置时自动生成
@@ -36,7 +36,22 @@ public sealed class ConfigCenterOptions
     public string? ClientId { get; set; }
 
     /// <summary>
-    /// 断线后重连间隔（秒）
+    /// 启动期首次拉取远程配置的超时时间（秒）。
     /// </summary>
-    public int ReconnectDelaySeconds { get; set; } = 5;
+    public int InitialLoadTimeoutSeconds { get; set; } = 10;
+
+    /// <summary>
+    /// 断线后首次重连间隔（秒）。
+    /// </summary>
+    public int ReconnectInitialDelaySeconds { get; set; } = 1;
+
+    /// <summary>
+    /// 断线后最大重连间隔（秒）。
+    /// </summary>
+    public int ReconnectMaxDelaySeconds { get; set; } = 30;
+
+    /// <summary>
+    /// 心跳间隔（秒）。
+    /// </summary>
+    public int HeartbeatSeconds { get; set; } = 30;
 }

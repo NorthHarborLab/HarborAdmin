@@ -6,9 +6,9 @@ namespace HarborAdmin.Client.ConfigCenter.Protocol;
 public static class ConfigMessageTypes
 {
     /// <summary>
-    /// 客户端 → 服务端:握手,声明 appId、environment
+    /// 客户端 → 服务端:声明 appId 与 clientId。
     /// </summary>
-    public const string Handshake = "handshake";
+    public const string Hello = "hello";
 
     /// <summary>
     /// 客户端 → 服务端:拉取配置
@@ -18,7 +18,7 @@ public static class ConfigMessageTypes
     /// <summary>
     /// 服务端 → 客户端:配置拉取响应
     /// </summary>
-    public const string GetConfigResponse = "getConfigResponse";
+    public const string GetConfigResult = "getConfigResult";
 
     /// <summary>
     /// 客户端 → 服务端:订阅配置变更推送

@@ -58,6 +58,11 @@ public static class ServiceCollectionExtensions
                 {
                     // 只对可写库执行 CodeFirst 同步，避免只读库或从库被结构变更污染。
                     var fsql = cloud.Use(db.Key);
+                    foreach (var hook in sp.GetServices<IHarborFreeSqlPreSyncHook>())
+                    {
+                        hook.BeforeSyncStructure(fsql, db.Key, entityTypes);
+                    }
+
                     DbRegistration.SyncStructure(fsql, entityTypes);
                 }
             }

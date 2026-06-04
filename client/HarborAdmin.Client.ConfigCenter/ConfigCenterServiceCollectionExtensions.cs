@@ -39,8 +39,18 @@ public static class ConfigCenterServiceCollectionExtensions
         var source = new ConfigCenterConfigurationSource(options);
         builder.Add(source);
 
-        var data = await LoadRemoteConfigurationAsync(options, cancellationToken);
-        source.Provider.SetData(data);
+        try
+        {
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(TimeSpan.FromSeconds(Math.Max(1, options.InitialLoadTimeoutSeconds)));
+            var response = await LoadRemoteConfigurationAsync(options, timeoutCts.Token);
+            source.Provider.SetData(response.Data ?? new Dictionary<string, string>(), response.Version);
+        }
+        catch when (!options.Required)
+        {
+            // Host 等管理进程可选择不因 ConfigCenter 暂不可用而阻断启动,后台服务会继续重连。
+        }
+
         return source;
     }
 
@@ -55,6 +65,8 @@ public static class ConfigCenterServiceCollectionExtensions
     {
         services.AddOptions<ConfigCenterOptions>().Configure(options => section.Bind(options));
         services.AddSingleton(source);
+        services.AddSingleton<ConfigCenterClientState>();
+        services.AddSingleton<IConfigCenterClientState>(sp => sp.GetRequiredService<ConfigCenterClientState>());
         services.AddHostedService<ConfigCenterConnectionHostedService>();
         return services;
     }
@@ -64,8 +76,8 @@ public static class ConfigCenterServiceCollectionExtensions
     /// </summary>
     /// <param name="options">配置中心客户端选项</param>
     /// <param name="cancellationToken">取消令牌</param>
-    /// <returns>远程配置键值集合</returns>
-    private static async Task<IReadOnlyDictionary<string, string>> LoadRemoteConfigurationAsync(
+    /// <returns>远程配置响应</returns>
+    private static async Task<ConfigMessage> LoadRemoteConfigurationAsync(
         ConfigCenterOptions options,
         CancellationToken cancellationToken)
     {
@@ -79,14 +91,13 @@ public static class ConfigCenterServiceCollectionExtensions
 
         var clientId = options.ClientId ?? $"{options.AppId}-{Environment.MachineName}-{Guid.NewGuid():N}";
         await client.SendAsync(
-            ConfigMessage.HandshakeRequest(options.AppId, options.Environment, clientId),
+            ConfigMessage.HelloRequest(options.AppId, clientId),
             cancellationToken);
 
-        _ = await ReadExpectedAsync(client, ConfigMessageTypes.Handshake, cancellationToken);
+        _ = await ReadExpectedAsync(client, ConfigMessageTypes.Hello, cancellationToken);
 
         await client.SendAsync(ConfigMessage.GetConfigRequest(), cancellationToken);
-        var response = await ReadExpectedAsync(client, ConfigMessageTypes.GetConfigResponse, cancellationToken);
-        return response.Data ?? new Dictionary<string, string>();
+        return await ReadExpectedAsync(client, ConfigMessageTypes.GetConfigResult, cancellationToken);
     }
 
     /// <summary>

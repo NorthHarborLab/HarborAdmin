@@ -85,10 +85,10 @@ public sealed class ConfigCenterService(
     /// 列出草稿配置项
     /// </summary>
     /// <exception cref="KeyNotFoundException">应用不存在</exception>
-    public async Task<IReadOnlyList<ConfigItemDto>> ListItemsAsync(string appId, string environment, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<ConfigItemDto>> ListItemsAsync(string appId, CancellationToken cancellationToken = default)
     {
         await RequireApplicationAsync(appId, cancellationToken);
-        var items = await repository.ListItemsAsync(appId.Trim(), environment.Trim(), cancellationToken);
+        var items = await repository.ListItemsAsync(appId.Trim(), cancellationToken);
         return items.Select(ToDto).ToList();
     }
 
@@ -97,7 +97,7 @@ public sealed class ConfigCenterService(
     /// </summary>
     /// <exception cref="KeyNotFoundException">应用不存在</exception>
     /// <exception cref="ArgumentException">键或值无效</exception>
-    public async Task<ConfigItemDto> CreateItemAsync(string appId, string environment, CreateConfigItemRequest request,
+    public async Task<ConfigItemDto> CreateItemAsync(string appId, CreateConfigItemRequest request,
         CancellationToken cancellationToken = default)
     {
         await RequireApplicationAsync(appId, cancellationToken);
@@ -106,7 +106,6 @@ public sealed class ConfigCenterService(
         var entity = new ConfigItem
         {
             AppId = appId.Trim(),
-            Environment = environment.Trim(),
             Group = request.Group.Trim(),
             Key = request.Key.Trim(),
             Value = request.Value,
@@ -154,10 +153,10 @@ public sealed class ConfigCenterService(
     /// 列出发布历史
     /// </summary>
     /// <exception cref="KeyNotFoundException">应用不存在</exception>
-    public async Task<IReadOnlyList<ConfigReleaseDto>> ListReleasesAsync(string appId, string environment, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<ConfigReleaseDto>> ListReleasesAsync(string appId, CancellationToken cancellationToken = default)
     {
         await RequireApplicationAsync(appId, cancellationToken);
-        var releases = await repository.ListReleasesAsync(appId.Trim(), environment.Trim(), cancellationToken);
+        var releases = await repository.ListReleasesAsync(appId.Trim(), cancellationToken);
         return releases.Select(ToDto).ToList();
     }
 
@@ -165,21 +164,19 @@ public sealed class ConfigCenterService(
     /// 将当前草稿快照为新的发布版本,并通过 TCP 通知 ConfigCenter 进程刷新与广播
     /// </summary>
     /// <exception cref="KeyNotFoundException">应用不存在</exception>
-    public async Task<PublishConfigResult> PublishAsync(string appId, string environment, PublishConfigRequest request,
+    public async Task<PublishConfigResult> PublishAsync(string appId, PublishConfigRequest request,
         CancellationToken cancellationToken = default)
     {
         await RequireApplicationAsync(appId, cancellationToken);
         var normalizedAppId = appId.Trim();
-        var normalizedEnv = environment.Trim();
 
-        var draftItems = await repository.ListItemsAsync(normalizedAppId, normalizedEnv, cancellationToken);
-        var latest = await repository.GetLatestReleaseAsync(normalizedAppId, normalizedEnv, cancellationToken);
+        var draftItems = await repository.ListItemsAsync(normalizedAppId, cancellationToken);
+        var latest = await repository.GetLatestReleaseAsync(normalizedAppId, cancellationToken);
         var nextVersion = (latest?.Version ?? 0) + 1;
 
         var release = new ConfigRelease
         {
             AppId = normalizedAppId,
-            Environment = normalizedEnv,
             Version = nextVersion,
             PublishedBy = request.PublishedBy?.Trim(),
             PublishedAt = UtcTimestamp()
@@ -202,7 +199,7 @@ public sealed class ConfigCenterService(
 
         uow.Commit();
 
-        await notifyClient.NotifyPublishedAsync(normalizedAppId, normalizedEnv, created.Id, cancellationToken);
+        await notifyClient.NotifyPublishedAsync(normalizedAppId, created.Id, cancellationToken);
 
         return new PublishConfigResult(created.Id, created.Version);
     }
@@ -211,25 +208,23 @@ public sealed class ConfigCenterService(
     /// 获取已发布配置快照:<paramref name="version"/> 为 0 时取最新版本
     /// </summary>
     /// <param name="appId">AppId</param>
-    /// <param name="environment">环境</param>
     /// <param name="version">版本号</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>不存在时返回 null</returns>
-    public async Task<PublishedConfigSnapshot?> GetPublishedSnapshotAsync(string appId, string environment, int version = 0,
+    public async Task<PublishedConfigSnapshot?> GetPublishedSnapshotAsync(string appId, int version = 0,
         CancellationToken cancellationToken = default)
     {
         var normalizedAppId = appId.Trim();
-        var normalizedEnv = environment.Trim();
 
         ConfigRelease? release;
         if (version > 0)
         {
-            var releases = await repository.ListReleasesAsync(normalizedAppId, normalizedEnv, cancellationToken);
+            var releases = await repository.ListReleasesAsync(normalizedAppId, cancellationToken);
             release = releases.FirstOrDefault(r => r.Version == version);
         }
         else
         {
-            release = await repository.GetLatestReleaseAsync(normalizedAppId, normalizedEnv, cancellationToken);
+            release = await repository.GetLatestReleaseAsync(normalizedAppId, cancellationToken);
         }
 
         if (release is null)
@@ -374,12 +369,12 @@ public sealed class ConfigCenterService(
     /// 领域实体转配置项 DTO
     /// </summary>
     private static ConfigItemDto ToDto(ConfigItem entity) =>
-        new(entity.Id, entity.AppId, entity.Environment, entity.Group, entity.Key, entity.Value, entity.ValueType,
+        new(entity.Id, entity.AppId, entity.Group, entity.Key, entity.Value, entity.ValueType,
             entity.Remark, entity.UpdatedAt);
 
     /// <summary>
     /// 领域实体转发布记录 DTO
     /// </summary>
     private static ConfigReleaseDto ToDto(ConfigRelease entity) =>
-        new(entity.Id, entity.AppId, entity.Environment, entity.Version, entity.PublishedBy, entity.PublishedAt);
+        new(entity.Id, entity.AppId, entity.Version, entity.PublishedBy, entity.PublishedAt);
 }

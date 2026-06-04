@@ -18,7 +18,6 @@ public sealed class TcpConfigCenterNotifyClient(
     /// <inheritdoc />
     public async Task NotifyPublishedAsync(
         string appId,
-        string environment,
         long releaseId,
         CancellationToken cancellationToken = default)
     {
@@ -27,7 +26,7 @@ public sealed class TcpConfigCenterNotifyClient(
         try
         {
             await client.ConnectAsync(settings.Host == "0.0.0.0" ? "127.0.0.1" : settings.Host, settings.Port, cancellationToken);
-            await client.SendAsync(ConfigMessage.PublishNotifyRequest(appId, environment, releaseId), cancellationToken);
+            await client.SendAsync(ConfigMessage.PublishNotifyRequest(appId, releaseId), cancellationToken);
 
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeoutCts.CancelAfter(TimeSpan.FromSeconds(10));
@@ -41,7 +40,7 @@ public sealed class TcpConfigCenterNotifyClient(
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            logger.LogError(ex, "Failed to notify ConfigCenter for {AppId}/{Environment} release {ReleaseId}", appId, environment, releaseId);
+            logger.LogError(ex, "Failed to notify ConfigCenter for {AppId} release {ReleaseId}", appId, releaseId);
             throw;
         }
     }

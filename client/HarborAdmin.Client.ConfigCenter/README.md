@@ -13,7 +13,7 @@ HarborLab 配置中心客户端 NuGet 包：通过 TCP JSON 拉取配置并接�
       "Host": "127.0.0.1",
       "Port": 50000,
       "AppId": "my-service",
-      "Environment": "Development"
+      "Required": true
     }
   }
 }
@@ -23,9 +23,8 @@ HarborLab 配置中心客户端 NuGet 包：通过 TCP JSON 拉取配置并接�
 
 ```csharp
 var configSection = builder.Configuration.GetSection("Harbor:ConfigCenter");
-var configSource = builder.Configuration.AddHarborConfigCenter(configSection);
-builder.Services.AddHarborConfigCenter(configSection);
-builder.Services.AddSingleton(configSource);
+var configSource = await builder.Configuration.AddHarborConfigCenterAsync(configSection);
+builder.Services.AddHarborConfigCenter(configSource, configSection);
 ```
 
 业务代码照常使用 `IConfiguration` / `IOptionsMonitor<T>`。

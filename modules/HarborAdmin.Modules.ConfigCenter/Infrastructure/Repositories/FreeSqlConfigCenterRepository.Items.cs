@@ -8,9 +8,9 @@ namespace HarborAdmin.Modules.ConfigCenter.Infrastructure.Repositories;
 public sealed partial class FreeSqlConfigCenterRepository
 {
     /// <inheritdoc />
-    public Task<IReadOnlyList<ConfigItem>> ListItemsAsync(string appId, string environment, CancellationToken cancellationToken = default) =>
+    public Task<IReadOnlyList<ConfigItem>> ListItemsAsync(string appId, CancellationToken cancellationToken = default) =>
         FreeSql.Select<ConfigItem>()
-            .Where(i => i.AppId == appId && i.Environment == environment)
+            .Where(i => i.AppId == appId)
             .OrderBy(i => i.Group)
             .OrderBy(i => i.Key)
             .ToListAsync(cancellationToken)

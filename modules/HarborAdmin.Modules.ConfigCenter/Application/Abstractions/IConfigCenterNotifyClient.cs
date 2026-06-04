@@ -10,13 +10,12 @@ namespace HarborAdmin.Modules.ConfigCenter.Application.Abstractions;
 public interface IConfigCenterNotifyClient
 {
     /// <summary>
-    /// 通知 ConfigCenter 服务:指定应用+环境已产生新发布
+    /// 通知 ConfigCenter 服务:指定应用已产生新发布
     /// </summary>
     /// <param name="appId">应用标</param>
-    /// <param name="environment">环境名称</param>
     /// <param name="releaseId">新写入的发布记录主键</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>通知完成时返回已结束的任务</returns>
     /// <exception cref="InvalidOperationException">TCP 通知失败或未收到有效 <c>publishNotifyAck</c> 时抛出(由 TCP 实现抛出)</exception>
-    Task NotifyPublishedAsync(string appId, string environment, long releaseId, CancellationToken cancellationToken = default);
+    Task NotifyPublishedAsync(string appId, long releaseId, CancellationToken cancellationToken = default);
 }
