@@ -7,9 +7,12 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="DotNetCore.CAP" />
         <ProjectReference Include="..\..\buildingBlocks\HarborAdmin.BuildingBlocks.Abstractions\HarborAdmin.BuildingBlocks.Abstractions.csproj" />
         <ProjectReference Include="..\..\buildingBlocks\HarborAdmin.BuildingBlocks.Caching\HarborAdmin.BuildingBlocks.Caching.csproj" />
         <ProjectReference Include="..\..\buildingBlocks\HarborAdmin.BuildingBlocks.Data\HarborAdmin.BuildingBlocks.Data.csproj" />
+        <ProjectReference Include="..\..\buildingBlocks\HarborAdmin.BuildingBlocks.Mapping\HarborAdmin.BuildingBlocks.Mapping.csproj" />
+        <ProjectReference Include="..\..\client\HarborAdmin.Client.AI\HarborAdmin.Client.AI.csproj" />
     </ItemGroup>
 
     <ItemGroup>

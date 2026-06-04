@@ -1,4 +1,4 @@
-namespace HarborAdmin.Modules.International.Infrastructure;
+namespace HarborAdmin.Modules.International.Infrastructure.Contexts;
 
 /// <summary>
 /// 国际化模块数据库上下文

@@ -1,7 +1,7 @@
 using FreeSql.DataAnnotations;
 using HarborAdmin.BuildingBlocks.Abstractions.Domain;
 
-namespace HarborAdmin.Modules.International.Domain;
+namespace HarborAdmin.Modules.International.Domain.Entities;
 
 /// <summary>
 /// 前端国际化页面命名空间，例如 <c>config-center</c>。

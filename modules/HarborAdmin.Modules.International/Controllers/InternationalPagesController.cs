@@ -1,5 +1,6 @@
-using HarborAdmin.Modules.International.Application;
-using HarborAdmin.Modules.International.Contracts;
+using HarborAdmin.Modules.International.Application.Services;
+using HarborAdmin.Modules.International.Contracts.Dtos;
+using HarborAdmin.Modules.International.Contracts.Requests;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HarborAdmin.Modules.International.Controllers;
@@ -95,4 +96,14 @@ public sealed class InternationalPagesController(InternationalService service) :
         await service.DeleteEntryAsync(entryId, cancellationToken);
         return Ok(true);
     }
+
+    /// <summary>
+    /// 请求 AI 翻译条目。
+    /// </summary>
+    [HttpPost("entries/{entryId:long}/translate")]
+    public async Task<ActionResult> TranslateEntry(
+        long entryId,
+        [FromBody] TranslateInternationalEntryRequest request,
+        CancellationToken cancellationToken) =>
+        Ok(await service.TranslateEntryAsync(entryId, request, cancellationToken));
 }

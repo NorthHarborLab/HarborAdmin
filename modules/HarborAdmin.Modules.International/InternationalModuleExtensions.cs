@@ -1,6 +1,7 @@
-using HarborAdmin.Modules.International.Application;
-using HarborAdmin.Modules.International.Contracts;
-using HarborAdmin.Modules.International.Infrastructure;
+using HarborAdmin.Modules.International.Application.Services;
+using HarborAdmin.Modules.International.Application.Abstractions;
+using HarborAdmin.Modules.International.Infrastructure.Contexts;
+using HarborAdmin.Modules.International.Infrastructure.Repositories;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace HarborAdmin.Modules.International;

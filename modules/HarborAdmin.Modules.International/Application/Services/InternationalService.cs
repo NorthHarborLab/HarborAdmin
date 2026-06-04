@@ -1,14 +1,25 @@
-using HarborAdmin.Modules.International.Contracts;
-using HarborAdmin.Modules.International.Domain;
+using HarborAdmin.Modules.International.Contracts.Dtos;
+using HarborAdmin.Modules.International.Contracts.Requests;
+using HarborAdmin.Modules.International.Application.Abstractions;
+using HarborAdmin.Modules.International.Domain.Entities;
 using HarborAdmin.Modules.International.Infrastructure.Caching;
 using HarborAdmin.BuildingBlocks.Caching.Abstractions;
+using HarborAdmin.BuildingBlocks.Mapping;
+using System.Text.Json;
+using HarborAdmin.Client.AI.Clients;
+using HarborAdmin.Client.AI.Invocation;
 
-namespace HarborAdmin.Modules.International.Application;
+namespace HarborAdmin.Modules.International.Application.Services;
 
 /// <summary>
 /// 前端国际化管理服务
 /// </summary>
-public sealed class InternationalService(IInternationalRepository repository, IHarborCache cache, IHarborCacheInvalidator cacheInvalidator)
+public sealed class InternationalService(
+    IInternationalRepository repository,
+    IHarborCache cache,
+    IHarborCacheInvalidator cacheInvalidator,
+    IAiClient aiClient,
+    IHarborMapper mapper)
 {
     /// <summary>
     /// 未命中指定语言时使用的默认语言。
@@ -16,12 +27,22 @@ public sealed class InternationalService(IInternationalRepository repository, IH
     private const string DefaultLocale = "zh-CN";
 
     /// <summary>
+    /// AI 翻译业务 Key。
+    /// </summary>
+    private const string TranslateBusinessKey = "international.translate";
+
+    /// <summary>
+    /// AI 翻译完成回调 Topic。
+    /// </summary>
+    internal const string TranslationCompletedTopic = "harbor.international.translation.completed.v1";
+
+    /// <summary>
     /// 列出页面命名空间
     /// </summary>
     public async Task<IReadOnlyList<InternationalPageDto>> ListPagesAsync(CancellationToken cancellationToken = default)
     {
         var pages = await repository.ListPagesAsync(cancellationToken);
-        return pages.Select(ToDto).ToList();
+        return pages.Select(page => mapper.Map<InternationalPageDto>(page)).ToList();
     }
 
     /// <summary>
@@ -49,7 +70,7 @@ public sealed class InternationalService(IInternationalRepository repository, IH
 
         var created = await repository.InsertPageAsync(page, cancellationToken);
         await InvalidateAllAsync(cancellationToken);
-        return ToDto(created);
+        return mapper.Map<InternationalPageDto>(created);
     }
 
     /// <summary>
@@ -77,7 +98,7 @@ public sealed class InternationalService(IInternationalRepository repository, IH
         await repository.UpdatePageAsync(page, cancellationToken);
         await InvalidatePageAsync(page.Id, oldPageKey, cancellationToken);
         await InvalidatePageAsync(page.Id, page.PageKey, cancellationToken);
-        return ToDto(page);
+        return mapper.Map<InternationalPageDto>(page);
     }
 
     /// <summary>
@@ -128,7 +149,7 @@ public sealed class InternationalService(IInternationalRepository repository, IH
         var created = await repository.InsertEntryAsync(entry, ToTranslations(request.Translations), cancellationToken);
         created.Translations = ToTranslations(request.Translations).ToList();
         await InvalidatePageAsync(page.Id, page.PageKey, cancellationToken);
-        return ToDto(created, []);
+        return MapEntryDto(created, []);
     }
 
     /// <summary>
@@ -153,7 +174,7 @@ public sealed class InternationalService(IInternationalRepository repository, IH
         entry.Translations = translations.ToList();
         var page = await RequirePageAsync(entry.PageId, cancellationToken);
         await InvalidatePageAsync(page.Id, page.PageKey, cancellationToken);
-        return ToDto(entry, []);
+        return MapEntryDto(entry, []);
     }
 
     /// <summary>
@@ -168,6 +189,82 @@ public sealed class InternationalService(IInternationalRepository repository, IH
     }
 
     /// <summary>
+    /// 请求 AI 翻译条目。
+    /// </summary>
+    public async Task<AiBusinessResponse> TranslateEntryAsync(
+        long entryId,
+        TranslateInternationalEntryRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var entry = await RequireEntryAsync(entryId, cancellationToken);
+        var source = GetTranslationValue(entry.Translations, DefaultLocale) ?? entry.Translations.FirstOrDefault()?.Value ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(source))
+        {
+            throw new InvalidOperationException($"International entry '{entryId}' has no source text.");
+        }
+
+        var targetLocales = request.TargetLocales.Count == 0 ? ["en-US", "zh-HK", "zh-TW"] : request.TargetLocales;
+        var response = await aiClient.InvokeAsync(new AiBusinessRequest(
+            TranslateBusinessKey,
+            Model: request.Model,
+            PromptOverride: request.PromptOverride,
+            PromptVariables: new Dictionary<string, string>
+            {
+                ["sourceLocale"] = DefaultLocale,
+                ["targetLocales"] = string.Join(", ", targetLocales),
+                ["content"] = source
+            },
+            KnowledgeText: request.KnowledgeText,
+            KnowledgeTextMode: request.KnowledgeTextMode,
+            Context: new Dictionary<string, string>
+            {
+                ["entryId"] = entryId.ToString(),
+                ["targetLocales"] = string.Join(",", targetLocales)
+            },
+            CallbackName: TranslationCompletedTopic,
+            Input: $"Translate the following {DefaultLocale} text to {string.Join(", ", targetLocales)} and return a JSON object whose keys are locales and values are translations.\n\n{source}"),
+            cancellationToken);
+
+        if (response.Success)
+        {
+            await ApplyAiTranslationAsync(response, cancellationToken);
+        }
+
+        return response;
+    }
+
+    /// <summary>
+    /// 应用 AI 翻译结果。
+    /// </summary>
+    public async Task ApplyAiTranslationAsync(AiBusinessResponse response, CancellationToken cancellationToken = default)
+    {
+        if (!response.Success || string.IsNullOrWhiteSpace(response.Content))
+        {
+            return;
+        }
+
+        if (response.Context is null ||
+            !response.Context.TryGetValue("entryId", out var entryIdText) ||
+            !long.TryParse(entryIdText, out var entryId))
+        {
+            return;
+        }
+
+        var translations = ParseTranslationContent(response.Content)
+            .Select(item => new InternationalEntryTranslation { Locale = item.Key, Value = item.Value })
+            .ToList();
+        if (translations.Count == 0)
+        {
+            return;
+        }
+
+        var entry = await RequireEntryAsync(entryId, cancellationToken);
+        await repository.UpsertEntryTranslationsAsync(entryId, translations, cancellationToken);
+        var page = await RequirePageAsync(entry.PageId, cancellationToken);
+        await InvalidatePageAsync(page.Id, page.PageKey, cancellationToken);
+    }
+
+    /// <summary>
     /// 发布页面版本
     /// </summary>
     public async Task<InternationalPageDto> PublishPageVersionAsync(long pageId, CancellationToken cancellationToken = default)
@@ -175,7 +272,7 @@ public sealed class InternationalService(IInternationalRepository repository, IH
         await repository.IncreasePageVersionAsync(pageId, cancellationToken);
         var page = await RequirePageAsync(pageId, cancellationToken);
         await InvalidatePageAsync(page.Id, page.PageKey, cancellationToken);
-        return ToDto(page);
+        return mapper.Map<InternationalPageDto>(page);
     }
 
     /// <summary>
@@ -335,7 +432,7 @@ public sealed class InternationalService(IInternationalRepository repository, IH
     /// <summary>
     /// 将数据库中的扁平条目列表构造成前端需要的树形 DTO。
     /// </summary>
-    private static IReadOnlyList<InternationalEntryDto> BuildEntryTree(IReadOnlyList<InternationalEntry> entries)
+    private IReadOnlyList<InternationalEntryDto> BuildEntryTree(IReadOnlyList<InternationalEntry> entries)
     {
         // 先按 ParentId 分组，递归构造时就能通过父级 ID 快速取到直接子节点。
         var groups = entries
@@ -349,7 +446,7 @@ public sealed class InternationalService(IInternationalRepository repository, IH
     /// <summary>
     /// 递归构造指定父级下的条目 DTO 列表。
     /// </summary>
-    private static IReadOnlyList<InternationalEntryDto> BuildEntryDtos(
+    private IReadOnlyList<InternationalEntryDto> BuildEntryDtos(
         IReadOnlyDictionary<long, List<InternationalEntry>> groups,
         long parentId)
     {
@@ -359,7 +456,7 @@ public sealed class InternationalService(IInternationalRepository repository, IH
         }
 
         return entries
-            .Select(entry => ToDto(entry, BuildEntryDtos(groups, entry.Id)))
+            .Select(entry => MapEntryDto(entry, BuildEntryDtos(groups, entry.Id)))
             .ToList();
     }
 
@@ -514,32 +611,24 @@ public sealed class InternationalService(IInternationalRepository repository, IH
     }
 
     /// <summary>
-    /// 将页面实体转换成页面 DTO。
+    /// 解析 AI 返回的翻译 JSON。
     /// </summary>
-    private static InternationalPageDto ToDto(InternationalPage page) =>
-        new(page.Id, page.PageKey, page.Version, page.Name, page.Remark, page.CreatedAt, page.UpdatedAt);
-
-    /// <summary>
-    /// 将条目实体转换成条目 DTO。
-    /// </summary>
-    private static InternationalEntryDto ToDto(InternationalEntry entry, IReadOnlyList<InternationalEntryDto> children)
+    private static IReadOnlyDictionary<string, string> ParseTranslationContent(string content)
     {
-        var translations = entry.Translations
-            .OrderBy(translation => translation.Locale, StringComparer.Ordinal)
-            .Select(translation => new InternationalEntryTranslationDto(translation.Locale, translation.Value))
-            .ToList();
-        // 列表页展示默认语言文案，完整翻译仍保留在 Translations 字段中。
-        var defaultValue = translations.FirstOrDefault(translation => translation.Locale == DefaultLocale)?.Value;
-        return new InternationalEntryDto(
-            entry.Id,
-            entry.PageId,
-            entry.ParentId,
-            entry.Key,
-            defaultValue,
-            entry.Remark,
-            entry.SortOrder,
-            entry.UpdatedAt,
-            translations,
-            children);
+        var start = content.IndexOf('{');
+        var end = content.LastIndexOf('}');
+        if (start >= 0 && end > start)
+        {
+            content = content[start..(end + 1)];
+        }
+
+        return JsonSerializer.Deserialize<Dictionary<string, string>>(
+                   content,
+                   new JsonSerializerOptions(JsonSerializerDefaults.Web))
+               ?? new Dictionary<string, string>();
     }
+
+    private InternationalEntryDto MapEntryDto(InternationalEntry entry, IReadOnlyList<InternationalEntryDto> children) =>
+        mapper.Map<InternationalEntryDto>(entry) with { Children = children };
 }
+

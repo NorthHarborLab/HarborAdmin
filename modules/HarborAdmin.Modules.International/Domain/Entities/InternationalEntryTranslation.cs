@@ -1,7 +1,7 @@
 using FreeSql.DataAnnotations;
 using HarborAdmin.BuildingBlocks.Abstractions.Domain;
 
-namespace HarborAdmin.Modules.International.Domain;
+namespace HarborAdmin.Modules.International.Domain.Entities;
 
 /// <summary>
 /// 国际化树节点的语言文案

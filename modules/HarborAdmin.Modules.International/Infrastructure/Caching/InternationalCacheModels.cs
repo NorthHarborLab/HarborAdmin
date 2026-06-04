@@ -1,6 +1,7 @@
 using HarborAdmin.BuildingBlocks.Caching.Attributes;
-using HarborAdmin.Modules.International.Contracts;
-using HarborAdmin.Modules.International.Domain;
+using HarborAdmin.Modules.International.Contracts.Dtos;
+using HarborAdmin.Modules.International.Contracts.Requests;
+using HarborAdmin.Modules.International.Domain.Entities;
 
 namespace HarborAdmin.Modules.International.Infrastructure.Caching;
 
