@@ -1,0 +1,40 @@
+namespace HarborAdmin.Modules.AI.Contracts.Dtos;
+
+/// <summary>
+/// AI 调用日志 DTO。
+/// </summary>
+public sealed record AiInvocationLogDto(
+    long Id,
+    string InvocationId,
+    string CorrelationId,
+    string BusinessKey,
+    string ProducerKey,
+    string IdempotencyKey,
+    int ReleaseVersion,
+    string? ProviderKey,
+    string? RequestedModel,
+    string? ActualModel,
+    bool Streaming,
+    string Status,
+    int PromptTokens,
+    int CompletionTokens,
+    int TotalTokens,
+    int ReasoningTokens,
+    int CachedTokens,
+    int DurationMs,
+    string? ErrorCode,
+    string? ErrorCategory,
+    string? ErrorMessage,
+    string? FallbackTrace,
+    string? ProviderRequestId,
+    string? FinishReason,
+    decimal Cost,
+    int NativePromptTokens,
+    int NativeCompletionTokens,
+    string? UpstreamProvider,
+    string? OutputFormat,
+    int ToolCallCount,
+    string? RequestHash,
+    string? ResponseHash,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt);
