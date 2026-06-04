@@ -2,6 +2,7 @@
 
 using HarborAdmin.BuildingBlocks.Data;
 using HarborAdmin.BuildingBlocks.Data.Configs;
+using HarborAdmin.BuildingBlocks.Mapping;
 using HarborAdmin.BuildingBlocks.Secrets.DependencyInjection;
 using HarborAdmin.BuildingBlocks.Secrets.Domain;
 using HarborAdmin.ConfigCenter.Tcp;
@@ -18,6 +19,7 @@ builder.Services.AddHarborFreeSql(builder.Configuration.GetSection(DbConfig.Sect
     options.AddEntityAssembly(typeof(HarborSecret).Assembly);
 });
 builder.Services.AddHarborSecrets();
+builder.Services.AddHarborMapping(typeof(ConfigCenterModuleExtensions).Assembly);
 
 builder.Services.AddConfigCenterModule(builder.Configuration);
 builder.Services.AddMemoryCache();
