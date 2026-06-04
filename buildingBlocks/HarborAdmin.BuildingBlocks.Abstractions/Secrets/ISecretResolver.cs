@@ -9,4 +9,9 @@ public interface ISecretResolver
     /// 解析密钥明文。
     /// </summary>
     Task<string?> ResolveAsync(string secretRef, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 按指定版本解析密钥明文；<paramref name="version"/> 为空时解析当前版本。
+    /// </summary>
+    Task<string?> ResolveAsync(string secretRef, int? version, CancellationToken cancellationToken = default);
 }
