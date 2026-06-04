@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 using System.Net.Sockets;
-using HarborAdmin.ConfigCenter.Client.Protocol;
+using HarborAdmin.Client.ConfigCenter.Protocol;
 
 namespace HarborAdmin.ConfigCenter.Tcp;
 

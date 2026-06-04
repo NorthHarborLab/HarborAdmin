@@ -1,7 +1,6 @@
 using System.Net.Sockets;
-using HarborAdmin.ConfigCenter.Client.Protocol;
-using HarborAdmin.Modules.ConfigCenter.Contracts;
-using HarborAdmin.Modules.ConfigCenter.Infrastructure;
+using HarborAdmin.Client.ConfigCenter.Protocol;
+using HarborAdmin.Modules.ConfigCenter.Application.Abstractions;
 
 namespace HarborAdmin.ConfigCenter.Tcp;
 

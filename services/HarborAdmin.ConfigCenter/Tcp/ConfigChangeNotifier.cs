@@ -1,5 +1,3 @@
-using HarborAdmin.Modules.ConfigCenter.Infrastructure;
-
 namespace HarborAdmin.ConfigCenter.Tcp;
 
 /// <summary>

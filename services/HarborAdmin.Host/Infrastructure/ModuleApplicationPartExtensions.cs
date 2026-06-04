@@ -10,15 +10,24 @@ internal static class ModuleApplicationPartExtensions
     /// <summary>
     /// 将 Host 引用的 HarborAdmin 模块程序集自动注册为 MVC ApplicationPart。
     /// </summary>
-    public static IMvcBuilder AddHarborModuleApplicationParts(this IMvcBuilder builder)
+    public static IMvcBuilder AddHarborModuleApplicationParts(this IMvcBuilder builder, IEnumerable<Assembly>? moduleAssemblies = null)
     {
-        foreach (var assembly in DiscoverModuleAssemblies())
+        foreach (var assembly in moduleAssemblies ?? DiscoverHarborModuleAssemblies())
         {
             builder.AddApplicationPart(assembly);
         }
 
         return builder;
     }
+
+    /// <summary>
+    /// 发现入口程序集直接引用的 <c>HarborAdmin.Modules.*</c> 程序集。
+    /// </summary>
+    public static IReadOnlyList<Assembly> DiscoverHarborModuleAssemblies() =>
+        DiscoverModuleAssemblies()
+            .GroupBy(assembly => assembly.GetName().Name, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToArray();
 
     /// <summary>
     /// 发现入口程序集直接引用的 <c>HarborAdmin.Modules.*</c> 程序集。

@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
-using HarborAdmin.Modules.ConfigCenter.Contracts;
-using HarborAdmin.Modules.ConfigCenter.Infrastructure;
+using HarborAdmin.Modules.ConfigCenter.Application.Abstractions;
+using HarborAdmin.Modules.ConfigCenter.Infrastructure.Options;
 using Microsoft.Extensions.Options;
 
 namespace HarborAdmin.ConfigCenter.Tcp;

@@ -1,4 +1,4 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "services", "services", "{B8E4F1A2-6C3D-4E5F-9A1B-2D7C8E9F0A1B}"
 EndProject
@@ -32,9 +32,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HarborAdmin.BuildingBlocks.
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "client", "client", "{2CB42F12-E813-91B3-7D11-3220E40BEF4A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HarborAdmin.AI.Client", "client\HarborAdmin.AI.Client\HarborAdmin.AI.Client.csproj", "{BDD14446-C6AB-46CD-9315-0D1F29E63938}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HarborAdmin.Client.AI", "client\HarborAdmin.Client.AI\HarborAdmin.Client.AI.csproj", "{BDD14446-C6AB-46CD-9315-0D1F29E63938}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HarborAdmin.ConfigCenter.Client", "client\HarborAdmin.ConfigCenter.Client\HarborAdmin.ConfigCenter.Client.csproj", "{55C49A30-80DF-409A-B803-C000FE58E7DF}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HarborAdmin.Client.ConfigCenter", "client\HarborAdmin.Client.ConfigCenter\HarborAdmin.Client.ConfigCenter.csproj", "{55C49A30-80DF-409A-B803-C000FE58E7DF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

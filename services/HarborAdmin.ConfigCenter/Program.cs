@@ -16,6 +16,8 @@ builder.Services.AddHarborFreeSql(builder.Configuration.GetSection(DbConfig.Sect
 });
 
 builder.Services.AddConfigCenterModule(builder.Configuration);
+builder.Services.AddMemoryCache();
+builder.Services.AddScoped<PublishedConfigCache>();
 builder.Services.AddSingleton<ConfigSubscriptionHub>();
 builder.Services.AddHostedService<ConfigCenterTcpHostedService>();
 

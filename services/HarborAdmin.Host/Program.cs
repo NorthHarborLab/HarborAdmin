@@ -5,24 +5,28 @@ using HarborAdmin.BuildingBlocks.Data.Configs;
 using HarborAdmin.BuildingBlocks.EventBus;
 using HarborAdmin.BuildingBlocks.Caching;
 using HarborAdmin.BuildingBlocks.Caching.Options;
-using HarborAdmin.ConfigCenter.Client;
+using HarborAdmin.BuildingBlocks.Mapping;
+using HarborAdmin.Client.ConfigCenter;
 using HarborAdmin.Host.Infrastructure;
 using HarborAdmin.Modules.ConfigCenter;
-using HarborAdmin.Modules.ConfigCenter.Contracts;
-using HarborAdmin.Modules.ConfigCenter.Infrastructure;
+using HarborAdmin.Modules.ConfigCenter.Application.Abstractions;
+using HarborAdmin.Modules.ConfigCenter.Infrastructure.Clients;
+using HarborAdmin.Modules.AI;
 using HarborAdmin.Modules.International;
+using HarborAdmin.Modules.International.Application.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 var configCenterSection = builder.Configuration.GetSection(ConfigCenterOptions.DefaultSectionName);
 var configCenterSource = await builder.Configuration.AddHarborConfigCenterAsync(configCenterSection);
+var moduleAssemblies = ModuleApplicationPartExtensions.DiscoverHarborModuleAssemblies();
 
 var mvcBuilder = builder.Services.AddControllers(options =>
 {
     options.Filters.Add<ApiExceptionFilter>();
     options.Filters.Add<ApiResultFilter>();
 });
-mvcBuilder.AddHarborModuleApplicationParts();
+mvcBuilder.AddHarborModuleApplicationParts(moduleAssemblies);
 builder.Services.AddOpenApi();
 builder.Services.AddCors(options =>
 {
@@ -36,20 +40,23 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddHarborCaching(builder.Configuration.GetSection(HarborCacheOptions.SectionName));
+builder.Services.AddHarborMapping(moduleAssemblies.ToArray());
 
 builder.Services.AddHarborFreeSql(builder.Configuration.GetSection(DbConfig.SectionName), options =>
 {
     options.SnowflakeWorkerId = GetYitterWorkId(builder.Configuration);
     options.AddCurdAfterHandler(CacheInvalidationAopBridge.Dispatch);
 });
-//
-// builder.Services.AddHarborCap(builder.Configuration, cap =>
-// {
-//     cap.DefaultGroupName = "harbor.admin.host";
-// });
+builder.Services
+    .AddHarborCap(builder.Configuration, cap =>
+    {
+        cap.DefaultGroupName = "harbor.admin.host";
+    })
+    .AddHarborCapSubscribers(typeof(InternationalTranslationSubscriber).Assembly);
 
 builder.Services.AddSingleton<IConfigCenterNotifyClient, TcpConfigCenterNotifyClient>();
 builder.Services.AddHarborConfigCenter(configCenterSource, configCenterSection);
+builder.Services.AddAiModule(builder.Configuration);
 builder.Services.AddInternationalModule();
 builder.Services.AddConfigCenterModule(builder.Configuration);
 
