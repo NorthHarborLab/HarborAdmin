@@ -11,7 +11,7 @@ HarborLab 配置中心客户端 NuGet 包：通过 TCP JSON 拉取配置并接�
   "Harbor": {
     "ConfigCenter": {
       "Host": "127.0.0.1",
-      "Port": 9500,
+      "Port": 50000,
       "AppId": "my-service",
       "Environment": "Development"
     }
@@ -35,7 +35,7 @@ builder.Services.AddSingleton(configSource);
 配置中心支持把一个 JSON 配置项作为完整 options model 发布。创建配置项时：
 
 ```text
-Group:      (留空)
+Group:      Harbor
 Key:        JwtOptions
 ValueType:  options
 Value:      {"Issuer":"harbor","ExpireMinutes":120,"Audiences":["admin","api"]}
@@ -44,24 +44,24 @@ Value:      {"Issuer":"harbor","ExpireMinutes":120,"Audiences":["admin","api"]}
 发布后客户端会收到扁平化配置：
 
 ```text
-JwtOptions:Issuer = harbor
-JwtOptions:ExpireMinutes = 120
-JwtOptions:Audiences:0 = admin
-JwtOptions:Audiences:1 = api
+Harbor:JwtOptions:Issuer = harbor
+Harbor:JwtOptions:ExpireMinutes = 120
+Harbor:JwtOptions:Audiences:0 = admin
+Harbor:JwtOptions:Audiences:1 = api
 ```
 
 业务服务可直接绑定 model：
 
 ```csharp
 builder.Services.Configure<JwtOptions>(
-    builder.Configuration.GetSection("JwtOptions"));
+    builder.Configuration.GetSection("Harbor:JwtOptions"));
 
 var options = builder.Configuration
-    .GetSection("JwtOptions")
+    .GetSection("Harbor:JwtOptions")
     .Get<JwtOptions>();
 ```
 
-如果需要挂在某个分组下，也可以设置：
+如果需要挂在其他根路径下，也可以设置：
 
 ```text
 Group:      Security
