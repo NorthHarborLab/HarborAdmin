@@ -1,4 +1,6 @@
 using System.Data;
+using HarborAdmin.BuildingBlocks.Abstractions.Api;
+using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.BuildingBlocks.Data;
 using HarborAdmin.Client.AI.Constants;
 using HarborAdmin.Client.AI.Invocation;
@@ -46,17 +48,23 @@ public sealed class AiQuotaService(
                     var requestCount = bucket.ReservedRequests + bucket.SuccessRequests + bucket.FailedRequests;
                     if (window.RequestLimit is > 0 && requestCount >= window.RequestLimit)
                     {
-                        throw new InvalidOperationException(AiErrorCodes.QuotaExceeded);
+                        throw new ValidationDomainException(
+                            AiErrorCodes.QuotaExceeded,
+                            errorMeta: new { LimitType = "RequestCount", Limit = window.RequestLimit, Current = requestCount, WindowType = window.Type });
                     }
 
                     if (window.TokenLimit is > 0 && bucket.TotalTokens + estimatedTokens > window.TokenLimit)
                     {
-                        throw new InvalidOperationException(AiErrorCodes.QuotaExceeded);
+                        throw new ValidationDomainException(
+                            AiErrorCodes.QuotaExceeded,
+                            errorMeta: new { LimitType = "Token", Limit = window.TokenLimit, Current = bucket.TotalTokens + estimatedTokens, WindowType = window.Type });
                     }
 
                     if (window.BudgetLimit is > 0 && bucket.Cost >= window.BudgetLimit)
                     {
-                        throw new InvalidOperationException(AiErrorCodes.QuotaExceeded);
+                        throw new ValidationDomainException(
+                            AiErrorCodes.QuotaExceeded,
+                            errorMeta: new { LimitType = "Budget", Limit = window.BudgetLimit, Current = bucket.Cost, WindowType = window.Type });
                     }
 
                     bucket.ReservedRequests += 1;

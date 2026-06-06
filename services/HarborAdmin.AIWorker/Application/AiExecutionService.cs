@@ -2,7 +2,9 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using HarborAdmin.BuildingBlocks.Abstractions.Api;
 using HarborAdmin.AIWorker.Infrastructure;
+using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.BuildingBlocks.Abstractions.Secrets;
 using HarborAdmin.BuildingBlocks.EventBus;
 using HarborAdmin.Client.AI.Constants;
@@ -364,7 +366,7 @@ public sealed class AiExecutionService(
 
             return new ExecutionSetup(true, snapshot.Version, snapshot, business, messages, references, contextLength);
         }
-        catch (InvalidOperationException ex)
+        catch (ValidationDomainException ex)
         {
             var errorCode = ex.Message.StartsWith("AI_PROMPT_VARIABLE_REQUIRED:", StringComparison.Ordinal)
                 ? AiErrorCodes.InvalidRequest
@@ -494,7 +496,7 @@ public sealed class AiExecutionService(
             }
         }
 
-        throw lastError ?? new InvalidOperationException("AI provider invocation failed.");
+        throw lastError ?? new ValidationDomainException(AiErrorCodes.ProviderUnavailable);
     }
 
     private static async Task<AiProviderCallResult> InvokeWithOutputValidationAsync(
@@ -524,7 +526,7 @@ public sealed class AiExecutionService(
             }
         }
 
-        throw new InvalidOperationException("AI structured output validation failed.", lastError);
+        throw new ValidationDomainException(AiErrorCodes.InvalidRequest, errorMeta: lastError);
     }
 
     private async Task<string?> ResolveProviderSecretAsync(AiProviderSnapshot provider, CancellationToken cancellationToken) =>
@@ -722,8 +724,12 @@ public sealed class AiExecutionService(
         ex is HttpRequestException;
 
     private static string ErrorCodeFromException(Exception ex) =>
-        ex is InvalidOperationException { Message: AiErrorCodes.QuotaExceeded }
+        ex is ValidationDomainException { Message: AiErrorCodes.QuotaExceeded }
             ? AiErrorCodes.QuotaExceeded
+            : ex is ValidationDomainException { Message: AiErrorCodes.InvalidRequest }
+                ? AiErrorCodes.InvalidRequest
+            : ex is ValidationDomainException { Message: AiErrorCodes.ProviderUnavailable }
+                ? AiErrorCodes.ProviderUnavailable
             : ex is AiProviderException providerException
                 ? $"AI_PROVIDER_{providerException.Category.ToUpperInvariant()}"
                 : AiErrorCodes.ProviderUnavailable;
@@ -731,7 +737,9 @@ public sealed class AiExecutionService(
     private static string ClassifyError(Exception ex) =>
         ex is AiProviderException providerException ? providerException.Category :
         ex is OperationCanceledException ? "Timeout" :
-        ex is InvalidOperationException { Message: AiErrorCodes.QuotaExceeded } ? "QuotaExceeded" :
+        ex is ValidationDomainException { Message: AiErrorCodes.QuotaExceeded } ? "QuotaExceeded" :
+        ex is ValidationDomainException { Message: AiErrorCodes.InvalidRequest } ? "InvalidRequest" :
+        ex is ValidationDomainException { Message: AiErrorCodes.ProviderUnavailable } ? "ProviderUnavailable" :
         "Unknown";
 
     private static string SanitizeException(Exception ex)

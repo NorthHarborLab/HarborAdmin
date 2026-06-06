@@ -1,4 +1,8 @@
+using HarborAdmin.BuildingBlocks.Abstractions.Exception;
+
 namespace HarborAdmin.AIWorker.Infrastructure;
+
+using HarborAdmin.BuildingBlocks.Abstractions.Api;
 
 /// <summary>
 /// AI 供应商适配器解析器。
@@ -14,7 +18,7 @@ public sealed class AiProviderAdapterResolver(IEnumerable<IAiProviderAdapter> ad
     public IAiProviderAdapter Resolve(string adapterType) =>
         _adapters.TryGetValue(adapterType, out var adapter)
             ? adapter
-            : throw new InvalidOperationException($"AI adapter '{adapterType}' was not registered.");
+            : throw new NotFoundDomainException($"AI adapter '{adapterType}' was not registered.");
 }
 
 

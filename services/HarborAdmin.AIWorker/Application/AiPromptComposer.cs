@@ -1,5 +1,7 @@
 using System.Text;
 using System.Text.Json;
+using HarborAdmin.BuildingBlocks.Abstractions.Api;
+using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.Client.AI.Constants;
 using HarborAdmin.Client.AI.Invocation;
 using HarborAdmin.Modules.AI.Contracts.Snapshots;
@@ -24,13 +26,13 @@ public sealed class AiPromptComposer
     {
         if (!business.AllowKnowledgeText && !string.IsNullOrWhiteSpace(request.KnowledgeText))
         {
-            throw new InvalidOperationException(AiErrorCodes.OverrideNotAllowed);
+            throw new ValidationDomainException(AiErrorCodes.OverrideNotAllowed);
         }
 
         if (string.Equals(request.KnowledgeTextMode, "Override", StringComparison.OrdinalIgnoreCase) &&
             !business.AllowKnowledgeTextOverride)
         {
-            throw new InvalidOperationException(AiErrorCodes.KnowledgeOverrideNotAllowed);
+            throw new ValidationDomainException(AiErrorCodes.KnowledgeOverrideNotAllowed);
         }
 
         var variables = request.PromptVariables ?? new Dictionary<string, string>();
@@ -105,7 +107,7 @@ public sealed class AiPromptComposer
         {
             if (!variables.TryGetValue(name, out var value) || string.IsNullOrWhiteSpace(value))
             {
-                throw new InvalidOperationException($"AI_PROMPT_VARIABLE_REQUIRED:{name}");
+                throw new ValidationDomainException($"AI_PROMPT_VARIABLE_REQUIRED:{name}");
             }
         }
     }

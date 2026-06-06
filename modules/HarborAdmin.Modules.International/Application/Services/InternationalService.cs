@@ -3,9 +3,11 @@ using HarborAdmin.Modules.International.Contracts.Requests;
 using HarborAdmin.Modules.International.Application.Abstractions;
 using HarborAdmin.Modules.International.Domain.Entities;
 using HarborAdmin.Modules.International.Infrastructure.Caching;
+using HarborAdmin.BuildingBlocks.Abstractions.Api;
 using HarborAdmin.BuildingBlocks.Caching.Abstractions;
 using HarborAdmin.BuildingBlocks.Mapping;
 using System.Text.Json;
+using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.Client.AI.Clients;
 using HarborAdmin.Client.AI.Invocation;
 
@@ -54,7 +56,7 @@ public sealed class InternationalService(
         var existing = await repository.GetPageByKeyAsync(pageKey, cancellationToken);
         if (existing is not null)
         {
-            throw new InvalidOperationException($"International page '{pageKey}' already exists.");
+            throw new ConflictDomainException($"International page '{pageKey}' already exists.");
         }
 
         var now = DateTimeOffset.UtcNow;
@@ -85,7 +87,7 @@ public sealed class InternationalService(
             var existing = await repository.GetPageByKeyAsync(pageKey, cancellationToken);
             if (existing is not null && existing.Id != page.Id)
             {
-                throw new InvalidOperationException($"International page '{pageKey}' already exists.");
+                throw new ConflictDomainException($"International page '{pageKey}' already exists.");
             }
         }
 
@@ -200,7 +202,7 @@ public sealed class InternationalService(
         var source = GetTranslationValue(entry.Translations, DefaultLocale) ?? entry.Translations.FirstOrDefault()?.Value ?? string.Empty;
         if (string.IsNullOrWhiteSpace(source))
         {
-            throw new InvalidOperationException($"International entry '{entryId}' has no source text.");
+            throw new ValidationDomainException($"International entry '{entryId}' has no source text.");
         }
 
         var targetLocales = request.TargetLocales.Count == 0 ? ["en-US", "zh-HK", "zh-TW"] : request.TargetLocales;
@@ -338,7 +340,7 @@ public sealed class InternationalService(
             .GetOrCreateAsync(async ct =>
             {
                 var page = await repository.GetPageWithEntriesByKeyAsync(pageKey, ct)
-                           ?? throw new KeyNotFoundException($"International page '{pageKey}' was not found.");
+                           ?? throw new NotFoundDomainException($"International page '{pageKey}' was not found.");
                 var messages = new Dictionary<string, object>(StringComparer.Ordinal);
                 MergePageMessages(messages, page);
                 return new InternationalPageBundleCacheModel
@@ -376,7 +378,7 @@ public sealed class InternationalService(
     private async Task<InternationalPage> RequirePageAsync(long id, CancellationToken cancellationToken)
     {
         var page = await repository.GetPageAsync(id, cancellationToken);
-        return page ?? throw new KeyNotFoundException($"International page '{id}' was not found.");
+        return page ?? throw new NotFoundDomainException($"International page '{id}' was not found.");
     }
 
     /// <summary>
@@ -385,7 +387,7 @@ public sealed class InternationalService(
     private async Task<InternationalEntry> RequireEntryAsync(long id, CancellationToken cancellationToken)
     {
         var entry = await repository.GetEntryAsync(id, cancellationToken);
-        return entry ?? throw new KeyNotFoundException($"International entry '{id}' was not found.");
+        return entry ?? throw new NotFoundDomainException($"International entry '{id}' was not found.");
     }
 
     /// <summary>
@@ -401,7 +403,7 @@ public sealed class InternationalService(
         var parent = await RequireEntryAsync(parentId.Value, cancellationToken);
         if (parent.PageId != pageId)
         {
-            throw new InvalidOperationException($"International parent entry '{parentId}' does not belong to page '{pageId}'.");
+            throw new ValidationDomainException($"International parent entry '{parentId}' does not belong to page '{pageId}'.");
         }
 
         return parentId;
@@ -425,7 +427,7 @@ public sealed class InternationalService(
             string.Equals(entry.Key, key, StringComparison.Ordinal));
         if (exists)
         {
-            throw new InvalidOperationException($"International entry key '{key}' already exists in the same level.");
+            throw new ConflictDomainException($"International entry key '{key}' already exists in the same level.");
         }
     }
 
@@ -591,7 +593,7 @@ public sealed class InternationalService(
         var normalized = NormalizeRequired(value, name);
         if (normalized.Contains('.') || normalized.Contains(':') || normalized.Contains('/'))
         {
-            throw new ArgumentException($"{name} cannot contain '.', ':' or '/'.", name);
+            throw new ValidationDomainException($"{name} cannot contain '.', ':' or '/'.", errorMeta: new { Field = name });
         }
 
         return normalized;
@@ -604,7 +606,7 @@ public sealed class InternationalService(
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            throw new ArgumentException($"{name} is required.", name);
+            throw new ValidationDomainException($"{name} is required.", errorMeta: new { Field = name });
         }
 
         return value.Trim();
