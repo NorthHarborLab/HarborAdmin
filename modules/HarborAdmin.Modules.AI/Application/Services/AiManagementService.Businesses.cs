@@ -1,3 +1,4 @@
+using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.Modules.AI.Contracts.Dtos;
 using HarborAdmin.Modules.AI.Contracts.Requests;
 using HarborAdmin.Modules.AI.Domain.Entities;
@@ -21,7 +22,7 @@ public sealed partial class AiManagementService
     {
         var now = DateTimeOffset.UtcNow;
         var business = id is > 0
-            ? await repository.GetBusinessAsync(id.Value, cancellationToken) ?? throw new KeyNotFoundException($"AI business '{id}' was not found.")
+            ? await repository.GetBusinessAsync(id.Value, cancellationToken) ?? throw new NotFoundDomainException($"AI business '{id}' was not found.")
             : new AiBusiness { CreatedAt = now };
         business.BusinessKey = NormalizeKey(request.BusinessKey, nameof(request.BusinessKey));
         business.Name = NormalizeRequired(request.Name, nameof(request.Name));

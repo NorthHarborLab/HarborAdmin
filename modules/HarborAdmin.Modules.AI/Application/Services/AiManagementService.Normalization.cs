@@ -1,3 +1,5 @@
+using HarborAdmin.BuildingBlocks.Abstractions.Exception;
+
 namespace HarborAdmin.Modules.AI.Application.Services;
 
 public sealed partial class AiManagementService
@@ -7,7 +9,7 @@ public sealed partial class AiManagementService
         var normalized = NormalizeRequired(value, name);
         if (normalized.Contains(' ') || normalized.Contains('/'))
         {
-            throw new ArgumentException($"{name} cannot contain spaces or '/'.", name);
+            throw new ValidationDomainException($"{name} cannot contain spaces or '/'.", errorMeta: new { Field = name });
         }
 
         return normalized;
@@ -17,7 +19,7 @@ public sealed partial class AiManagementService
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            throw new ArgumentException($"{name} is required.", name);
+            throw new ValidationDomainException($"{name} is required.", errorMeta: new { Field = name });
         }
 
         return value.Trim();

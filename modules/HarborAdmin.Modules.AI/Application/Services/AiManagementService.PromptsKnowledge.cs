@@ -1,6 +1,7 @@
 using HarborAdmin.Modules.AI.Contracts.Dtos;
 using HarborAdmin.Modules.AI.Contracts.Requests;
 using HarborAdmin.Modules.AI.Domain.Entities;
+using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 
 namespace HarborAdmin.Modules.AI.Application.Services;
 
@@ -21,7 +22,7 @@ public sealed partial class AiManagementService
     {
         var now = DateTimeOffset.UtcNow;
         var prompt = id is > 0
-            ? await repository.GetPromptAsync(id.Value, cancellationToken) ?? throw new KeyNotFoundException($"AI prompt '{id}' was not found.")
+            ? await repository.GetPromptAsync(id.Value, cancellationToken) ?? throw new NotFoundDomainException($"AI prompt '{id}' was not found.")
             : new AiPrompt { CreatedAt = now };
         prompt.PromptKey = NormalizeKey(request.PromptKey, nameof(request.PromptKey));
         prompt.Name = NormalizeRequired(request.Name, nameof(request.Name));
@@ -55,7 +56,7 @@ public sealed partial class AiManagementService
     {
         var now = DateTimeOffset.UtcNow;
         var knowledgeBase = id is > 0
-            ? await repository.GetKnowledgeBaseAsync(id.Value, cancellationToken) ?? throw new KeyNotFoundException($"AI knowledge base '{id}' was not found.")
+            ? await repository.GetKnowledgeBaseAsync(id.Value, cancellationToken) ?? throw new NotFoundDomainException($"AI knowledge base '{id}' was not found.")
             : new AiKnowledgeBase { CreatedAt = now };
         knowledgeBase.KnowledgeKey = NormalizeKey(request.KnowledgeKey, nameof(request.KnowledgeKey));
         knowledgeBase.Name = NormalizeRequired(request.Name, nameof(request.Name));

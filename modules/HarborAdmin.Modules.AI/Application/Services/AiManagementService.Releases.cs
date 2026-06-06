@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.Modules.AI.Contracts.Constants;
 using HarborAdmin.Modules.AI.Contracts.Dtos;
 using HarborAdmin.Modules.AI.Contracts.Snapshots;
@@ -49,7 +50,7 @@ public sealed partial class AiManagementService
     public async Task<AiReleaseDto> RollbackAsync(int version, CancellationToken cancellationToken = default)
     {
         var release = await repository.GetReleaseByVersionAsync(version, cancellationToken)
-                      ?? throw new KeyNotFoundException($"AI release '{version}' was not found.");
+                      ?? throw new NotFoundDomainException($"AI release '{version}' was not found.");
         using var uow = unitOfWorkManager.Begin(entityRegistry.GetDbKey<AiConfigRelease>());
         using (dbContext.Bind(uow.Orm))
         {

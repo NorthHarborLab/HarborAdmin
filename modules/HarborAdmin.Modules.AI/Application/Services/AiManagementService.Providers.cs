@@ -1,6 +1,7 @@
 using HarborAdmin.Modules.AI.Contracts.Dtos;
 using HarborAdmin.Modules.AI.Contracts.Requests;
 using HarborAdmin.Modules.AI.Domain.Entities;
+using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 
 namespace HarborAdmin.Modules.AI.Application.Services;
 
@@ -21,7 +22,7 @@ public sealed partial class AiManagementService
     {
         var now = DateTimeOffset.UtcNow;
         var provider = id is > 0
-            ? await repository.GetProviderAsync(id.Value, cancellationToken) ?? throw new KeyNotFoundException($"AI provider '{id}' was not found.")
+            ? await repository.GetProviderAsync(id.Value, cancellationToken) ?? throw new NotFoundDomainException($"AI provider '{id}' was not found.")
             : new AiProvider { CreatedAt = now };
         provider.ProviderKey = NormalizeKey(request.ProviderKey, nameof(request.ProviderKey));
         provider.DisplayName = NormalizeRequired(request.DisplayName, nameof(request.DisplayName));
@@ -66,7 +67,7 @@ public sealed partial class AiManagementService
         var descriptor = await secretStore.GetAsync(secretRef, cancellationToken);
         if (descriptor is not { Enabled: true })
         {
-            throw new ArgumentException($"SecretRef '{secretRef}' does not exist or is disabled.");
+            throw new ValidationDomainException($"SecretRef '{secretRef}' does not exist or is disabled.");
         }
 
         return descriptor.Version;
@@ -107,7 +108,7 @@ public sealed partial class AiManagementService
             .ToList();
         if (models.Count == 0)
         {
-            throw new ArgumentException("At least one provider model is required.", nameof(request.Models));
+            throw new ValidationDomainException("At least one provider model is required.");
         }
 
         if (models.All(m => !m.IsDefault))

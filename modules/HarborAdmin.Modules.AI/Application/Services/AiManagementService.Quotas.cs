@@ -1,6 +1,7 @@
 using HarborAdmin.Modules.AI.Contracts.Dtos;
 using HarborAdmin.Modules.AI.Contracts.Requests;
 using HarborAdmin.Modules.AI.Domain.Entities;
+using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 
 namespace HarborAdmin.Modules.AI.Application.Services;
 
@@ -20,7 +21,7 @@ public sealed partial class AiManagementService
     /// </summary>
     public async Task<AiProviderQuotaDto> SaveProviderQuotaAsync(long providerId, SaveAiProviderQuotaRequest request, CancellationToken cancellationToken = default)
     {
-        _ = await repository.GetProviderAsync(providerId, cancellationToken) ?? throw new KeyNotFoundException($"AI provider '{providerId}' was not found.");
+        _ = await repository.GetProviderAsync(providerId, cancellationToken) ?? throw new NotFoundDomainException($"AI provider '{providerId}' was not found.");
         var producerKey = NormalizeOptional(request.ProducerKey);
         var quota = await repository.GetProviderQuotaAsync(providerId, producerKey, cancellationToken) ?? new AiProviderQuota { ProviderId = providerId };
         quota.ProducerKey = producerKey;
@@ -48,7 +49,7 @@ public sealed partial class AiManagementService
     {
         var quota = id is > 0
             ? (await repository.ListModelQuotasAsync(cancellationToken)).FirstOrDefault(q => q.Id == id.Value)
-              ?? throw new KeyNotFoundException($"AI model quota '{id}' was not found.")
+              ?? throw new NotFoundDomainException($"AI model quota '{id}' was not found.")
             : new AiModelQuota();
         quota.ProviderKey = NormalizeKey(request.ProviderKey, nameof(request.ProviderKey));
         quota.ModelName = NormalizeOptional(request.ModelName);
