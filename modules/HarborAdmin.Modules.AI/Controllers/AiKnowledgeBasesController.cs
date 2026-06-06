@@ -2,6 +2,7 @@ using HarborAdmin.Modules.AI.Application.Services;
 using HarborAdmin.Modules.AI.Contracts.Dtos;
 using HarborAdmin.Modules.AI.Contracts.Requests;
 using Microsoft.AspNetCore.Mvc;
+using HarborAdmin.BuildingBlocks.Abstractions.Api;
 
 namespace HarborAdmin.Modules.AI.Controllers;
 
@@ -16,32 +17,34 @@ public sealed class AiKnowledgeBasesController(AiManagementService service) : Co
     /// 列出知识库。
     /// </summary>
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<AiKnowledgeBaseDto>>> List(CancellationToken cancellationToken) =>
-        Ok(await service.ListKnowledgeBasesAsync(cancellationToken));
+    public async Task<ApiResult<IReadOnlyList<AiKnowledgeBaseDto>>> List(CancellationToken cancellationToken) =>
+        ApiResult.Ok(await service.ListKnowledgeBasesAsync(cancellationToken));
 
     /// <summary>
     /// 创建知识库。
     /// </summary>
     [HttpPost]
-    public async Task<ActionResult<AiKnowledgeBaseDto>> Create([FromBody] SaveAiKnowledgeBaseRequest request, CancellationToken cancellationToken) =>
-        Ok(await service.SaveKnowledgeBaseAsync(null, request, cancellationToken));
+    public async Task<ApiResult<AiKnowledgeBaseDto>> Create([FromBody] SaveAiKnowledgeBaseRequest request, CancellationToken cancellationToken) =>
+        ApiResult.Ok(await service.SaveKnowledgeBaseAsync(null, request, cancellationToken));
 
     /// <summary>
     /// 更新知识库。
     /// </summary>
     [HttpPut("{id:long}")]
-    public async Task<ActionResult<AiKnowledgeBaseDto>> Update(long id, [FromBody] SaveAiKnowledgeBaseRequest request, CancellationToken cancellationToken) =>
-        Ok(await service.SaveKnowledgeBaseAsync(id, request, cancellationToken));
+    public async Task<ApiResult<AiKnowledgeBaseDto>> Update(long id, [FromBody] SaveAiKnowledgeBaseRequest request, CancellationToken cancellationToken) =>
+        ApiResult.Ok(await service.SaveKnowledgeBaseAsync(id, request, cancellationToken));
 
     /// <summary>
     /// 删除知识库。
     /// </summary>
     [HttpDelete("{id:long}")]
-    public async Task<ActionResult<bool>> Delete(long id, CancellationToken cancellationToken)
+    public async Task<ApiResult<bool>> Delete(long id, CancellationToken cancellationToken)
     {
         await service.DeleteKnowledgeBaseAsync(id, cancellationToken);
-        return Ok(true);
+        return ApiResult.Ok(true);
     }
 }
+
+
 
 

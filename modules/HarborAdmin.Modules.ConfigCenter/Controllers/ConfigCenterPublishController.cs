@@ -2,6 +2,7 @@ using HarborAdmin.Modules.ConfigCenter.Application.Services;
 using HarborAdmin.Modules.ConfigCenter.Contracts.Dtos;
 using HarborAdmin.Modules.ConfigCenter.Contracts.Requests;
 using Microsoft.AspNetCore.Mvc;
+using HarborAdmin.BuildingBlocks.Abstractions.Api;
 
 namespace HarborAdmin.Modules.ConfigCenter.Controllers;
 
@@ -20,10 +21,10 @@ public sealed class ConfigCenterPublishController(ConfigCenterService service) :
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>发布记录列表。</returns>
     [HttpGet("releases")]
-    public async Task<ActionResult<IReadOnlyList<ConfigReleaseDto>>> ListReleases(
+    public async Task<ApiResult<IReadOnlyList<ConfigReleaseDto>>> ListReleases(
         string appId,
         CancellationToken cancellationToken) =>
-        Ok(await service.ListReleasesAsync(appId, cancellationToken));
+        ApiResult.Ok(await service.ListReleasesAsync(appId, cancellationToken));
 
     /// <summary>
     /// 发布当前草稿：写入发布快照并通过 TCP 通知 ConfigCenter 进程。
@@ -33,11 +34,11 @@ public sealed class ConfigCenterPublishController(ConfigCenterService service) :
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>发布结果（发布 ID 与版本号）。</returns>
     [HttpPost("publish")]
-    public async Task<ActionResult<PublishConfigResult>> Publish(
+    public async Task<ApiResult<PublishConfigResult>> Publish(
         string appId,
         [FromBody] PublishConfigRequest request,
         CancellationToken cancellationToken) =>
-        Ok(await service.PublishAsync(appId, request, cancellationToken));
+        ApiResult.Ok(await service.PublishAsync(appId, request, cancellationToken));
 
     /// <summary>
     /// 获取已发布配置快照；<paramref name="version"/> 为 0 或未传时取最新版本。
@@ -47,12 +48,15 @@ public sealed class ConfigCenterPublishController(ConfigCenterService service) :
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>快照；不存在时 404。</returns>
     [HttpGet("published")]
-    public async Task<ActionResult<PublishedConfigSnapshot>> GetPublished(
+    public async Task<ApiResult<PublishedConfigSnapshot>> GetPublished(
         string appId,
         [FromQuery] int version = 0,
         CancellationToken cancellationToken = default)
     {
         var snapshot = await service.GetPublishedSnapshotAsync(appId, version, cancellationToken);
-        return snapshot is null ? NotFound() : Ok(snapshot);
+        return snapshot is null
+            ? ApiResult.Fail<PublishedConfigSnapshot>(ApiResultCodes.NotFound, "Published snapshot not found.")
+            : ApiResult.Ok(snapshot);
     }
 }
+

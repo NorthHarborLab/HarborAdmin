@@ -1,7 +1,9 @@
 using HarborAdmin.Modules.International.Application.Services;
 using HarborAdmin.Modules.International.Contracts.Dtos;
 using HarborAdmin.Modules.International.Contracts.Requests;
+using HarborAdmin.Client.AI.Invocation;
 using Microsoft.AspNetCore.Mvc;
+using HarborAdmin.BuildingBlocks.Abstractions.Api;
 
 namespace HarborAdmin.Modules.International.Controllers;
 
@@ -16,94 +18,96 @@ public sealed class InternationalPagesController(InternationalService service) :
     /// 列出页面
     /// </summary>
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<InternationalPageDto>>> List(CancellationToken cancellationToken) =>
-        Ok(await service.ListPagesAsync(cancellationToken));
+    public async Task<ApiResult<IReadOnlyList<InternationalPageDto>>> List(CancellationToken cancellationToken) =>
+        ApiResult.Ok(await service.ListPagesAsync(cancellationToken));
 
     /// <summary>
     /// 创建页面
     /// </summary>
     [HttpPost]
-    public async Task<ActionResult<InternationalPageDto>> Create(
+    public async Task<ApiResult<InternationalPageDto>> Create(
         [FromBody] CreateInternationalPageRequest request,
         CancellationToken cancellationToken)
     {
         var created = await service.CreatePageAsync(request, cancellationToken);
-        return CreatedAtAction(nameof(List), null, created);
+        return ApiResult.Ok(created);
     }
 
     /// <summary>
     /// 更新页面
     /// </summary>
     [HttpPut("{id:long}")]
-    public async Task<ActionResult<InternationalPageDto>> Update(
+    public async Task<ApiResult<InternationalPageDto>> Update(
         long id,
         [FromBody] UpdateInternationalPageRequest request,
         CancellationToken cancellationToken) =>
-        Ok(await service.UpdatePageAsync(id, request, cancellationToken));
+        ApiResult.Ok(await service.UpdatePageAsync(id, request, cancellationToken));
 
     /// <summary>
     /// 删除页面
     /// </summary>
     [HttpDelete("{id:long}")]
-    public async Task<IActionResult> Delete(long id, CancellationToken cancellationToken)
+    public async Task<ApiResult<bool>> Delete(long id, CancellationToken cancellationToken)
     {
         await service.DeletePageAsync(id, cancellationToken);
-        return Ok(true);
+        return ApiResult.Ok(true);
     }
 
     /// <summary>
     /// 发布页面版本
     /// </summary>
     [HttpPost("{id:long}/publish")]
-    public async Task<ActionResult<InternationalPageDto>> PublishVersion(long id, CancellationToken cancellationToken) =>
-        Ok(await service.PublishPageVersionAsync(id, cancellationToken));
+    public async Task<ApiResult<InternationalPageDto>> PublishVersion(long id, CancellationToken cancellationToken) =>
+        ApiResult.Ok(await service.PublishPageVersionAsync(id, cancellationToken));
 
     /// <summary>
     /// 列出页面条目
     /// </summary>
     [HttpGet("{pageId:long}/entries")]
-    public async Task<ActionResult<IReadOnlyList<InternationalEntryDto>>> ListEntries(
+    public async Task<ApiResult<IReadOnlyList<InternationalEntryDto>>> ListEntries(
         long pageId,
         CancellationToken cancellationToken) =>
-        Ok(await service.ListEntriesAsync(pageId, cancellationToken));
+        ApiResult.Ok(await service.ListEntriesAsync(pageId, cancellationToken));
 
     /// <summary>
     /// 创建页面条目
     /// </summary>
     [HttpPost("{pageId:long}/entries")]
-    public async Task<ActionResult<InternationalEntryDto>> CreateEntry(
+    public async Task<ApiResult<InternationalEntryDto>> CreateEntry(
         long pageId,
         [FromBody] CreateInternationalEntryRequest request,
         CancellationToken cancellationToken) =>
-        Ok(await service.CreateEntryAsync(pageId, request, cancellationToken));
+        ApiResult.Ok(await service.CreateEntryAsync(pageId, request, cancellationToken));
 
     /// <summary>
     /// 更新页面条目
     /// </summary>
     [HttpPut("entries/{entryId:long}")]
-    public async Task<ActionResult<InternationalEntryDto>> UpdateEntry(
+    public async Task<ApiResult<InternationalEntryDto>> UpdateEntry(
         long entryId,
         [FromBody] UpdateInternationalEntryRequest request,
         CancellationToken cancellationToken) =>
-        Ok(await service.UpdateEntryAsync(entryId, request, cancellationToken));
+        ApiResult.Ok(await service.UpdateEntryAsync(entryId, request, cancellationToken));
 
     /// <summary>
     /// 删除页面条目
     /// </summary>
     [HttpDelete("entries/{entryId:long}")]
-    public async Task<IActionResult> DeleteEntry(long entryId, CancellationToken cancellationToken)
+    public async Task<ApiResult<bool>> DeleteEntry(long entryId, CancellationToken cancellationToken)
     {
         await service.DeleteEntryAsync(entryId, cancellationToken);
-        return Ok(true);
+        return ApiResult.Ok(true);
     }
 
     /// <summary>
     /// 请求 AI 翻译条目。
     /// </summary>
     [HttpPost("entries/{entryId:long}/translate")]
-    public async Task<ActionResult> TranslateEntry(
+    public async Task<ApiResult<AiBusinessResponse>> TranslateEntry(
         long entryId,
         [FromBody] TranslateInternationalEntryRequest request,
         CancellationToken cancellationToken) =>
-        Ok(await service.TranslateEntryAsync(entryId, request, cancellationToken));
+        ApiResult.Ok(await service.TranslateEntryAsync(entryId, request, cancellationToken));
 }
+
+
