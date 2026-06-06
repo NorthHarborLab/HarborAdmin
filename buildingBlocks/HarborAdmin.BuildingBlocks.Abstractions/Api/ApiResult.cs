@@ -22,9 +22,21 @@ public sealed class ApiResult
         new() { Code = ApiResultCodes.Success, Message = message };
 
     /// <summary>
+    /// 创建成功响应（泛型）
+    /// </summary>
+    public static ApiResult<T> Ok<T>(T data, string? message = null) =>
+        new() { Code = ApiResultCodes.Success, Data = data, Message = message };
+
+    /// <summary>
     /// 创建失败响应
     /// </summary>
     public static ApiResult Fail(int code, string message) =>
+        new() { Code = code, Message = message };
+
+    /// <summary>
+    /// 创建失败响应（泛型）
+    /// </summary>
+    public static ApiResult<T> Fail<T>(int code, string message) =>
         new() { Code = code, Message = message };
 }
 

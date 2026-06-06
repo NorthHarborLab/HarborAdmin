@@ -1,4 +1,4 @@
-namespace HarborAdmin.BuildingBlocks.Abstractions.Paging;
+namespace HarborAdmin.BuildingBlocks.Abstractions.Api;
 
 /// <summary>
 /// 分页查询结果
