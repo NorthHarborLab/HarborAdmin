@@ -1,6 +1,9 @@
 using HarborAdmin.Client.ConfigCenter.Protocol;
+using HarborAdmin.BuildingBlocks.Abstractions.Api;
+using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.Modules.ConfigCenter.Application.Abstractions;
 using HarborAdmin.Modules.ConfigCenter.Infrastructure.Options;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -35,7 +38,10 @@ public sealed class TcpConfigCenterNotifyClient(
             if (response?.Type != ConfigMessageTypes.PublishNotifyAck || !response.Ok)
             {
                 var message = response?.Message ?? "No response from ConfigCenter.";
-                throw new InvalidOperationException($"ConfigCenter publish notify failed: {message}");
+                throw new BusinessDomainException(
+                    ApiResultCodes.InternalError,
+                    $"ConfigCenter publish notify failed: {message}",
+                    StatusCodes.Status502BadGateway);
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

@@ -1,9 +1,12 @@
 using System.Text.Json;
+using HarborAdmin.BuildingBlocks.Abstractions.Api;
+using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.BuildingBlocks.Abstractions.Secrets;
 using HarborAdmin.BuildingBlocks.Secrets.References;
 using HarborAdmin.Modules.ConfigCenter.Application.Abstractions;
 using HarborAdmin.Modules.ConfigCenter.Contracts.Dtos;
 using HarborAdmin.Modules.ConfigCenter.Domain.Entities;
+using Microsoft.AspNetCore.Http;
 
 namespace HarborAdmin.Modules.ConfigCenter.Application.Services;
 
@@ -67,7 +70,7 @@ public sealed class ConfigCenterSnapshotService(
         CancellationToken cancellationToken = default)
     {
         var release = await repository.GetReleaseByIdAsync(releaseId, cancellationToken)
-                      ?? throw new KeyNotFoundException($"Release {releaseId} not found.");
+                      ?? throw new NotFoundDomainException($"Release {releaseId} not found.");
 
         var items = await repository.ListReleaseItemsAsync(release.Id, cancellationToken);
         var data = BuildSnapshotData(items);
@@ -127,7 +130,10 @@ public sealed class ConfigCenterSnapshotService(
             var secret = await secretStore.ResolveAsync(reference.SecretRef, reference.Version, token);
             if (secret is null)
             {
-                throw new InvalidOperationException($"Secret reference for config key '{configKey}' cannot be resolved.");
+                throw new BusinessDomainException(
+                    ApiResultCodes.InternalError,
+                    $"Secret reference for config key '{configKey}' cannot be resolved.",
+                    StatusCodes.Status500InternalServerError);
             }
 
             return secret;

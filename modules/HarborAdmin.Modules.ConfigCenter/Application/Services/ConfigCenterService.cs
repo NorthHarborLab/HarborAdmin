@@ -1,4 +1,5 @@
 using HarborAdmin.BuildingBlocks.Abstractions.Secrets;
+using HarborAdmin.BuildingBlocks.Abstractions.Api;
 using HarborAdmin.BuildingBlocks.Data;
 using HarborAdmin.BuildingBlocks.Mapping;
 using HarborAdmin.BuildingBlocks.Secrets.References;
@@ -8,6 +9,7 @@ using HarborAdmin.Modules.ConfigCenter.Application.Abstractions;
 using HarborAdmin.Modules.ConfigCenter.Domain.Entities;
 using HarborAdmin.Modules.ConfigCenter.Infrastructure.Contexts;
 using System.Text.Json;
+using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 
 namespace HarborAdmin.Modules.ConfigCenter.Application.Services;
 
@@ -37,19 +39,19 @@ public sealed class ConfigCenterService(
     /// <summary>
     /// 注册新应用
     /// </summary>
-    /// <exception cref="ArgumentException"><paramref name="request"/>.AppId 为空。</exception>
-    /// <exception cref="InvalidOperationException">AppId 已存在。</exception>
+    /// <exception cref="ValidationDomainException"><paramref name="request"/>.AppId 为空。</exception>
+    /// <exception cref="ConflictDomainException">AppId 已存在。</exception>
     public async Task<ConfigApplicationDto> CreateApplicationAsync(CreateConfigApplicationRequest request, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(request.AppId))
         {
-            throw new ArgumentException("AppId is required.", nameof(request));
+            throw new ValidationDomainException("AppId is required.");
         }
 
         var existing = await repository.GetApplicationByAppIdAsync(request.AppId.Trim(), cancellationToken);
         if (existing is not null)
         {
-            throw new InvalidOperationException($"Application '{request.AppId}' already exists.");
+            throw new ConflictDomainException($"Application '{request.AppId}' already exists.");
         }
 
         var entity = new ConfigApplication
@@ -67,7 +69,7 @@ public sealed class ConfigCenterService(
     /// <summary>
     /// 更新应用元数据
     /// </summary>
-    /// <exception cref="KeyNotFoundException">应用不存在</exception>
+    /// <exception cref="NotFoundDomainException">应用不存在</exception>
     public async Task<ConfigApplicationDto> UpdateApplicationAsync(string appId, UpdateConfigApplicationRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -81,7 +83,7 @@ public sealed class ConfigCenterService(
     /// <summary>
     /// 删除应用及其全部配置数据
     /// </summary>
-    /// <exception cref="KeyNotFoundException">应用不存在</exception>
+    /// <exception cref="NotFoundDomainException">应用不存在</exception>
     public async Task DeleteApplicationAsync(string appId, CancellationToken cancellationToken = default)
     {
         _ = await RequireApplicationAsync(appId, cancellationToken);
@@ -91,7 +93,7 @@ public sealed class ConfigCenterService(
     /// <summary>
     /// 列出草稿配置项
     /// </summary>
-    /// <exception cref="KeyNotFoundException">应用不存在</exception>
+    /// <exception cref="NotFoundDomainException">应用不存在</exception>
     public async Task<IReadOnlyList<ConfigItemDto>> ListItemsAsync(string appId, CancellationToken cancellationToken = default)
     {
         await RequireApplicationAsync(appId, cancellationToken);
@@ -102,8 +104,8 @@ public sealed class ConfigCenterService(
     /// <summary>
     /// 新增草稿配置项
     /// </summary>
-    /// <exception cref="KeyNotFoundException">应用不存在</exception>
-    /// <exception cref="ArgumentException">键或值无效</exception>
+    /// <exception cref="NotFoundDomainException">应用不存在</exception>
+    /// <exception cref="ValidationDomainException">键或值无效</exception>
     public async Task<ConfigItemDto> CreateItemAsync(string appId, CreateConfigItemRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -130,10 +132,10 @@ public sealed class ConfigCenterService(
     /// <summary>
     /// 更新草稿配置项
     /// </summary>
-    /// <exception cref="KeyNotFoundException">配置项不存在</exception>
+    /// <exception cref="NotFoundDomainException">配置项不存在</exception>
     public async Task<ConfigItemDto> UpdateItemAsync(long id, UpdateConfigItemRequest request, CancellationToken cancellationToken = default)
     {
-        var entity = await repository.GetItemAsync(id, cancellationToken) ?? throw new KeyNotFoundException($"Config item {id} not found.");
+        var entity = await repository.GetItemAsync(id, cancellationToken) ?? throw new NotFoundDomainException($"Config item {id} not found.");
 
         var valueType = NormalizeValueType(request.ValueType);
         var value = await NormalizeItemValueAsync(request.Value, valueType, cancellationToken);
@@ -152,18 +154,18 @@ public sealed class ConfigCenterService(
     /// <summary>
     /// 删除草稿配置项
     /// </summary>
-    /// <exception cref="KeyNotFoundException">配置项不存在</exception>
+    /// <exception cref="NotFoundDomainException">配置项不存在</exception>
     public async Task DeleteItemAsync(long id, CancellationToken cancellationToken = default)
     {
         _ = await repository.GetItemAsync(id, cancellationToken)
-            ?? throw new KeyNotFoundException($"Config item {id} not found.");
+            ?? throw new NotFoundDomainException($"Config item {id} not found.");
         await repository.DeleteItemAsync(id, cancellationToken);
     }
 
     /// <summary>
     /// 列出发布历史
     /// </summary>
-    /// <exception cref="KeyNotFoundException">应用不存在</exception>
+    /// <exception cref="NotFoundDomainException">应用不存在</exception>
     public async Task<IReadOnlyList<ConfigReleaseDto>> ListReleasesAsync(string appId, CancellationToken cancellationToken = default)
     {
         await RequireApplicationAsync(appId, cancellationToken);
@@ -174,7 +176,7 @@ public sealed class ConfigCenterService(
     /// <summary>
     /// 将当前草稿快照为新的发布版本,并通过 TCP 通知 ConfigCenter 进程刷新与广播
     /// </summary>
-    /// <exception cref="KeyNotFoundException">应用不存在</exception>
+    /// <exception cref="NotFoundDomainException">应用不存在</exception>
     public async Task<PublishConfigResult> PublishAsync(string appId, PublishConfigRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -240,7 +242,7 @@ public sealed class ConfigCenterService(
     /// <summary>
     /// 按发布主键获取配置快照
     /// </summary>
-    /// <exception cref="KeyNotFoundException">发布记录不存在</exception>
+    /// <exception cref="NotFoundDomainException">发布记录不存在</exception>
     public async Task<PublishedConfigSnapshot> GetPublishedSnapshotByReleaseIdAsync(long releaseId, CancellationToken cancellationToken = default) =>
         await snapshotService.GetPublishedSnapshotByReleaseIdAsync(releaseId, cancellationToken);
 
@@ -252,12 +254,12 @@ public sealed class ConfigCenterService(
         await snapshotService.GetResolvedPublishedSnapshotByReleaseIdAsync(releaseId, cancellationToken);
 
     /// <summary>
-    /// 确保应用存在,否则抛出 <see cref="KeyNotFoundException"/>
+    /// 确保应用存在,否则抛出 <see cref="NotFoundDomainException"/>
     /// </summary>
     private async Task<ConfigApplication> RequireApplicationAsync(string appId, CancellationToken cancellationToken)
     {
         return await repository.GetApplicationByAppIdAsync(appId.Trim(), cancellationToken)
-               ?? throw new KeyNotFoundException($"Application '{appId}' not found.");
+               ?? throw new NotFoundDomainException($"Application '{appId}' not found.");
     }
 
     /// <summary>
@@ -270,12 +272,12 @@ public sealed class ConfigCenterService(
     {
         if (string.IsNullOrWhiteSpace(key))
         {
-            throw new ArgumentException("Key is required.");
+            throw new ValidationDomainException("Key is required.");
         }
 
         if (value is null)
         {
-            throw new ArgumentException("Value is required.");
+            throw new ValidationDomainException("Value is required.");
         }
 
         if (IsStructuredValueType(valueType))
@@ -286,7 +288,7 @@ public sealed class ConfigCenterService(
             }
             catch (JsonException ex)
             {
-                throw new ArgumentException("Value must be valid JSON when ValueType is json/object/options/model.", ex);
+                throw new ValidationDomainException("Value must be valid JSON when ValueType is json/object/options/model.", innerException: ex);
             }
         }
     }
@@ -304,7 +306,7 @@ public sealed class ConfigCenterService(
     {
         if (value is null)
         {
-            throw new ArgumentException("Value is required.");
+            throw new ValidationDomainException("Value is required.");
         }
 
         if (IsSecretValueType(valueType))
@@ -327,13 +329,13 @@ public sealed class ConfigCenterService(
 
         if (!SecretReferenceParser.IsValidRef(normalized))
         {
-            throw new ArgumentException("ValueType secret requires a SecretRef or ${secret:ref} marker.");
+            throw new ValidationDomainException("ValueType secret requires a SecretRef or ${secret:ref} marker.");
         }
 
         var descriptor = await secretStore.GetAsync(normalized, cancellationToken);
         if (descriptor is not { Enabled: true })
         {
-            throw new ArgumentException($"SecretRef '{normalized}' does not exist or is disabled.");
+            throw new ValidationDomainException($"SecretRef '{normalized}' does not exist or is disabled.");
         }
 
         return SecretReferenceParser.Format(descriptor.SecretRef);
@@ -352,13 +354,13 @@ public sealed class ConfigCenterService(
         var descriptor = await secretStore.GetAsync(reference.SecretRef, cancellationToken);
         if (descriptor is not { Enabled: true })
         {
-            throw new ArgumentException($"SecretRef '{reference.SecretRef}' does not exist or is disabled.");
+            throw new ValidationDomainException($"SecretRef '{reference.SecretRef}' does not exist or is disabled.");
         }
 
         if (reference.Version is { } version &&
             await secretStore.GetVersionAsync(reference.SecretRef, version, cancellationToken) is null)
         {
-            throw new ArgumentException($"SecretRef '{reference.SecretRef}' version {version} does not exist.");
+            throw new ValidationDomainException($"SecretRef '{reference.SecretRef}' version {version} does not exist.");
         }
     }
 
@@ -381,7 +383,7 @@ public sealed class ConfigCenterService(
             }
 
             var descriptor = await secretStore.GetAsync(reference.SecretRef, token)
-                             ?? throw new ArgumentException($"SecretRef '{reference.SecretRef}' does not exist.");
+                             ?? throw new ValidationDomainException($"SecretRef '{reference.SecretRef}' does not exist.");
             return SecretReferenceParser.Format(reference.SecretRef, descriptor.Version);
         }, cancellationToken);
     }

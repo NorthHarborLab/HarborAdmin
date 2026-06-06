@@ -16,6 +16,6 @@ public interface IConfigCenterNotifyClient
     /// <param name="releaseId">新写入的发布记录主键</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>通知完成时返回已结束的任务</returns>
-    /// <exception cref="InvalidOperationException">TCP 通知失败或未收到有效 <c>publishNotifyAck</c> 时抛出(由 TCP 实现抛出)</exception>
+    /// <exception cref="BusinessDomainException">TCP 通知失败或未收到有效 <c>publishNotifyAck</c> 时抛出(由 TCP 实现抛出)</exception>
     Task NotifyPublishedAsync(string appId, long releaseId, CancellationToken cancellationToken = default);
 }
