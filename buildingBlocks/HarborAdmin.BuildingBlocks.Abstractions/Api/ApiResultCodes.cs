@@ -34,4 +34,9 @@ public static class ApiResultCodes
     /// 服务器内部错误
     /// </summary>
     public const int InternalError = 500;
+
+    /// <summary>
+    /// 资源冲突
+    /// </summary>
+    public const int Conflict = 409;
 }
