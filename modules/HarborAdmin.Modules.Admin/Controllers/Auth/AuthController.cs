@@ -17,26 +17,27 @@ namespace HarborAdmin.Modules.Admin.Controllers.Auth;
 public sealed class AuthController(AuthService authService) : ControllerBase
 {
     private CancellationToken RequestCancellationToken => HttpContext.RequestAborted;
+
     /// <summary>
     /// 创建一次性 RSA 加密挑战
     /// </summary>
     [HttpPost("crypto-challenge")]
-    public ApiResult<CryptoChallengeDto> CreateCryptoChallenge() =>
-        ApiResult.Ok(authService.CreateCryptoChallenge());
+    public async Task<ApiResult<CryptoChallengeDto>> CreateCryptoChallenge() =>
+        ApiResult.Ok(await authService.CreateCryptoChallengeAsync(RequestCancellationToken));
 
     /// <summary>
     /// 创建验证码挑战
     /// </summary>
     [HttpGet("captcha")]
-    public ApiResult<CaptchaChallengeDto> CreateCaptcha() =>
-        ApiResult.Ok(authService.CreateCaptcha());
+    public async Task<ApiResult<CaptchaChallengeDto>> CreateCaptcha() =>
+        ApiResult.Ok(await authService.CreateCaptchaAsync(RequestCancellationToken));
 
     /// <summary>
     /// 校验验证码
     /// </summary>
     [HttpPost("captcha/verify")]
-    public ApiResult<VerifyCaptchaResult> VerifyCaptcha([FromBody] VerifyCaptchaRequest request) =>
-        ApiResult.Ok(authService.VerifyCaptcha(request));
+    public async Task<ApiResult<VerifyCaptchaResult>> VerifyCaptcha([FromBody] VerifyCaptchaRequest request) =>
+        ApiResult.Ok(await authService.VerifyCaptchaAsync(request, RequestCancellationToken));
 
     /// <summary>
     /// 登录
@@ -52,5 +53,3 @@ public sealed class AuthController(AuthService authService) : ControllerBase
     public async Task<ApiResult<RefreshTokenResultDto>> Refresh() =>
         ApiResult.Ok(await authService.RefreshAsync(Request, Response, RequestCancellationToken));
 }
-
-

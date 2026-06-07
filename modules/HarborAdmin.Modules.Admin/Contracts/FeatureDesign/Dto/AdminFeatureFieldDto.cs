@@ -1,0 +1,28 @@
+namespace HarborAdmin.Modules.Admin.Contracts.FeatureDesign.Dto;
+
+/// <summary>
+/// 功能字段。
+/// </summary>
+public sealed record AdminFeatureFieldDto(
+    long Id,
+    string FeatureCode,
+    string FieldCode,
+    string LabelKey,
+    string? LabelFallback,
+    string? PlaceholderKey,
+    string? PlaceholderFallback,
+    string Component,
+    string DataType,
+    bool ListVisible,
+    bool SearchVisible,
+    bool CreateVisible,
+    bool UpdateVisible,
+    bool Readonly,
+    bool Required,
+    int SortOrder,
+    int? Width,
+    string? OptionsJson,
+    string? ValidationJson,
+    bool Enabled,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt);

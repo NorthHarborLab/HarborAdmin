@@ -1,12 +1,13 @@
-using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
+using HarborAdmin.BuildingBlocks.Caching.Abstractions;
 using HarborAdmin.Modules.Admin.Application.Services.Captcha;
 using HarborAdmin.Modules.Admin.Contracts.Auth.Dto;
 using HarborAdmin.Modules.Admin.Contracts.Auth.Request;
 using HarborAdmin.Modules.Admin.Contracts.Captcha.Dto;
 using HarborAdmin.Modules.Admin.Domain.Entities;
+using HarborAdmin.Modules.Admin.Infrastructure.Caching;
 using HarborAdmin.Modules.Admin.Infrastructure.Contexts;
 using HarborAdmin.Modules.Admin.Infrastructure.Options;
 using HarborAdmin.Modules.Admin.Infrastructure.Security;
@@ -21,8 +22,13 @@ namespace HarborAdmin.Modules.Admin.Application.Services.Auth;
 /// <summary>
 /// Admin 匿名认证服务：加密挑战、验证码、登录与令牌刷新。
 /// </summary>
-public sealed class AuthService(IAdminDbContext db, AdminTokenProtector tokenProtector, IOptions<AdminAuthOptions> authOptions,
-    IWebHostEnvironment environment, CaptchaChallengeService captchaChallengeService)
+public sealed class AuthService(
+    IAdminDbContext db,
+    AdminTokenProtector tokenProtector,
+    IOptions<AdminAuthOptions> authOptions,
+    IWebHostEnvironment environment,
+    CaptchaChallengeService captchaChallengeService,
+    IHarborCache cache)
 {
     /// <summary>
     /// Refresh token Cookie 名称。
@@ -30,9 +36,9 @@ public sealed class AuthService(IAdminDbContext db, AdminTokenProtector tokenPro
     private const string RefreshCookieName = "harbor_refresh_token";
 
     /// <summary>
-    /// 内存中的 RSA 加密挑战缓存。
+    /// RSA 加密挑战有效分钟数。
     /// </summary>
-    private static readonly ConcurrentDictionary<string, CryptoChallengeState> CryptoChallenges = new();
+    private static readonly TimeSpan CryptoChallengeExpiration = TimeSpan.FromMinutes(2);
 
     /// <summary>
     /// 用户密码哈希器。
@@ -47,14 +53,23 @@ public sealed class AuthService(IAdminDbContext db, AdminTokenProtector tokenPro
     /// <summary>
     /// 创建一次性 RSA 加密挑战，供前端加密登录密码使用。
     /// </summary>
+    /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>挑战标识、公钥与过期时间。</returns>
-    public CryptoChallengeDto CreateCryptoChallenge()
+    public async Task<CryptoChallengeDto> CreateCryptoChallengeAsync(CancellationToken cancellationToken)
     {
-        CleanupChallengeCaches();
         using var rsa = RSA.Create(2048);
         var id = Guid.NewGuid().ToString("N");
-        var expiresAt = DateTimeOffset.UtcNow.AddMinutes(2);
-        CryptoChallenges[id] = new CryptoChallengeState(rsa.ExportRSAPrivateKey(), expiresAt);
+        var expiresAt = DateTimeOffset.UtcNow.Add(CryptoChallengeExpiration);
+        await cache.SetAsync(
+            model => model.ChallengeId == id,
+            new CryptoChallengeCacheModel
+            {
+                ChallengeId = id,
+                PrivateKeyBase64 = Convert.ToBase64String(rsa.ExportRSAPrivateKey()),
+                ExpiresAt = expiresAt,
+            },
+            CryptoChallengeExpiration,
+            cancellationToken);
         var publicKey = Convert.ToBase64String(rsa.ExportSubjectPublicKeyInfo());
         return new CryptoChallengeDto(id, publicKey, expiresAt);
     }
@@ -62,16 +77,21 @@ public sealed class AuthService(IAdminDbContext db, AdminTokenProtector tokenPro
     /// <summary>
     /// 按当前配置创建验证码挑战。
     /// </summary>
+    /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>统一验证码挑战数据。</returns>
-    public CaptchaChallengeDto CreateCaptcha() => captchaChallengeService.CreateChallenge();
+    public Task<CaptchaChallengeDto> CreateCaptchaAsync(CancellationToken cancellationToken) =>
+        captchaChallengeService.CreateChallengeAsync(cancellationToken);
 
     /// <summary>
     /// 校验验证码并颁发一次性登录令牌。
     /// </summary>
     /// <param name="request">验证码校验请求。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>验证码令牌。</returns>
-    public VerifyCaptchaResult VerifyCaptcha(VerifyCaptchaRequest request) =>
-        captchaChallengeService.VerifyChallenge(request);
+    public Task<VerifyCaptchaResult> VerifyCaptchaAsync(
+        VerifyCaptchaRequest request,
+        CancellationToken cancellationToken) =>
+        captchaChallengeService.VerifyChallengeAsync(request, cancellationToken);
 
     /// <summary>
     /// 校验凭据并签发 access token，同时写入 refresh token Cookie。
@@ -82,9 +102,9 @@ public sealed class AuthService(IAdminDbContext db, AdminTokenProtector tokenPro
     /// <returns>access token。</returns>
     public async Task<LoginResultDto> LoginAsync(LoginRequest request, HttpResponse response, CancellationToken cancellationToken)
     {
-        ConsumeCaptchaToken(request.CaptchaToken);
+        await captchaChallengeService.ConsumeCaptchaTokenAsync(request.CaptchaToken, cancellationToken);
         var userName = request.Username;
-        var password = ResolvePassword(request);
+        var password = await ResolvePasswordAsync(request, cancellationToken);
         var user = await Orm.Select<AdminUser>()
             .Where(item => item.UserName == userName)
             .ToOneAsync(cancellationToken);
@@ -188,29 +208,30 @@ public sealed class AuthService(IAdminDbContext db, AdminTokenProtector tokenPro
         await Orm.Select<AdminUser>().Where(user => user.Id == userId).ToOneAsync(cancellationToken);
 
     /// <summary>
-    /// 消费一次性验证码令牌，防止重复登录。
-    /// </summary>
-    /// <param name="token">验证码令牌。</param>
-    private void ConsumeCaptchaToken(string? token) => captchaChallengeService.ConsumeCaptchaToken(token);
-
-    /// <summary>
     /// 解析登录密码：优先 RSA 密文，开发环境允许明文回退。
     /// </summary>
     /// <param name="request">登录请求。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>明文密码。</returns>
-    private string ResolvePassword(LoginRequest request)
+    private async Task<string> ResolvePasswordAsync(LoginRequest request, CancellationToken cancellationToken)
     {
         if (!string.IsNullOrWhiteSpace(request.PasswordCipherText))
         {
-            if (string.IsNullOrWhiteSpace(request.CryptoChallengeId)
-                || !CryptoChallenges.TryRemove(request.CryptoChallengeId, out var state)
-                || state.ExpiresAt < DateTimeOffset.UtcNow)
+            if (string.IsNullOrWhiteSpace(request.CryptoChallengeId))
+            {
+                throw new ValidationDomainException("密码加密挑战已过期。");
+            }
+
+            var state = await cache.TryConsumeAsync<CryptoChallengeCacheModel>(
+                model => model.ChallengeId == request.CryptoChallengeId,
+                cancellationToken);
+            if (state is null || state.ExpiresAt < DateTimeOffset.UtcNow)
             {
                 throw new ValidationDomainException("密码加密挑战已过期。");
             }
 
             using var rsa = RSA.Create();
-            rsa.ImportRSAPrivateKey(state.PrivateKey, out _);
+            rsa.ImportRSAPrivateKey(Convert.FromBase64String(state.PrivateKeyBase64), out _);
             var cipherBytes = Convert.FromBase64String(request.PasswordCipherText);
             return Encoding.UTF8.GetString(rsa.Decrypt(cipherBytes, RSAEncryptionPadding.OaepSHA256));
         }
@@ -257,23 +278,4 @@ public sealed class AuthService(IAdminDbContext db, AdminTokenProtector tokenPro
     /// <returns>已吊销时返回 <see langword="true"/>。</returns>
     private static bool IsRefreshTokenRevoked(AdminRefreshToken token) =>
         token.RevokedAt is { } revokedAt && revokedAt > DateTimeOffset.MinValue.AddYears(1);
-
-    /// <summary>
-    /// 清理已过期的 RSA 加密挑战缓存项。
-    /// </summary>
-    private static void CleanupChallengeCaches()
-    {
-        var now = DateTimeOffset.UtcNow;
-        foreach (var pair in CryptoChallenges.Where(pair => pair.Value.ExpiresAt < now).ToArray())
-        {
-            CryptoChallenges.TryRemove(pair.Key, out _);
-        }
-    }
-
-    /// <summary>
-    /// RSA 加密挑战的内存缓存状态。
-    /// </summary>
-    /// <param name="PrivateKey">RSA 私钥字节。</param>
-    /// <param name="ExpiresAt">过期时间。</param>
-    private sealed record CryptoChallengeState(byte[] PrivateKey, DateTimeOffset ExpiresAt);
 }
