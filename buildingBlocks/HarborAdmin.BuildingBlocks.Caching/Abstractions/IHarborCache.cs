@@ -36,4 +36,9 @@ public interface IHarborCache
     /// 获取强类型缓存模型入口。
     /// </summary>
     IHarborCacheSet<TModel> Get<TModel>() where TModel : class;
+
+    /// <summary>
+    /// 读取缓存原始 JSON 内容（运维专用）。
+    /// </summary>
+    ValueTask<CacheRawEntry?> TryGetRawEntryAsync(string key, CancellationToken cancellationToken = default);
 }

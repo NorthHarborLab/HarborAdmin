@@ -4,6 +4,7 @@ using HarborAdmin.BuildingBlocks.Caching.Serialization;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
+using System.Text;
 
 namespace HarborAdmin.BuildingBlocks.Caching.Infrastructure;
 
@@ -132,6 +133,32 @@ internal sealed class HarborCache(
     /// 获取强类型缓存模型入口。
     /// </summary>
     public IHarborCacheSet<TModel> Get<TModel>() where TModel : class => new HarborCacheSet<TModel>(this);
+
+    /// <summary>
+    /// 读取缓存原始 JSON 内容（运维专用）。
+    /// </summary>
+    public async ValueTask<CacheRawEntry?> TryGetRawEntryAsync(string key, CancellationToken cancellationToken = default)
+    {
+        if (memoryCache.TryGetValue(key, out object? cached) && cached is not null)
+        {
+            var json = HarborCacheSerializer.SerializeObjectToString(cached);
+            return new CacheRawEntry(true, json, Encoding.UTF8.GetByteCount(json));
+        }
+
+        if (distributedCache is null)
+        {
+            return new CacheRawEntry(false, null, 0);
+        }
+
+        var bytes = await distributedCache.GetAsync(key, cancellationToken);
+        if (bytes is null)
+        {
+            return new CacheRawEntry(false, null, 0);
+        }
+
+        var distributedJson = Encoding.UTF8.GetString(bytes);
+        return new CacheRawEntry(true, distributedJson, bytes.Length);
+    }
 
     /// <summary>
     /// 获取全局默认缓存过期时间。

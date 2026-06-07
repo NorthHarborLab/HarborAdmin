@@ -16,6 +16,11 @@ internal interface ITagIndexStore
     ValueTask<IReadOnlyList<string>> GetKeysAsync(string tag, CancellationToken cancellationToken);
 
     /// <summary>
+    /// 列出当前实例已绑定的 tag。
+    /// </summary>
+    ValueTask<IReadOnlyList<string>> ListTagsAsync(string? prefix, CancellationToken cancellationToken);
+
+    /// <summary>
     /// 移除指定缓存 key 的索引关系。
     /// </summary>
     ValueTask RemoveKeyAsync(string key, CancellationToken cancellationToken);

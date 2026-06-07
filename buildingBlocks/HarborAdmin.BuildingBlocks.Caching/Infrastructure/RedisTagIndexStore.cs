@@ -44,6 +44,39 @@ internal sealed class RedisTagIndexStore(IConnectionMultiplexer connection, IOpt
     }
 
     /// <summary>
+    /// 列出当前实例已绑定的 tag。
+    /// </summary>
+    public async ValueTask<IReadOnlyList<string>> ListTagsAsync(string? prefix, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var tagPrefix = $"{_prefix}:tag:";
+        var pattern = $"{tagPrefix}*";
+        var tags = new List<string>();
+        var endpoints = connection.GetEndPoints();
+        foreach (var endpoint in endpoints)
+        {
+            var server = connection.GetServer(endpoint);
+            if (!server.IsConnected || server.IsReplica)
+            {
+                continue;
+            }
+
+            await foreach (var key in server.KeysAsync(database: _database.Database, pattern: pattern))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var tag = key.ToString()[tagPrefix.Length..];
+                if (string.IsNullOrWhiteSpace(prefix) || tag.StartsWith(prefix, StringComparison.Ordinal))
+                {
+                    tags.Add(tag);
+                }
+            }
+        }
+
+        tags.Sort(StringComparer.Ordinal);
+        return tags;
+    }
+
+    /// <summary>
     /// 移除指定缓存 key 的索引关系。
     /// </summary>
     public async ValueTask RemoveKeyAsync(string key, CancellationToken cancellationToken)

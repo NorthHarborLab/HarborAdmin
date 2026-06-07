@@ -28,6 +28,11 @@ internal static class HarborCacheSerializer
     public static string SerializeToString<T>(T value) => JsonSerializer.Serialize(value, Options);
 
     /// <summary>
+    /// 将任意运行时类型对象序列化为 JSON 字符串。
+    /// </summary>
+    public static string SerializeObjectToString(object value) => JsonSerializer.Serialize(value, value.GetType(), Options);
+
+    /// <summary>
     /// 从 JSON 字符串反序列化对象。
     /// </summary>
     public static T? DeserializeFromString<T>(string value) => JsonSerializer.Deserialize<T>(value, Options);

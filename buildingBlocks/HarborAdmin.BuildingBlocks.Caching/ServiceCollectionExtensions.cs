@@ -25,6 +25,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<HarborCacheInvalidator>();
         services.AddSingleton<IHarborCacheInvalidator>(sp => sp.GetRequiredService<HarborCacheInvalidator>());
         services.AddSingleton<IHarborEntityCacheInvalidator>(sp => sp.GetRequiredService<HarborCacheInvalidator>());
+        services.AddSingleton<ICacheCatalogProvider, CacheCatalogProvider>();
+        services.AddSingleton<IHarborCacheManager, HarborCacheManager>();
 
         var options = configurationSection.Get<HarborCacheOptions>() ?? new HarborCacheOptions();
         if (options.Provider is HarborCacheProvider.Redis or HarborCacheProvider.Garnet)

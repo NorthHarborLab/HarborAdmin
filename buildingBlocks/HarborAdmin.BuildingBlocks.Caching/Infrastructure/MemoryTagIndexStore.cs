@@ -47,6 +47,20 @@ internal sealed class MemoryTagIndexStore : ITagIndexStore
     }
 
     /// <summary>
+    /// 列出当前实例已绑定的 tag。
+    /// </summary>
+    public ValueTask<IReadOnlyList<string>> ListTagsAsync(string? prefix, CancellationToken cancellationToken)
+    {
+        var tags = _tagKeys.Keys.AsEnumerable();
+        if (!string.IsNullOrWhiteSpace(prefix))
+        {
+            tags = tags.Where(tag => tag.StartsWith(prefix, StringComparison.Ordinal));
+        }
+
+        return ValueTask.FromResult<IReadOnlyList<string>>(tags.OrderBy(tag => tag, StringComparer.Ordinal).ToArray());
+    }
+
+    /// <summary>
     /// 移除指定缓存 key 的索引关系。
     /// </summary>
     public ValueTask RemoveKeyAsync(string key, CancellationToken cancellationToken)
