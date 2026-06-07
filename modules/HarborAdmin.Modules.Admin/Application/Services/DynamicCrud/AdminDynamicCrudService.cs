@@ -1,8 +1,8 @@
 using HarborAdmin.Modules.Admin.Application.Abstractions;
 using HarborAdmin.BuildingBlocks.Abstractions.Api;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
-using HarborAdmin.Modules.Admin.Contracts.DynamicCrud.Dtos;
-using HarborAdmin.Modules.Admin.Contracts.DynamicCrud.Requests;
+using HarborAdmin.Modules.Admin.Contracts.DynamicCrud.Dto;
+using HarborAdmin.Modules.Admin.Contracts.DynamicCrud.Request;
 
 namespace HarborAdmin.Modules.Admin.Application.Services.DynamicCrud;
 

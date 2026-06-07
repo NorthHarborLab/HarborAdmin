@@ -1,6 +1,5 @@
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.Modules.Admin.Contracts.Access.Dto;
-using HarborAdmin.Modules.Admin.Application.Services.Access;
 using HarborAdmin.Modules.Admin.Application.Services.Menu;
 using HarborAdmin.Modules.Admin.Application.Services.Shared;
 using HarborAdmin.Modules.Admin.Application.Services.User;
@@ -12,6 +11,7 @@ namespace HarborAdmin.Modules.Admin.Application.Services.Access;
 /// </summary>
 public sealed class SessionService(
     AdminServiceContext context,
+    AccessCacheService accessCache,
     AccessQueryService accessQuery,
     FieldPolicyService fieldPolicyService,
     UserService userService)
@@ -34,7 +34,7 @@ public sealed class SessionService(
         var routes = await MenuMapper.BuildRoutesAsync(context.Orm, menus, permissions, cancellationToken);
         var fieldPolicies = await fieldPolicyService.GetFieldPoliciesForUserAsync(userId, cancellationToken);
         var dataScopes = await accessQuery.GetDataScopesAsync(roles, cancellationToken);
-        var sessionVersion = await context.GetSessionVersionValueAsync(cancellationToken);
+        var sessionVersion = await accessCache.GetSessionVersionAsync(cancellationToken);
         var homePath = user.HomePath;
         if (string.IsNullOrWhiteSpace(homePath) || menus.All(menu => menu.RoutePath != homePath))
         {
@@ -63,5 +63,5 @@ public sealed class SessionService(
     /// 获取全局 sessionVersion，供前端判断权限/菜单是否需要刷新。
     /// </summary>
     public async Task<SessionVersionDto> GetSessionVersionAsync(CancellationToken cancellationToken) =>
-        new(await context.GetSessionVersionValueAsync(cancellationToken));
+        new(await accessCache.GetSessionVersionAsync(cancellationToken));
 }

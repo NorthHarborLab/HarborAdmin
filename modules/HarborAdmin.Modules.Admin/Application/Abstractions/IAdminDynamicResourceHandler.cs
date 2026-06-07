@@ -1,5 +1,5 @@
-using HarborAdmin.Modules.Admin.Contracts.DynamicCrud.Dtos;
-using HarborAdmin.Modules.Admin.Contracts.DynamicCrud.Requests;
+using HarborAdmin.Modules.Admin.Contracts.DynamicCrud.Dto;
+using HarborAdmin.Modules.Admin.Contracts.DynamicCrud.Request;
 
 namespace HarborAdmin.Modules.Admin.Application.Abstractions;
 
@@ -26,17 +26,12 @@ public interface IAdminDynamicResourceHandler
     /// <summary>
     /// 新增动态资源记录。
     /// </summary>
-    Task<IReadOnlyDictionary<string, object?>> CreateAsync(
-        IReadOnlyDictionary<string, object?> values,
-        CancellationToken cancellationToken);
+    Task<IReadOnlyDictionary<string, object?>> CreateAsync(IReadOnlyDictionary<string, object?> values, CancellationToken cancellationToken);
 
     /// <summary>
     /// 更新动态资源记录。
     /// </summary>
-    Task<IReadOnlyDictionary<string, object?>> UpdateAsync(
-        string id,
-        IReadOnlyDictionary<string, object?> values,
-        CancellationToken cancellationToken);
+    Task<IReadOnlyDictionary<string, object?>> UpdateAsync(string id, IReadOnlyDictionary<string, object?> values, CancellationToken cancellationToken);
 
     /// <summary>
     /// 删除动态资源记录。

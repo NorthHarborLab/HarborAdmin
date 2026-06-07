@@ -10,8 +10,11 @@ using HarborAdmin.Modules.Admin.Application.Services.Menu;
 using HarborAdmin.Modules.Admin.Application.Services.Metadata;
 using HarborAdmin.Modules.Admin.Application.Services.Role;
 using HarborAdmin.Modules.Admin.Application.Services.Shared;
+using HarborAdmin.Modules.Admin.Application.Services.System;
 using HarborAdmin.Modules.Admin.Application.Services.User;
+using HarborAdmin.BuildingBlocks.Data;
 using HarborAdmin.Modules.Admin.Infrastructure.Contexts;
+using HarborAdmin.Modules.Admin.Infrastructure.Migrations;
 using HarborAdmin.Modules.Admin.Infrastructure.Options;
 using HarborAdmin.Modules.Admin.Infrastructure.Repositories;
 using HarborAdmin.Modules.Admin.Infrastructure.Resolvers;
@@ -53,6 +56,7 @@ public static class AdminModuleExtensions
         services.AddScoped<AdminServiceContext>();
         services.AddScoped<SystemServiceContext>();
         services.AddScoped<IAdminDynamicResourceHandlerResolver, AdminDynamicResourceHandlerResolver>();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHarborFreeSqlPreSyncHook, AdminEntityFkPreSyncMigration>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, AdminApiPathMigrationHostedService>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, AdminEntityFkMigrationHostedService>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, AdminSuperAdminMigrationHostedService>());
@@ -65,6 +69,7 @@ public static class AdminModuleExtensions
 
     private static void AddAdminAccess(IServiceCollection services)
     {
+        services.AddScoped<AccessCacheService>();
         services.AddScoped<IAdminPrincipalResolver, AdminPrincipalResolver>();
         services.AddScoped<IAdminApiAccessEvaluator, AdminApiAccessEvaluator>();
         services.AddScoped<AccessQueryService>();
@@ -79,6 +84,7 @@ public static class AdminModuleExtensions
         services.AddScoped<DeptService>();
         services.AddScoped<RoleService>();
         services.AddScoped<UserService>();
+        services.AddScoped<CacheManagementService>();
     }
 
     private static void AddAdminFeatureDesign(IServiceCollection services)

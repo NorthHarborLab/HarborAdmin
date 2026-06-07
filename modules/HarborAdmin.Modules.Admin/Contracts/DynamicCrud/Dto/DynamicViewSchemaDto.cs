@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace HarborAdmin.Modules.Admin.Contracts.DynamicCrud.Dtos;
+namespace HarborAdmin.Modules.Admin.Contracts.DynamicCrud.Dto;
 
 /// <summary>
 /// 动态视图 schema。

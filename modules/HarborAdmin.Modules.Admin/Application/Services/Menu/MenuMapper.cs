@@ -58,9 +58,7 @@ internal static class MenuMapper
                     null,
                     action.PermissionCode,
                     1,
-                    new SystemMenuMetaDto(action.LabelKey, FeatureCode: menu.FeatureCode),
-                    null,
-                    null)))
+                    new SystemMenuMetaDto(action.LabelKey, FeatureCode: menu.FeatureCode))))
             .ToArray();
         var meta = ParseMenuMeta(menu);
         return new SystemMenuDto(
@@ -137,7 +135,6 @@ internal static class MenuMapper
         {
             "catalog" => "BasicLayout",
             "embedded" => feature?.Component ?? "IFrameView",
-            "link" => feature?.Component ?? "BasicLayout",
             _ => feature?.Component ?? "BasicLayout",
         };
 

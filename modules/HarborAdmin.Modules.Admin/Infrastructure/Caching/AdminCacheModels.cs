@@ -5,6 +5,7 @@ namespace HarborAdmin.Modules.Admin.Infrastructure.Caching;
 /// <summary>
 /// RSA 加密挑战缓存模型。
 /// </summary>
+[CacheCatalog("RSA 加密挑战", GroupPrefix = "harbor:admin:auth", GroupName = "Admin 认证", Module = "Admin", Order = 100, SupportsBulkClear = false, SensitiveFields = ["PrivateKeyBase64"])]
 [CacheKey("harbor:admin:crypto-challenge", Key = "{ChallengeId}", ExpirationSeconds = 120)]
 public sealed class CryptoChallengeCacheModel
 {
@@ -80,6 +81,7 @@ public sealed class CaptchaCharRegionCacheModel
 /// <summary>
 /// 验证码挑战缓存模型。
 /// </summary>
+[CacheCatalog("验证码挑战", GroupPrefix = "harbor:admin:auth", GroupName = "Admin 认证", Module = "Admin", Order = 101, SupportsBulkClear = false, SensitiveFields = ["Regions", "PieceX", "PieceY", "InitialDegree", "HintText"])]
 [CacheKey("harbor:admin:captcha-challenge", Key = "{CaptchaId}", ExpirationSeconds = 120)]
 public sealed class CaptchaChallengeCacheModel
 {
@@ -128,6 +130,7 @@ public sealed class CaptchaChallengeCacheModel
 /// <summary>
 /// 验证码令牌缓存模型。
 /// </summary>
+[CacheCatalog("验证码令牌", GroupPrefix = "harbor:admin:auth", GroupName = "Admin 认证", Module = "Admin", Order = 102, SupportsBulkClear = false, SensitiveFields = ["Token"])]
 [CacheKey("harbor:admin:captcha-token", Key = "{Token}", ExpirationSeconds = 120)]
 public sealed class CaptchaTokenCacheModel
 {

@@ -1,4 +1,6 @@
+using HarborAdmin.BuildingBlocks.Caching.Abstractions;
 using HarborAdmin.Modules.Admin.Domain.Entities;
+using HarborAdmin.Modules.Admin.Infrastructure.Caching;
 using HarborAdmin.Modules.Admin.Infrastructure.Contexts;
 
 namespace HarborAdmin.Modules.Admin.Application.Services.Shared;
@@ -6,7 +8,7 @@ namespace HarborAdmin.Modules.Admin.Application.Services.Shared;
 /// <summary>
 /// Admin 模块共享服务上下文。
 /// </summary>
-public sealed class AdminServiceContext(IAdminDbContext db)
+public sealed class AdminServiceContext(IAdminDbContext db, IHarborCache cache, IHarborCacheInvalidator cacheInvalidator)
 {
     private const string SessionVersionKey = "global";
 
@@ -53,11 +55,18 @@ public sealed class AdminServiceContext(IAdminDbContext db)
                 Version = 2,
                 UpdatedAt = DateTimeOffset.UtcNow,
             }).ExecuteAffrowsAsync(cancellationToken);
-            return;
+        }
+        else
+        {
+            version.Version++;
+            version.UpdatedAt = DateTimeOffset.UtcNow;
+            await Orm.Update<AdminSessionVersion>().SetSource(version).ExecuteAffrowsAsync(cancellationToken);
         }
 
-        version.Version++;
-        version.UpdatedAt = DateTimeOffset.UtcNow;
-        await Orm.Update<AdminSessionVersion>().SetSource(version).ExecuteAffrowsAsync(cancellationToken);
+        await cacheInvalidator.InvalidateTagAsync(AdminAccessCacheKeys.AllUsersTag, cancellationToken);
+        await cacheInvalidator.InvalidateTagAsync(AdminAccessCacheKeys.AllRolesTag, cancellationToken);
+        await cache.Get<SessionVersionCacheModel>()
+            .Where(item => item.VersionKey == AdminAccessCacheKeys.SessionVersionId)
+            .RemoveAsync(cancellationToken);
     }
 }

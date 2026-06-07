@@ -1,27 +1,22 @@
-using HarborAdmin.Modules.Admin.Application.Abstractions;
-using HarborAdmin.Modules.Admin.Application.Services.Shared;
-using HarborAdmin.Modules.Admin.Domain.Entities;
-
 namespace HarborAdmin.Modules.Admin.Application.Services.Access;
 
 /// <summary>
 /// API 访问鉴权服务。
 /// </summary>
-public sealed class ApiAuthorizationService(
-    IAdminRepository repository,
-    AccessQueryService accessQuery)
+public sealed class ApiAuthorizationService(AccessCacheService accessCache)
 {
     /// <summary>
     /// 判断用户是否允许访问指定 API。
     /// </summary>
     public async Task<bool> CanAccessApiAsync(long userId, string path, string method, CancellationToken cancellationToken)
     {
-        if (await accessQuery.IsSuperAdminAsync(userId, cancellationToken))
+        var snapshot = await accessCache.GetUserSnapshotAsync(userId, cancellationToken);
+        if (snapshot.IsSuperAdmin)
         {
             return true;
         }
 
-        var apis = await repository.GetEnabledFeatureApisAsync(cancellationToken);
+        var apis = await accessCache.GetEnabledFeatureApisAsync(cancellationToken);
         var endpoint = apis
             .Where(api => api.HttpMethod == method.ToUpperInvariant())
             .FirstOrDefault(api => AccessPathMatcher.Matches(api.Path, path));
@@ -30,7 +25,7 @@ public sealed class ApiAuthorizationService(
             return true;
         }
 
-        var actionLinks = await repository.GetFeatureActionApiLinksAsync(endpoint.Id, cancellationToken);
+        var actionLinks = await accessCache.GetFeatureActionApiLinksAsync(endpoint.Id, cancellationToken);
         if (actionLinks.Count == 0)
         {
             return true;
@@ -40,7 +35,7 @@ public sealed class ApiAuthorizationService(
             .Select(link => $"{link.FeatureCode}\u001F{link.ActionCode}")
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var featureCodes = actionLinks.Select(link => link.FeatureCode).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
-        var actions = (await repository.GetEnabledFeatureActionsAsync(cancellationToken))
+        var actions = (await accessCache.GetEnabledFeatureActionsAsync(cancellationToken))
             .Where(action => featureCodes.Contains(action.FeatureCode))
             .Where(action => actionKeys.Contains($"{action.FeatureCode}\u001F{action.ActionCode}"))
             .ToList();
@@ -49,7 +44,6 @@ public sealed class ApiAuthorizationService(
             return true;
         }
 
-        var userPermissions = await accessQuery.GetUserPermissionsAsync(userId, cancellationToken);
-        return actions.Any(action => userPermissions.Contains(action.PermissionCode));
+        return actions.Any(action => snapshot.Permissions.Contains(action.PermissionCode));
     }
 }

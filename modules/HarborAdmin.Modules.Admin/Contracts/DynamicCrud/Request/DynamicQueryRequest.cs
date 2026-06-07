@@ -1,4 +1,4 @@
-namespace HarborAdmin.Modules.Admin.Contracts.DynamicCrud.Requests;
+namespace HarborAdmin.Modules.Admin.Contracts.DynamicCrud.Request;
 
 /// <summary>
 /// 动态 CRUD 查询请求。

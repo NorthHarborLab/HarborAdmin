@@ -1,6 +1,5 @@
 using HarborAdmin.Modules.Admin.Application.Abstractions;
 using HarborAdmin.Modules.Admin.Domain.Entities;
-using HarborAdmin.BuildingBlocks.Abstractions.Api;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.Modules.Admin.Infrastructure.Contexts;
 

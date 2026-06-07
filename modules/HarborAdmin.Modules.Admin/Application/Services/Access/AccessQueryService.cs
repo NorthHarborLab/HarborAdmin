@@ -1,6 +1,4 @@
-using HarborAdmin.Modules.Admin.Application.Abstractions;
 using HarborAdmin.Modules.Admin.Contracts.Access.Dto;
-using HarborAdmin.Modules.Admin.Application.Services.Shared;
 using HarborAdmin.Modules.Admin.Domain.Entities;
 
 namespace HarborAdmin.Modules.Admin.Application.Services.Access;
@@ -8,17 +6,15 @@ namespace HarborAdmin.Modules.Admin.Application.Services.Access;
 /// <summary>
 /// 用户角色、权限、菜单与数据范围查询服务。
 /// </summary>
-public sealed class AccessQueryService(IAdminRepository repository, AdminServiceContext context)
+public sealed class AccessQueryService(AccessCacheService accessCache)
 {
-    private IFreeSql Orm => context.Orm;
-
     /// <summary>
     /// 判断用户是否为超级管理员。
     /// </summary>
     public async Task<bool> IsSuperAdminAsync(long userId, CancellationToken cancellationToken)
     {
-        var user = await Orm.Select<AdminUser>().Where(item => item.Id == userId).ToOneAsync(cancellationToken);
-        return user is { Enabled: true, IsSuperAdmin: true };
+        var snapshot = await accessCache.GetUserSnapshotAsync(userId, cancellationToken);
+        return snapshot.IsSuperAdmin;
     }
 
     /// <summary>
@@ -26,14 +22,8 @@ public sealed class AccessQueryService(IAdminRepository repository, AdminService
     /// </summary>
     public async Task<IReadOnlyList<AdminRole>> GetEnabledUserRolesAsync(long userId, CancellationToken cancellationToken)
     {
-        var userRoles = await repository.GetUserRoleLinksAsync(userId, cancellationToken);
-        if (userRoles.Count == 0)
-        {
-            return [];
-        }
-
-        var roleIds = userRoles.Select(link => link.RoleId).ToArray();
-        return await repository.GetRolesByIdsAsync(roleIds, enabledOnly: true, cancellationToken);
+        var snapshot = await accessCache.GetUserSnapshotAsync(userId, cancellationToken);
+        return snapshot.Roles.Select(AccessCacheService.ToAdminRole).ToArray();
     }
 
     /// <summary>
@@ -41,21 +31,8 @@ public sealed class AccessQueryService(IAdminRepository repository, AdminService
     /// </summary>
     public async Task<IReadOnlyList<string>> GetUserPermissionsAsync(long userId, CancellationToken cancellationToken)
     {
-        if (await IsSuperAdminAsync(userId, cancellationToken))
-        {
-            var allPermissions = await repository.GetEnabledFeatureActionsAsync(cancellationToken);
-            return allPermissions.Select(action => action.PermissionCode).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
-        }
-
-        var roles = await GetEnabledUserRolesAsync(userId, cancellationToken);
-        var roleIds = roles.Select(role => role.Id).ToArray();
-        if (roleIds.Length == 0)
-        {
-            return [];
-        }
-
-        var rolePermissions = await repository.GetRolePermissionLinksAsync(roleIds, cancellationToken);
-        return rolePermissions.Select(link => link.PermissionCode).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        var snapshot = await accessCache.GetUserSnapshotAsync(userId, cancellationToken);
+        return snapshot.Permissions;
     }
 
     /// <summary>
@@ -63,22 +40,8 @@ public sealed class AccessQueryService(IAdminRepository repository, AdminService
     /// </summary>
     public async Task<IReadOnlyList<AdminMenu>> GetUserMenusAsync(long userId, CancellationToken cancellationToken)
     {
-        var query = Orm.Select<AdminMenu>().Where(menu => menu.Enabled && menu.MenuType != "button");
-        if (await IsSuperAdminAsync(userId, cancellationToken))
-        {
-            return await query.OrderBy(menu => menu.SortOrder).ToListAsync(cancellationToken);
-        }
-
-        var roles = await GetEnabledUserRolesAsync(userId, cancellationToken);
-        var roleIds = roles.Select(role => role.Id).ToArray();
-        if (roleIds.Length == 0)
-        {
-            return [];
-        }
-
-        var roleMenus = await repository.GetRoleMenuLinksAsync(roleIds, cancellationToken);
-        var menuIds = roleMenus.Select(link => link.MenuId).Distinct().ToArray();
-        return await query.Where(menu => menuIds.Contains(menu.Id)).OrderBy(menu => menu.SortOrder).ToListAsync(cancellationToken);
+        var snapshot = await accessCache.GetUserSnapshotAsync(userId, cancellationToken);
+        return snapshot.Menus.Select(AccessCacheService.ToAdminMenu).ToArray();
     }
 
     /// <summary>
@@ -91,13 +54,18 @@ public sealed class AccessQueryService(IAdminRepository repository, AdminService
             return [];
         }
 
-        var roleIds = roles.Select(role => role.Id).ToArray();
-        var scopes = await repository.GetRoleDataScopesAsync(roleIds, cancellationToken);
-        return scopes.Select(scope =>
+        var scopes = new List<DataScopeDto>();
+        foreach (var role in roles)
         {
-            var role = roles.First(item => item.Id == scope.RoleId);
-            return new DataScopeDto(role.RoleCode, scope.ScopeType, scope.ScopeValueType, scope.ScopeValueId?.ToString());
-        }).ToArray();
+            var roleScopes = await accessCache.GetRoleDataScopesAsync(role.Id, cancellationToken);
+            scopes.AddRange(roleScopes.Select(scope => new DataScopeDto(
+                role.RoleCode,
+                scope.ScopeType,
+                scope.ScopeValueType,
+                scope.ScopeValueId?.ToString())));
+        }
+
+        return scopes;
     }
 
     /// <summary>
@@ -105,37 +73,13 @@ public sealed class AccessQueryService(IAdminRepository repository, AdminService
     /// </summary>
     public async Task<ISet<long>?> GetAllowedDepartmentIdsAsync(long userId, CancellationToken cancellationToken)
     {
-        if (await IsSuperAdminAsync(userId, cancellationToken))
+        var snapshot = await accessCache.GetUserSnapshotAsync(userId, cancellationToken);
+        return snapshot.AllowedDepartmentIds switch
         {
-            return null;
-        }
-
-        var roles = await GetEnabledUserRolesAsync(userId, cancellationToken);
-        if (roles.Any(role => role.DataScopeType == "All"))
-        {
-            return null;
-        }
-
-        var user = await Orm.Select<AdminUser>().Where(item => item.Id == userId).ToOneAsync(cancellationToken);
-        if (user?.DeptId is null)
-        {
-            return new HashSet<long>();
-        }
-
-        if (roles.Any(role => role.DataScopeType is "DeptWithChildren" or "SelfWithSubordinates"))
-        {
-            var departments = await Orm.Select<AdminDepartment>().ToListAsync(cancellationToken);
-            var ids = new HashSet<long> { user.DeptId.Value };
-            AddChildDepartmentIds(user.DeptId.Value, departments, ids);
-            return ids;
-        }
-
-        if (roles.Any(role => role.DataScopeType == "Dept"))
-        {
-            return new HashSet<long> { user.DeptId.Value };
-        }
-
-        return new HashSet<long>();
+            null => null,
+            { Length: 0 } => new HashSet<long>(),
+            var ids => ids.ToHashSet(),
+        };
     }
 
     /// <summary>
@@ -143,15 +87,4 @@ public sealed class AccessQueryService(IAdminRepository repository, AdminService
     /// </summary>
     public static bool PathMatches(string template, string path) =>
         AccessPathMatcher.Matches(template, path);
-
-    private static void AddChildDepartmentIds(long parentId, IReadOnlyList<AdminDepartment> departments, ISet<long> ids)
-    {
-        foreach (var child in departments.Where(dept => dept.ParentId == parentId))
-        {
-            if (ids.Add(child.Id))
-            {
-                AddChildDepartmentIds(child.Id, departments, ids);
-            }
-        }
-    }
 }
