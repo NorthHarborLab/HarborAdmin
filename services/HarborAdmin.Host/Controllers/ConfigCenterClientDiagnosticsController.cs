@@ -1,5 +1,6 @@
 using HarborAdmin.Client.ConfigCenter;
 using Microsoft.AspNetCore.Mvc;
+using HarborAdmin.BuildingBlocks.Abstractions.Api;
 
 namespace HarborAdmin.Host.Controllers;
 
@@ -19,7 +20,7 @@ public sealed class ConfigCenterClientDiagnosticsController(
     /// </summary>
     /// <param name="key">可选配置键。</param>
     [HttpGet]
-    public IActionResult Get([FromQuery] string? key = null)
+    public Task<ApiResult<object>> Get([FromQuery] string? key = null)
     {
         string? remoteValue = null;
         if (!string.IsNullOrWhiteSpace(key))
@@ -27,7 +28,7 @@ public sealed class ConfigCenterClientDiagnosticsController(
             state.CurrentData.TryGetValue(key.Trim(), out remoteValue);
         }
 
-        return Ok(new
+        return Task.FromResult(ApiResult.Ok<object>(new
         {
             state.AppId,
             state.ClientId,
@@ -39,6 +40,8 @@ public sealed class ConfigCenterClientDiagnosticsController(
             Key = key,
             RemoteValue = remoteValue,
             ConfigurationValue = string.IsNullOrWhiteSpace(key) ? null : configuration[key.Trim()]
-        });
+        }));
     }
 }
+
+

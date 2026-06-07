@@ -1,7 +1,6 @@
 using System.Collections;
 using System.Reflection;
 using HarborAdmin.BuildingBlocks.Caching.Abstractions;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace HarborAdmin.Host.Infrastructure;
 
