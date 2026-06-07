@@ -1,23 +1,25 @@
 using HarborAdmin.Modules.Admin.Application.Abstractions;
 using HarborAdmin.Modules.Admin.Application.Captcha;
 using HarborAdmin.Modules.Admin.Application.Services.Auth;
-using HarborAdmin.Modules.Admin.Application.Services.Authorization;
+using HarborAdmin.Modules.Admin.Application.Services.Access;
 using HarborAdmin.Modules.Admin.Application.Services.Captcha;
 using HarborAdmin.Modules.Admin.Application.Services.Dept;
-using HarborAdmin.Modules.Admin.Application.Services.DynamicCurd;
+using HarborAdmin.Modules.Admin.Application.Services.DynamicCrud;
 using HarborAdmin.Modules.Admin.Application.Services.FeatureDesign;
-using HarborAdmin.Modules.Admin.Application.Services.FieldPolicy;
 using HarborAdmin.Modules.Admin.Application.Services.Menu;
 using HarborAdmin.Modules.Admin.Application.Services.Metadata;
 using HarborAdmin.Modules.Admin.Application.Services.Role;
-using HarborAdmin.Modules.Admin.Application.Services.Session;
 using HarborAdmin.Modules.Admin.Application.Services.Shared;
 using HarborAdmin.Modules.Admin.Application.Services.User;
 using HarborAdmin.Modules.Admin.Infrastructure.Contexts;
 using HarborAdmin.Modules.Admin.Infrastructure.Options;
+using HarborAdmin.Modules.Admin.Infrastructure.Repositories;
 using HarborAdmin.Modules.Admin.Infrastructure.Resolvers;
 using HarborAdmin.Modules.Admin.Infrastructure.Security;
+using HarborAdmin.Modules.Admin.Infrastructure.Seed;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 
 namespace HarborAdmin.Modules.Admin;
 
@@ -31,30 +33,63 @@ public static class AdminModuleExtensions
     /// </summary>
     public static IServiceCollection AddAdminModule(this IServiceCollection services)
     {
-        services.AddHttpContextAccessor();
+        AddAdminInfrastructure(services);
+        AddAdminAuth(services);
+        AddAdminAccess(services);
+        AddAdminSystemManagement(services);
+        AddAdminFeatureDesign(services);
+        AddAdminDynamicCrud(services);
+        return services;
+    }
+
+    private static void AddAdminInfrastructure(IServiceCollection services)
+    {
         services.AddOptions<AdminAuthOptions>().BindConfiguration(AdminAuthOptions.SectionName);
         services.AddSingleton<IAdminDbContext, AdminDbContext>();
+        services.AddSingleton<IAdminRepository, FreeSqlAdminRepository>();
         services.AddSingleton<AdminTokenProtector>();
         services.AddSingleton<CaptchaImagePool>();
         services.AddSingleton<CaptchaChallengeService>();
-        services.AddScoped<AuthService>();
         services.AddScoped<AdminServiceContext>();
+        services.AddScoped<IAdminDynamicResourceHandlerResolver, AdminDynamicResourceHandlerResolver>();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, AdminApiPathMigrationHostedService>());
+    }
+
+    private static void AddAdminAuth(IServiceCollection services)
+    {
+        services.AddScoped<AuthService>();
+    }
+
+    private static void AddAdminAccess(IServiceCollection services)
+    {
+        services.AddScoped<IAdminPrincipalResolver, AdminPrincipalResolver>();
+        services.AddScoped<IAdminApiAccessEvaluator, AdminApiAccessEvaluator>();
         services.AddScoped<AccessQueryService>();
         services.AddScoped<SessionService>();
         services.AddScoped<ApiAuthorizationService>();
+        services.AddScoped<FieldPolicyService>();
+    }
+
+    private static void AddAdminSystemManagement(IServiceCollection services)
+    {
         services.AddScoped<MenuService>();
         services.AddScoped<DeptService>();
         services.AddScoped<RoleService>();
         services.AddScoped<UserService>();
-        services.AddScoped<FieldPolicyService>();
-        services.AddScoped<IAdminDynamicResourceHandlerResolver, AdminDynamicResourceHandlerResolver>();
+    }
+
+    private static void AddAdminFeatureDesign(IServiceCollection services)
+    {
         services.AddScoped<AdminMetadataService>();
         services.AddScoped<FeatureDesignServiceContext>();
         services.AddScoped<FeatureDesignFeatureService>();
         services.AddScoped<FeatureDesignFieldService>();
         services.AddScoped<FeatureDesignApiService>();
         services.AddScoped<FeatureDesignActionService>();
+    }
+
+    private static void AddAdminDynamicCrud(IServiceCollection services)
+    {
         services.AddScoped<AdminDynamicCrudService>();
-        return services;
     }
 }

@@ -48,7 +48,7 @@ public sealed class FeatureDesignFeatureService
         var repository = _context.GetFeatureRepository();
         repository.DbContextOptions.EnableCascadeSave = true;
         await repository.InsertAsync(feature, cancellationToken);
-        await _context.BumpSessionVersionAsync(cancellationToken);
+        await _context.AdminContext.BumpSessionVersionAsync(cancellationToken);
         return _context.Mapper.Map<AdminFeatureDto>(feature);
     }
 
@@ -62,7 +62,7 @@ public sealed class FeatureDesignFeatureService
                       ?? throw new NotFoundDomainException($"Feature '{normalized}' was not found.");
         ApplyFeature(feature, request, DateTimeOffset.UtcNow);
         await _context.GetFeatureRepository().UpdateAsync(feature, cancellationToken);
-        await _context.BumpSessionVersionAsync(cancellationToken);
+        await _context.AdminContext.BumpSessionVersionAsync(cancellationToken);
         return _context.Mapper.Map<AdminFeatureDto>(feature);
     }
 
@@ -88,7 +88,7 @@ public sealed class FeatureDesignFeatureService
 
         await _context.Db.Orm.Delete<AdminRoleFieldPermission>().Where(item => item.FeatureCode == normalized).ExecuteAffrowsAsync(cancellationToken);
         await _context.GetFeatureRepository().DeleteCascadeByDatabaseAsync(item => item.Id == feature.Id, cancellationToken);
-        await _context.BumpSessionVersionAsync(cancellationToken);
+        await _context.AdminContext.BumpSessionVersionAsync(cancellationToken);
     }
 
     private static void ApplyFeature(AdminFeature feature, SaveAdminFeatureRequest request, DateTimeOffset now)

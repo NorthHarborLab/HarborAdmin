@@ -1,6 +1,6 @@
 using System.Text.Json;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
-using HarborAdmin.Modules.Admin.Contracts.Auth.Dto;
+using HarborAdmin.Modules.Admin.Contracts.Access.Dto;
 using HarborAdmin.Modules.Admin.Contracts.System;
 using HarborAdmin.Modules.Admin.Domain.Entities;
 using HarborAdmin.Modules.Admin.Application.Services.Shared;

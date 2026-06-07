@@ -1,34 +1,32 @@
 using HarborAdmin.Host.Infrastructure.Security;
-using HarborAdmin.Modules.Admin.Application.Services.User;
-using HarborAdmin.Modules.Admin.Infrastructure.Security;
+using HarborAdmin.Modules.Admin.Application.Abstractions;
 
 namespace HarborAdmin.Host.Middleware;
 
 /// <summary>
 /// Admin access token 解析中间件（Host 管道组合）。
 /// </summary>
-public sealed class AdminAuthenticationMiddleware(RequestDelegate next, AdminTokenProtector tokenProtector)
+public sealed class AdminAuthenticationMiddleware(RequestDelegate next)
 {
     /// <summary>
     /// 解析当前请求用户。
     /// </summary>
-    public async Task InvokeAsync(HttpContext context, AdminRequestUser requestUser, UserService userService)
+    public async Task InvokeAsync(
+        HttpContext context,
+        AdminRequestUser requestUser,
+        IAdminPrincipalResolver principalResolver)
     {
         var authorization = context.Request.Headers.Authorization.ToString();
         var token = authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
             ? authorization["Bearer ".Length..].Trim()
             : null;
 
-        var payload = tokenProtector.ValidateAccessToken(token);
-        if (payload is not null)
+        var principal = await principalResolver.ResolveAsync(token, context.RequestAborted);
+        if (principal is not null)
         {
-            var user = await userService.GetUserAsync(payload.UserId, context.RequestAborted);
-            if (user is not null && user.Enabled)
-            {
-                requestUser.Id = user.Id;
-                requestUser.UserName = user.UserName;
-                requestUser.DisplayName = user.DisplayName;
-            }
+            requestUser.Id = principal.Id;
+            requestUser.UserName = principal.UserName;
+            requestUser.DisplayName = principal.DisplayName;
         }
 
         await next(context);

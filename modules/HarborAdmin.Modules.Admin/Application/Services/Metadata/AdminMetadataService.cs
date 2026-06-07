@@ -1,16 +1,16 @@
 using System.Text.Json;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
-using HarborAdmin.Modules.Admin.Contracts.Auth.Dto;
-using HarborAdmin.Modules.Admin.Contracts.DynamicCurd.Dtos;
+using HarborAdmin.Modules.Admin.Application.Abstractions;
+using HarborAdmin.Modules.Admin.Contracts.Access.Dto;
+using HarborAdmin.Modules.Admin.Contracts.DynamicCrud.Dtos;
 using HarborAdmin.Modules.Admin.Domain.Entities;
-using HarborAdmin.Modules.Admin.Infrastructure.Contexts;
 
 namespace HarborAdmin.Modules.Admin.Application.Services.Metadata;
 
 /// <summary>
 /// Admin 动态 Feature schema 服务。
 /// </summary>
-public sealed class AdminMetadataService(IAdminDbContext db)
+public sealed class AdminMetadataService(IAdminRepository repository)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -23,12 +23,7 @@ public sealed class AdminMetadataService(IAdminDbContext db)
         CancellationToken cancellationToken)
     {
         var normalized = NormalizeFeatureCode(featureCode);
-        var feature = await db.Orm.Select<AdminFeature>()
-                          .Where(item => item.FeatureCode == normalized && item.Enabled)
-                          .IncludeMany(item => item.Fields)
-                          .IncludeMany(item => item.Apis)
-                          .IncludeMany(item => item.Actions, then => then.IncludeMany(action => action.ActionApis))
-                          .FirstAsync(cancellationToken)
+        var feature = await repository.GetEnabledFeatureRuntimeAsync(normalized, cancellationToken)
                       ?? throw new NotFoundDomainException($"Feature '{normalized}' was not found.");
         if (!feature.FeatureType.Equals("Dynamic", StringComparison.OrdinalIgnoreCase))
         {

@@ -18,8 +18,8 @@
     </ItemGroup>
 
     <ItemGroup>
-      <EmbeddedResource Include="Application\Captcha\Assets\captcha\**\*" />
-      <Content Include="Application\Captcha\Assets\captcha\**\*">
+      <EmbeddedResource Include="Infrastructure\Assets\Captcha\**\*" />
+      <Content Include="Infrastructure\Assets\Captcha\**\*">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </Content>
     </ItemGroup>

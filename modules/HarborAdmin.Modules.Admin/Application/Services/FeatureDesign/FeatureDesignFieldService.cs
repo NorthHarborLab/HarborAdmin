@@ -56,7 +56,7 @@ public sealed class FeatureDesignFieldService
         feature.Fields.Add(field);
         _context.SaveFeatureChildren(feature, nameof(AdminFeature.Fields));
         await _context.IncrementSchemaVersionAsync(normalized, cancellationToken);
-        await _context.BumpSessionVersionAsync(cancellationToken);
+        await _context.AdminContext.BumpSessionVersionAsync(cancellationToken);
         return _context.Mapper.Map<AdminFeatureFieldDto>(field);
     }
 
@@ -75,7 +75,7 @@ public sealed class FeatureDesignFieldService
         ApplyField(field, request, DateTimeOffset.UtcNow);
         _context.SaveFeatureChildren(feature, nameof(AdminFeature.Fields));
         await _context.IncrementSchemaVersionAsync(normalized, cancellationToken);
-        await _context.BumpSessionVersionAsync(cancellationToken);
+        await _context.AdminContext.BumpSessionVersionAsync(cancellationToken);
         return _context.Mapper.Map<AdminFeatureFieldDto>(field);
     }
 
@@ -99,7 +99,7 @@ public sealed class FeatureDesignFieldService
             .Where(item => item.FeatureCode == normalized && item.FieldName == normalizedField)
             .ExecuteAffrowsAsync(cancellationToken);
         await _context.IncrementSchemaVersionAsync(normalized, cancellationToken);
-        await _context.BumpSessionVersionAsync(cancellationToken);
+        await _context.AdminContext.BumpSessionVersionAsync(cancellationToken);
     }
 
     private static void ApplyField(AdminFeatureField field, SaveAdminFeatureFieldRequest request, DateTimeOffset now)

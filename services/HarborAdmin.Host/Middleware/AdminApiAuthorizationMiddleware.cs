@@ -1,45 +1,37 @@
 using System.Text.Json;
 using HarborAdmin.BuildingBlocks.Abstractions.Api;
 using HarborAdmin.BuildingBlocks.Abstractions.Auth;
-using HarborAdmin.Modules.Admin.Application.Services.Authorization;
+using HarborAdmin.Host.Infrastructure.Options;
+using HarborAdmin.Modules.Admin.Application.Abstractions;
+using Microsoft.Extensions.Options;
 
 namespace HarborAdmin.Host.Middleware;
 
 /// <summary>
 /// Admin API 权限拦截中间件（Host 管道组合）。
 /// </summary>
-public sealed class AdminApiAuthorizationMiddleware(RequestDelegate next)
+public sealed class AdminApiAuthorizationMiddleware(
+    RequestDelegate next,
+    IOptions<AdminHostSecurityOptions> securityOptions)
 {
-    private static readonly string[] PublicPrefixes =
-    [
-        "/api/auth/crypto-challenge",
-        "/api/auth/captcha",
-        "/api/auth/login",
-        "/api/auth/refresh",
-        "/openapi",
-        "/admin/international/resources",
-    ];
+    private readonly AdminHostSecurityOptions _options = securityOptions.Value;
 
     /// <summary>
     /// 执行权限校验。
     /// </summary>
-    public async Task InvokeAsync(HttpContext context, ICurrentUser currentUser, ApiAuthorizationService apiAuthorizationService)
+    public async Task InvokeAsync(
+        HttpContext context,
+        ICurrentUser currentUser,
+        IAdminApiAccessEvaluator apiAccessEvaluator)
     {
-        if (IsPublic(context.Request.Path.Value))
+        var path = context.Request.Path.Value;
+        if (IsPublic(path))
         {
             await next(context);
             return;
         }
 
-        var path = context.Request.Path.Value;
-        var shouldAuthenticate = path?.StartsWith("/system", StringComparison.OrdinalIgnoreCase) == true
-            || path?.StartsWith("/api/admin/feature-design", StringComparison.OrdinalIgnoreCase) == true
-            || path?.StartsWith("/api/admin/features", StringComparison.OrdinalIgnoreCase) == true
-            || path?.StartsWith("/api/admin/dynamic-crud", StringComparison.OrdinalIgnoreCase) == true
-            || path?.StartsWith("/api/user", StringComparison.OrdinalIgnoreCase) == true
-            || path?.StartsWith("/menu", StringComparison.OrdinalIgnoreCase) == true;
-
-        if (!shouldAuthenticate)
+        if (!ShouldAuthenticate(path))
         {
             await next(context);
             return;
@@ -51,9 +43,9 @@ public sealed class AdminApiAuthorizationMiddleware(RequestDelegate next)
             return;
         }
 
-        var allowed = await apiAuthorizationService.CanAccessApiAsync(
+        var allowed = await apiAccessEvaluator.CanAccessAsync(
             currentUser.Id,
-            context.Request.Path.Value ?? string.Empty,
+            path ?? string.Empty,
             context.Request.Method,
             context.RequestAborted);
 
@@ -66,14 +58,26 @@ public sealed class AdminApiAuthorizationMiddleware(RequestDelegate next)
         await next(context);
     }
 
-    private static bool IsPublic(string? path)
+    private bool IsPublic(string? path)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
             return true;
         }
 
-        return PublicPrefixes.Any(prefix => path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+        return _options.PublicPathPrefixes.Any(prefix =>
+            path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private bool ShouldAuthenticate(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        return _options.ProtectedPathPrefixes.Any(prefix =>
+            path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
     }
 
     private static async Task WriteFailureAsync(HttpContext context, int statusCode, int code, string message)

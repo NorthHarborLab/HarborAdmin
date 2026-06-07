@@ -55,7 +55,7 @@ public sealed class FeatureDesignApiService
         ApplyApi(api, request, now);
         feature.Apis.Add(api);
         _context.SaveFeatureChildren(feature, nameof(AdminFeature.Apis));
-        await _context.BumpSessionVersionAsync(cancellationToken);
+        await _context.AdminContext.BumpSessionVersionAsync(cancellationToken);
         return _context.Mapper.Map<AdminFeatureApiDto>(api);
     }
 
@@ -73,7 +73,7 @@ public sealed class FeatureDesignApiService
         api.AdminFeatureId = feature.Id;
         ApplyApi(api, request, DateTimeOffset.UtcNow);
         _context.SaveFeatureChildren(feature, nameof(AdminFeature.Apis));
-        await _context.BumpSessionVersionAsync(cancellationToken);
+        await _context.AdminContext.BumpSessionVersionAsync(cancellationToken);
         return _context.Mapper.Map<AdminFeatureApiDto>(api);
     }
 
@@ -98,7 +98,7 @@ public sealed class FeatureDesignApiService
 
         feature.Apis.Remove(api);
         _context.SaveFeatureChildren(feature, nameof(AdminFeature.Apis));
-        await _context.BumpSessionVersionAsync(cancellationToken);
+        await _context.AdminContext.BumpSessionVersionAsync(cancellationToken);
     }
 
     /// <summary>
@@ -202,7 +202,7 @@ public sealed class FeatureDesignApiService
         }
 
         _context.SaveFeatureChildren(feature, nameof(AdminFeature.Apis));
-        await _context.BumpSessionVersionAsync(cancellationToken);
+        await _context.AdminContext.BumpSessionVersionAsync(cancellationToken);
         return await ListApisAsync(normalized, cancellationToken);
     }
 

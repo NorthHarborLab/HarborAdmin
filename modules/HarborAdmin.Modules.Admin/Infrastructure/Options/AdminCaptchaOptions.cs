@@ -44,7 +44,7 @@ public sealed class AdminCaptchaOptions
     /// <summary>
     /// 图片资源池相对目录（基于应用程序根目录）。
     /// </summary>
-    public string ImagePoolPath { get; set; } = "Application/Captcha/Assets/captcha";
+    public string ImagePoolPath { get; set; } = "Infrastructure/Assets/Captcha";
 
     /// <summary>
     /// 点选最少字符数。

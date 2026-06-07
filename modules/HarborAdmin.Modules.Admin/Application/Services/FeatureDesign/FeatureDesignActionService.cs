@@ -65,7 +65,7 @@ public sealed class FeatureDesignActionService
         _context.SaveFeatureChildren(feature, nameof(AdminFeature.Actions));
         await ReplaceActionApisAsync(normalized, action.ActionCode, request.ApiIds ?? [], cancellationToken);
         await _context.IncrementSchemaVersionAsync(normalized, cancellationToken);
-        await _context.BumpSessionVersionAsync(cancellationToken);
+        await _context.AdminContext.BumpSessionVersionAsync(cancellationToken);
         var saved = await _context.LoadActionAsync(normalized, action.ActionCode, cancellationToken);
         return MapAction(saved);
     }
@@ -106,7 +106,7 @@ public sealed class FeatureDesignActionService
 
         await ReplaceActionApisAsync(normalized, action.ActionCode, request.ApiIds ?? [], cancellationToken);
         await _context.IncrementSchemaVersionAsync(normalized, cancellationToken);
-        await _context.BumpSessionVersionAsync(cancellationToken);
+        await _context.AdminContext.BumpSessionVersionAsync(cancellationToken);
         var saved = await _context.LoadActionAsync(normalized, action.ActionCode, cancellationToken);
         return MapAction(saved);
     }
@@ -128,7 +128,7 @@ public sealed class FeatureDesignActionService
         feature.Actions.Remove(action);
         _context.SaveFeatureChildren(feature, nameof(AdminFeature.Actions));
         await _context.IncrementSchemaVersionAsync(normalized, cancellationToken);
-        await _context.BumpSessionVersionAsync(cancellationToken);
+        await _context.AdminContext.BumpSessionVersionAsync(cancellationToken);
     }
 
     /// <summary>
@@ -143,7 +143,7 @@ public sealed class FeatureDesignActionService
         var action = feature.Actions.FirstOrDefault(item => string.Equals(item.ActionCode, normalizedAction, StringComparison.OrdinalIgnoreCase))
                      ?? throw new NotFoundDomainException($"Feature action '{normalized}.{normalizedAction}' was not found.");
         await ReplaceActionApisAsync(normalized, action.ActionCode, apiIds, cancellationToken);
-        await _context.BumpSessionVersionAsync(cancellationToken);
+        await _context.AdminContext.BumpSessionVersionAsync(cancellationToken);
         var saved = await _context.LoadActionAsync(normalized, action.ActionCode, cancellationToken);
         return MapAction(saved);
     }

@@ -1,4 +1,5 @@
 using HarborAdmin.BuildingBlocks.Abstractions.Auth;
+using HarborAdmin.Host.Infrastructure.Options;
 using HarborAdmin.Host.Infrastructure.Security;
 
 namespace HarborAdmin.Host.Infrastructure;
@@ -17,6 +18,7 @@ public static class AdminServiceExtensions
     public static IServiceCollection AddAdminSecurity(this IServiceCollection services)
     {
         services.AddHttpContextAccessor();
+        services.AddOptions<AdminHostSecurityOptions>().BindConfiguration(AdminHostSecurityOptions.SectionName);
         services.AddScoped<AdminRequestUser>();
         services.AddSingleton<ICurrentUser, HttpContextCurrentUser>();
         return services;

@@ -1,5 +1,5 @@
-using HarborAdmin.Modules.Admin.Contracts.DynamicCurd.Dtos;
-using HarborAdmin.Modules.Admin.Contracts.DynamicCurd.Requests;
+using HarborAdmin.Modules.Admin.Contracts.DynamicCrud.Dtos;
+using HarborAdmin.Modules.Admin.Contracts.DynamicCrud.Requests;
 
 namespace HarborAdmin.Modules.Admin.Application.Abstractions;
 

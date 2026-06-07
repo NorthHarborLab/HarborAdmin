@@ -121,10 +121,10 @@ public sealed class CaptchaImagePool(IOptions<AdminAuthOptions> authOptions)
     private static string[] LoadEmbeddedImageNames(string? subfolder)
     {
         return Assembly.GetManifestResourceNames()
-            .Where(name => name.Contains(".Assets.captcha.", StringComparison.Ordinal))
+            .Where(name => name.Contains(".Infrastructure.Assets.Captcha.", StringComparison.Ordinal))
             .Where(name => string.IsNullOrWhiteSpace(subfolder)
-                ? !name.Contains(".Assets.captcha.rotate.", StringComparison.Ordinal)
-                : name.Contains($".Assets.captcha.{subfolder}.", StringComparison.Ordinal))
+                ? !name.Contains(".Infrastructure.Assets.Captcha.rotate.", StringComparison.Ordinal)
+                : name.Contains($".Infrastructure.Assets.Captcha.{subfolder}.", StringComparison.Ordinal))
             .Where(IsSupportedResourceName)
             .ToArray();
     }

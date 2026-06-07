@@ -1,6 +1,7 @@
 using FreeSql;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.BuildingBlocks.Mapping;
+using HarborAdmin.Modules.Admin.Application.Abstractions;
 using HarborAdmin.Modules.Admin.Application.Services.Shared;
 using HarborAdmin.Modules.Admin.Domain.Entities;
 using HarborAdmin.Modules.Admin.Infrastructure.Contexts;
@@ -12,17 +13,24 @@ namespace HarborAdmin.Modules.Admin.Application.Services.FeatureDesign;
 /// </summary>
 public sealed class FeatureDesignServiceContext
 {
+    private readonly IAdminRepository _repository;
+
     public IHarborMapper Mapper { get; }
     public readonly IAdminDbContext Db;
 
     /// <summary>
     /// 初始化功能设计服务上下文。
     /// </summary>
-    public FeatureDesignServiceContext(IAdminDbContext db, IHarborMapper mapper, AdminServiceContext adminContext)
+    public FeatureDesignServiceContext(
+        IAdminDbContext db,
+        IHarborMapper mapper,
+        AdminServiceContext adminContext,
+        IAdminRepository repository)
     {
         Db = db;
         Mapper = mapper;
         AdminContext = adminContext;
+        _repository = repository;
     }
 
     /// <summary>
@@ -45,10 +53,7 @@ public sealed class FeatureDesignServiceContext
             throw new ValidationDomainException("Action code is required.");
         }
 
-        return await Db.Orm.Select<AdminFeatureAction>()
-            .Where(item => item.FeatureCode == normalized && item.ActionCode == normalizedAction)
-            .IncludeMany(item => item.ActionApis)
-            .ToOneAsync(cancellationToken)
+        return await _repository.GetFeatureActionAsync(normalized, normalizedAction, cancellationToken)
                ?? throw new NotFoundDomainException($"Feature action '{normalized}.{normalizedAction}' was not found.");
     }
 
@@ -60,12 +65,7 @@ public sealed class FeatureDesignServiceContext
             throw new ValidationDomainException("Feature code is required.");
         }
 
-        return await Db.Orm.Select<AdminFeature>()
-            .Where(item => item.FeatureCode == normalized)
-            .IncludeMany(item => item.Fields)
-            .IncludeMany(item => item.Apis)
-            .IncludeMany(item => item.Actions, then => then.IncludeMany(action => action.ActionApis))
-            .ToOneAsync(cancellationToken);
+        return await _repository.GetFeatureAggregateAsync(normalized, cancellationToken);
     }
 
     public IBaseRepository<AdminFeature> GetFeatureRepository()
@@ -99,7 +99,4 @@ public sealed class FeatureDesignServiceContext
         feature.UpdatedAt = DateTimeOffset.UtcNow;
         await Db.Orm.Update<AdminFeature>().SetSource(feature).ExecuteAffrowsAsync(cancellationToken);
     }
-
-    public Task BumpSessionVersionAsync(CancellationToken cancellationToken) =>
-        AdminContext.BumpSessionVersionAsync(cancellationToken);
 }
