@@ -1,0 +1,48 @@
+using HarborAdmin.Modules.Admin.Application.Services.User;
+using HarborAdmin.Modules.Admin.Contracts.System;
+using HarborAdmin.BuildingBlocks.Abstractions.Auth;
+using Microsoft.AspNetCore.Mvc;
+using HarborAdmin.BuildingBlocks.Abstractions.Api;
+
+namespace HarborAdmin.Modules.Admin.Controllers;
+
+/// <summary>
+/// 系统用户管理。
+/// </summary>
+[ApiController]
+[Route("system/user")]
+public sealed class SystemUserController(UserService userService, ICurrentUser currentUser) : ControllerBase
+{
+    /// <summary>
+    /// 查询用户列表。
+    /// </summary>
+    [HttpGet("list")]
+    public async Task<ApiResult<IReadOnlyList<SystemUserDto>>> List([FromQuery] long? deptId, CancellationToken cancellationToken) =>
+        ApiResult.Ok(await userService.ListUsersAsync(currentUser.Id, deptId, cancellationToken));
+
+    /// <summary>
+    /// 创建用户。
+    /// </summary>
+    [HttpPost]
+    public async Task<ApiResult<SystemUserDto>> Create([FromBody] SaveSystemUserRequest request, CancellationToken cancellationToken) =>
+        ApiResult.Ok(await userService.SaveUserAsync(null, request, cancellationToken));
+
+    /// <summary>
+    /// 更新用户。
+    /// </summary>
+    [HttpPut("{id:long}")]
+    public async Task<ApiResult<SystemUserDto>> Update(long id, [FromBody] SaveSystemUserRequest request, CancellationToken cancellationToken) =>
+        ApiResult.Ok(await userService.SaveUserAsync(id, request, cancellationToken));
+
+    /// <summary>
+    /// 删除用户。
+    /// </summary>
+    [HttpDelete("{id:long}")]
+    public async Task<ApiResult<bool>> Delete(long id, CancellationToken cancellationToken)
+    {
+        await userService.DeleteUserAsync(id, cancellationToken);
+        return ApiResult.Ok(true);
+    }
+}
+
+

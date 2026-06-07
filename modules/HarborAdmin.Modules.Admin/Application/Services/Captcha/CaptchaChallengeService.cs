@@ -1,9 +1,10 @@
-using System.Collections.Concurrent;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
+using HarborAdmin.BuildingBlocks.Caching.Abstractions;
+using HarborAdmin.Modules.Admin.Application.Captcha;
 using HarborAdmin.Modules.Admin.Contracts.Auth.Dto;
 using HarborAdmin.Modules.Admin.Contracts.Auth.Request;
-using HarborAdmin.Modules.Admin.Application.Captcha;
 using HarborAdmin.Modules.Admin.Contracts.Captcha.Dto;
+using HarborAdmin.Modules.Admin.Infrastructure.Caching;
 using HarborAdmin.Modules.Admin.Infrastructure.Options;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
@@ -17,25 +18,15 @@ namespace HarborAdmin.Modules.Admin.Application.Services.Captcha;
 /// <remarks>
 /// 按配置生成点选、滑块、旋转、拼图四类验证码，校验通过后颁发一次性登录令牌。
 /// </remarks>
-public sealed class CaptchaChallengeService(IOptions<AdminAuthOptions> authOptions, IWebHostEnvironment environment, CaptchaImagePool imagePool)
+public sealed class CaptchaChallengeService(IOptions<AdminAuthOptions> authOptions, IWebHostEnvironment environment, CaptchaImagePool imagePool, IHarborCache cache)
 {
-    /// <summary>
-    /// 内存中的验证码挑战缓存，键为挑战 ID。
-    /// </summary>
-    private static readonly ConcurrentDictionary<string, CaptchaChallengeState> Challenges = new();
-
-    /// <summary>
-    /// 内存中的验证码令牌缓存，校验通过后供登录消费。
-    /// </summary>
-    private static readonly ConcurrentDictionary<string, CaptchaTokenState> Tokens = new();
-
     /// <summary>
     /// 按当前配置创建验证码挑战。
     /// </summary>
+    /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>验证码挑战数据；未启用时返回 <c>Enabled = false</c> 的占位挑战。</returns>
-    public CaptchaChallengeDto CreateChallenge()
+    public async Task<CaptchaChallengeDto> CreateChallengeAsync(CancellationToken cancellationToken)
     {
-        CleanupCaches();
         var enabled = IsCaptchaEnabled();
         var captchaOptions = authOptions.Value.Captcha;
         var id = Guid.NewGuid().ToString("N");
@@ -49,90 +40,102 @@ public sealed class CaptchaChallengeService(IOptions<AdminAuthOptions> authOptio
 
         return type switch
         {
-            CaptchaType.Point => CreatePointChallenge(id, expiresAt, captchaOptions),
-            CaptchaType.Slider => CreateSliderChallenge(id, expiresAt),
-            CaptchaType.SliderRotate => CreateRotateChallenge(id, expiresAt, captchaOptions),
-            CaptchaType.SliderTranslate => CreateTranslateChallenge(id, expiresAt, captchaOptions),
-            _ => CreatePointChallenge(id, expiresAt, captchaOptions),
+            CaptchaType.Point => await CreatePointChallengeAsync(id, expiresAt, captchaOptions, cancellationToken),
+            CaptchaType.Slider => await CreateSliderChallengeAsync(id, expiresAt, cancellationToken),
+            CaptchaType.SliderRotate => await CreateRotateChallengeAsync(id, expiresAt, captchaOptions, cancellationToken),
+            CaptchaType.SliderTranslate => await CreateTranslateChallengeAsync(id, expiresAt, captchaOptions, cancellationToken),
+            _ => await CreatePointChallengeAsync(id, expiresAt, captchaOptions, cancellationToken),
         };
     }
 
     /// <summary>
     /// 校验验证码并颁发 token。
     /// </summary>
-    public VerifyCaptchaResult VerifyChallenge(VerifyCaptchaRequest request)
+    /// <param name="request">验证码校验请求。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>验证码校验结果。</returns>
+    public async Task<VerifyCaptchaResult> VerifyChallengeAsync(
+        VerifyCaptchaRequest request,
+        CancellationToken cancellationToken)
     {
         if (!IsCaptchaEnabled())
         {
             return new VerifyCaptchaResult("captcha-disabled");
         }
 
-        if (!Challenges.TryRemove(request.CaptchaId, out var state) || state.ExpiresAt < DateTimeOffset.UtcNow)
+        var state = await cache.TryConsumeAsync<CaptchaChallengeCacheModel>(
+            model => model.CaptchaId == request.CaptchaId,
+            cancellationToken);
+        if (state is null || state.ExpiresAt < DateTimeOffset.UtcNow)
         {
             throw new ValidationDomainException("验证码已过期，请刷新后重试。");
         }
 
-        var valid = state switch
+        if (!ValidateChallenge(state, request))
         {
-            PointCaptchaChallengeState point => PointCaptchaGenerator.ValidatePoints(
-                request.Points ?? [],
-                point.Regions,
-                authOptions.Value.Captcha.PointTolerance),
-            SliderCaptchaChallengeState => ValidateSlider(request.DurationSeconds),
-            RotateCaptchaChallengeState rotate => request.CurrentRotate is { } currentRotate
-                                                  && RotateCaptchaGenerator.Validate(
-                                                      rotate.InitialDegree,
-                                                      currentRotate,
-                                                      authOptions.Value.Captcha.RotateDiffDegree),
-            TranslateCaptchaChallengeState translate => request.MoveDistance is { } moveDistance
-                                                        && TranslateCaptchaGenerator.Validate(
-                                                            translate.PieceX,
-                                                            moveDistance,
-                                                            authOptions.Value.Captcha.TranslateDiffDistance),
-            _ => false,
-        };
-
-        if (!valid)
-        {
-            throw new ValidationDomainException(GetVerifyFailureMessage(state));
+            throw new ValidationDomainException(GetVerifyFailureMessage(state.Kind));
         }
 
         var token = Guid.NewGuid().ToString("N");
-        Tokens[token] =
-            new CaptchaTokenState(DateTimeOffset.UtcNow.AddMinutes(authOptions.Value.Captcha.ChallengeMinutes));
+        var tokenExpiresAt = DateTimeOffset.UtcNow.AddMinutes(authOptions.Value.Captcha.ChallengeMinutes);
+        var expiration = TimeSpan.FromMinutes(authOptions.Value.Captcha.ChallengeMinutes);
+        await cache.SetAsync(
+            model => model.Token == token,
+            new CaptchaTokenCacheModel { Token = token, ExpiresAt = tokenExpiresAt },
+            expiration,
+            cancellationToken);
         return new VerifyCaptchaResult(token);
     }
 
     /// <summary>
     /// 消费验证码 token。
     /// </summary>
-    public void ConsumeCaptchaToken(string? token)
+    /// <param name="token">验证码令牌。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    public async Task ConsumeCaptchaTokenAsync(string? token, CancellationToken cancellationToken)
     {
         if (!IsCaptchaEnabled())
         {
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(token)
-            || !Tokens.TryRemove(token, out var state)
-            || state.ExpiresAt < DateTimeOffset.UtcNow)
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new ValidationDomainException("验证码已过期或无效。");
+        }
+
+        var state = await cache.TryConsumeAsync<CaptchaTokenCacheModel>(
+            model => model.Token == token,
+            cancellationToken);
+        if (state is null || state.ExpiresAt < DateTimeOffset.UtcNow)
         {
             throw new ValidationDomainException("验证码已过期或无效。");
         }
     }
 
     /// <summary>
-    /// 创建点选验证码挑战
+    /// 创建点选验证码挑战。
     /// </summary>
-    /// <param name="id">挑战 ID</param>
-    /// <param name="expiresAt">挑战过期时间</param>
-    /// <param name="captchaOptions">验证码选项</param>
-    /// <returns>验证码挑战数据</returns>
-    private CaptchaChallengeDto CreatePointChallenge(string id, DateTimeOffset expiresAt, AdminCaptchaOptions captchaOptions)
+    private async Task<CaptchaChallengeDto> CreatePointChallengeAsync(
+        string id,
+        DateTimeOffset expiresAt,
+        AdminCaptchaOptions captchaOptions,
+        CancellationToken cancellationToken)
     {
         var imageBytes = imagePool.PickRandom(Random.Shared);
         var layout = PointCaptchaGenerator.Create(true, captchaOptions, imageBytes);
-        Challenges[id] = new PointCaptchaChallengeState(layout.HintText, layout.Regions, expiresAt);
+        await StoreChallengeAsync(
+            id,
+            new CaptchaChallengeCacheModel
+            {
+                CaptchaId = id,
+                Kind = CaptchaChallengeKind.Point,
+                ExpiresAt = expiresAt,
+                HintText = layout.HintText,
+                Regions = ToCacheRegions(layout.Regions),
+            },
+            captchaOptions.ChallengeMinutes,
+            cancellationToken);
         return new CaptchaChallengeDto(
             id,
             ToApiType(CaptchaType.Point),
@@ -143,45 +146,75 @@ public sealed class CaptchaChallengeService(IOptions<AdminAuthOptions> authOptio
     }
 
     /// <summary>
-    /// 创建滑块验证码挑战
+    /// 创建滑块验证码挑战。
     /// </summary>
-    /// <param name="id">挑战 ID</param>
-    /// <param name="expiresAt">挑战过期时间</param>
-    /// <returns>验证码挑战数据</returns>
-    private CaptchaChallengeDto CreateSliderChallenge(string id, DateTimeOffset expiresAt)
+    private async Task<CaptchaChallengeDto> CreateSliderChallengeAsync(
+        string id,
+        DateTimeOffset expiresAt,
+        CancellationToken cancellationToken)
     {
-        Challenges[id] = new SliderCaptchaChallengeState(expiresAt);
+        await StoreChallengeAsync(
+            id,
+            new CaptchaChallengeCacheModel
+            {
+                CaptchaId = id,
+                Kind = CaptchaChallengeKind.Slider,
+                ExpiresAt = expiresAt,
+            },
+            authOptions.Value.Captcha.ChallengeMinutes,
+            cancellationToken);
         return new CaptchaChallengeDto(id, ToApiType(CaptchaType.Slider), true, expiresAt);
     }
 
     /// <summary>
-    /// 创建旋转验证码挑战
+    /// 创建旋转验证码挑战。
     /// </summary>
-    /// <param name="id">挑战 ID</param>
-    /// <param name="expiresAt">挑战过期时间</param>
-    /// <param name="captchaOptions">验证码选项</param>
-    /// <returns>验证码挑战数据</returns>
-    private CaptchaChallengeDto CreateRotateChallenge(string id, DateTimeOffset expiresAt, AdminCaptchaOptions captchaOptions)
+    private async Task<CaptchaChallengeDto> CreateRotateChallengeAsync(
+        string id,
+        DateTimeOffset expiresAt,
+        AdminCaptchaOptions captchaOptions,
+        CancellationToken cancellationToken)
     {
         var imageBytes = imagePool.PickRandomForRotate(Random.Shared);
         var layout = RotateCaptchaGenerator.Create(imageBytes, captchaOptions, Random.Shared);
-        Challenges[id] = new RotateCaptchaChallengeState(layout.InitialDegree, expiresAt);
+        await StoreChallengeAsync(
+            id,
+            new CaptchaChallengeCacheModel
+            {
+                CaptchaId = id,
+                Kind = CaptchaChallengeKind.Rotate,
+                ExpiresAt = expiresAt,
+                InitialDegree = layout.InitialDegree,
+            },
+            captchaOptions.ChallengeMinutes,
+            cancellationToken);
         return new CaptchaChallengeDto(id, ToApiType(CaptchaType.SliderRotate), true, expiresAt, null, null,
             layout.ImageDataUri, captchaOptions.RotateImageSize, layout.InitialDegree, captchaOptions.RotateDiffDegree);
     }
 
     /// <summary>
-    /// 创建拼图验证码挑战
+    /// 创建拼图验证码挑战。
     /// </summary>
-    /// <param name="id">挑战 ID</param>
-    /// <param name="expiresAt">挑战过期时间</param>
-    /// <param name="captchaOptions">验证码选项</param>
-    /// <returns>验证码挑战数据</returns>
-    private CaptchaChallengeDto CreateTranslateChallenge(string id, DateTimeOffset expiresAt, AdminCaptchaOptions captchaOptions)
+    private async Task<CaptchaChallengeDto> CreateTranslateChallengeAsync(
+        string id,
+        DateTimeOffset expiresAt,
+        AdminCaptchaOptions captchaOptions,
+        CancellationToken cancellationToken)
     {
         var imageBytes = imagePool.PickRandom(Random.Shared);
         var layout = TranslateCaptchaGenerator.Create(imageBytes, captchaOptions, Random.Shared);
-        Challenges[id] = new TranslateCaptchaChallengeState(layout.PieceX, layout.PieceY, expiresAt);
+        await StoreChallengeAsync(
+            id,
+            new CaptchaChallengeCacheModel
+            {
+                CaptchaId = id,
+                Kind = CaptchaChallengeKind.Translate,
+                ExpiresAt = expiresAt,
+                PieceX = layout.PieceX,
+                PieceY = layout.PieceY,
+            },
+            captchaOptions.ChallengeMinutes,
+            cancellationToken);
         return new CaptchaChallengeDto(id, ToApiType(CaptchaType.SliderTranslate), true, expiresAt, null, null, null,
             null, null, null, layout.BackgroundImageDataUri, layout.PieceImageDataUri,
             captchaOptions.TranslateCanvasWidth, captchaOptions.TranslateCanvasHeight,
@@ -189,12 +222,22 @@ public sealed class CaptchaChallengeService(IOptions<AdminAuthOptions> authOptio
     }
 
     /// <summary>
-    /// 创建禁用验证码挑战
+    /// 写入验证码挑战缓存。
     /// </summary>
-    /// <param name="id">挑战 ID</param>
-    /// <param name="type">验证码类型</param>
-    /// <param name="expiresAt">挑战过期时间</param>
-    /// <returns>验证码挑战数据</returns>
+    private ValueTask StoreChallengeAsync(
+        string id,
+        CaptchaChallengeCacheModel model,
+        int challengeMinutes,
+        CancellationToken cancellationToken) =>
+        cache.SetAsync(
+            item => item.CaptchaId == id,
+            model,
+            TimeSpan.FromMinutes(challengeMinutes),
+            cancellationToken);
+
+    /// <summary>
+    /// 创建禁用验证码挑战。
+    /// </summary>
     private CaptchaChallengeDto BuildDisabledChallenge(string id, CaptchaType type, DateTimeOffset expiresAt)
     {
         if (type == CaptchaType.Point)
@@ -207,11 +250,34 @@ public sealed class CaptchaChallengeService(IOptions<AdminAuthOptions> authOptio
     }
 
     /// <summary>
-    /// 验证滑块
+    /// 校验验证码挑战。
     /// </summary>
-    /// <param name="durationSeconds">滑动时间</param>
-    /// <returns>是否验证成功</returns>
-    /// <returns></returns>
+    private bool ValidateChallenge(CaptchaChallengeCacheModel state, VerifyCaptchaRequest request) =>
+        state.Kind switch
+        {
+            CaptchaChallengeKind.Point => PointCaptchaGenerator.ValidatePoints(
+                request.Points ?? [],
+                ToGeneratorRegions(state.Regions),
+                authOptions.Value.Captcha.PointTolerance),
+            CaptchaChallengeKind.Slider => ValidateSlider(request.DurationSeconds),
+            CaptchaChallengeKind.Rotate => request.CurrentRotate is { } currentRotate
+                                           && state.InitialDegree is { } initialDegree
+                                           && RotateCaptchaGenerator.Validate(
+                                               initialDegree,
+                                               currentRotate,
+                                               authOptions.Value.Captcha.RotateDiffDegree),
+            CaptchaChallengeKind.Translate => request.MoveDistance is { } moveDistance
+                                              && state.PieceX is { } pieceX
+                                              && TranslateCaptchaGenerator.Validate(
+                                                  pieceX,
+                                                  moveDistance,
+                                                  authOptions.Value.Captcha.TranslateDiffDistance),
+            _ => false,
+        };
+
+    /// <summary>
+    /// 验证滑块。
+    /// </summary>
     private bool ValidateSlider(double? durationSeconds)
     {
         if (durationSeconds is not { } duration)
@@ -224,34 +290,28 @@ public sealed class CaptchaChallengeService(IOptions<AdminAuthOptions> authOptio
     }
 
     /// <summary>
-    /// 是否启用验证码
+    /// 是否启用验证码。
     /// </summary>
-    /// <returns>是否启用验证码</returns>
     private bool IsCaptchaEnabled() =>
         authOptions.Value.CaptchaEnabled
         && (!environment.IsDevelopment() || !authOptions.Value.AllowDisableCaptchaInDevelopment);
 
     /// <summary>
-    /// 获取验证失败消息
+    /// 获取验证失败消息。
     /// </summary>
-    /// <param name="state">验证码挑战状态</param>
-    /// <returns>验证失败消息</returns>
-    /// <returns></returns>
-    private static string GetVerifyFailureMessage(CaptchaChallengeState state) =>
-        state switch
+    private static string GetVerifyFailureMessage(CaptchaChallengeKind kind) =>
+        kind switch
         {
-            PointCaptchaChallengeState => "验证码校验失败，请按提示依次点击文字。",
-            SliderCaptchaChallengeState => "滑块验证失败，请匀速拖动滑块至末端。",
-            RotateCaptchaChallengeState => "旋转验证失败，请调整图片至正确角度。",
-            TranslateCaptchaChallengeState => "拼图验证失败，请拖动滑块对齐缺口。",
+            CaptchaChallengeKind.Point => "验证码校验失败，请按提示依次点击文字。",
+            CaptchaChallengeKind.Slider => "滑块验证失败，请匀速拖动滑块至末端。",
+            CaptchaChallengeKind.Rotate => "旋转验证失败，请调整图片至正确角度。",
+            CaptchaChallengeKind.Translate => "拼图验证失败，请拖动滑块对齐缺口。",
             _ => "验证码校验失败。",
         };
 
     /// <summary>
-    /// 转换为 API 类型
+    /// 转换为 API 类型。
     /// </summary>
-    /// <param name="type">验证码类型</param>
-    /// <returns>API 类型</returns>
     private static string ToApiType(CaptchaType type) =>
         type switch
         {
@@ -263,50 +323,24 @@ public sealed class CaptchaChallengeService(IOptions<AdminAuthOptions> authOptio
         };
 
     /// <summary>
-    /// 清理缓存
+    /// 将生成器区域映射为缓存模型。
     /// </summary>
-    private static void CleanupCaches()
-    {
-        var now = DateTimeOffset.UtcNow;
-        foreach (var pair in Challenges.Where(pair => pair.Value.ExpiresAt < now).ToArray())
+    private static CaptchaCharRegionCacheModel[] ToCacheRegions(PointCaptchaGenerator.CaptchaCharRegion[] regions) =>
+        regions.Select(region => new CaptchaCharRegionCacheModel
         {
-            Challenges.TryRemove(pair.Key, out _);
-        }
-
-        foreach (var pair in Tokens.Where(pair => pair.Value.ExpiresAt < now).ToArray())
-        {
-            Tokens.TryRemove(pair.Key, out _);
-        }
-    }
+            X = region.X,
+            Y = region.Y,
+            Width = region.Width,
+            Height = region.Height,
+        }).ToArray();
 
     /// <summary>
-    /// 验证码挑战状态
+    /// 将缓存区域映射为生成器区域。
     /// </summary>
-    private abstract record CaptchaChallengeState(DateTimeOffset ExpiresAt);
-
-    /// <summary>
-    /// 点选验证码挑战结构
-    /// </summary>
-    private sealed record PointCaptchaChallengeState(string HintText, PointCaptchaGenerator.CaptchaCharRegion[] Regions, DateTimeOffset ExpiresAt)
-        : CaptchaChallengeState(ExpiresAt);
-
-    /// <summary>
-    /// 滑块验证码挑战结构
-    /// </summary>
-    private sealed record SliderCaptchaChallengeState(DateTimeOffset ExpiresAt) : CaptchaChallengeState(ExpiresAt);
-
-    /// <summary>
-    /// 旋转验证码挑战结构
-    /// </summary>
-    private sealed record RotateCaptchaChallengeState(int InitialDegree, DateTimeOffset ExpiresAt) : CaptchaChallengeState(ExpiresAt);
-
-    /// <summary>
-    /// 拼图验证码挑战结构
-    /// </summary>
-    private sealed record TranslateCaptchaChallengeState(int PieceX, int PieceY, DateTimeOffset ExpiresAt) : CaptchaChallengeState(ExpiresAt);
-
-    /// <summary>
-    /// 验证码令牌结构
-    /// </summary>
-    private sealed record CaptchaTokenState(DateTimeOffset ExpiresAt);
+    private static PointCaptchaGenerator.CaptchaCharRegion[] ToGeneratorRegions(CaptchaCharRegionCacheModel[]? regions) =>
+        regions?.Select(region => new PointCaptchaGenerator.CaptchaCharRegion(
+            region.X,
+            region.Y,
+            region.Width,
+            region.Height)).ToArray() ?? [];
 }
