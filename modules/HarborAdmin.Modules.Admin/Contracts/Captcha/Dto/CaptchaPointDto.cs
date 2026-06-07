@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace HarborAdmin.Modules.Admin.Contracts.Auth.Request;
+namespace HarborAdmin.Modules.Admin.Contracts.Captcha.Dto;
 
 /// <summary>
 /// 点选坐标。
