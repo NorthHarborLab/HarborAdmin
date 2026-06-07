@@ -58,4 +58,10 @@ internal sealed class HarborCacheQuery<TModel>(IHarborCache cache, CacheModelMet
     /// </summary>
     public ValueTask RemoveAsync(CancellationToken cancellationToken = default) =>
         cache.RemoveAsync(key, cancellationToken);
+
+    /// <summary>
+    /// 写入当前查询对应的缓存值。
+    /// </summary>
+    public ValueTask SetAsync(TModel value, TimeSpan? expiration = null, CancellationToken cancellationToken = default) =>
+        cache.SetAsync(key, value, expiration ?? metadata.Expiration, metadata.BuildTags(value), cancellationToken);
 }

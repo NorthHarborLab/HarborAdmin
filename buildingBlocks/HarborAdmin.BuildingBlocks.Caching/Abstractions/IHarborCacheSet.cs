@@ -34,4 +34,9 @@ public interface IHarborCacheQuery<TModel> where TModel : class
     /// 删除缓存值。
     /// </summary>
     ValueTask RemoveAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 写入缓存值；过期时间未指定时使用模型 <see cref="Attributes.CacheKeyAttribute.ExpirationSeconds"/> 或全局默认值。
+    /// </summary>
+    ValueTask SetAsync(TModel value, TimeSpan? expiration = null, CancellationToken cancellationToken = default);
 }
