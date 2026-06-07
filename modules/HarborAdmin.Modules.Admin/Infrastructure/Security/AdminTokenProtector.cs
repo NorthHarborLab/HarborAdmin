@@ -16,6 +16,10 @@ public sealed class AdminTokenProtector(IOptions<AdminAuthOptions> options)
     /// <summary>
     /// 创建 access token。
     /// </summary>
+    /// <param name="userId">用户 ID。</param>
+    /// <param name="userName">登录名。</param>
+    /// <param name="expiresAt">过期时间。</param>
+    /// <returns>签名后的 access token。</returns>
     public string CreateAccessToken(long userId, string userName, DateTimeOffset expiresAt)
     {
         var payload = new TokenPayload(userId, userName, expiresAt.ToUnixTimeSeconds());
@@ -26,8 +30,10 @@ public sealed class AdminTokenProtector(IOptions<AdminAuthOptions> options)
     }
 
     /// <summary>
-    /// 验证 access token。
+    /// 校验 access token。
     /// </summary>
+    /// <param name="token">access token。</param>
+    /// <returns>有效载荷；无效或过期时返回 <see langword="null"/>。</returns>
     public TokenPayload? ValidateAccessToken(string? token)
     {
         if (string.IsNullOrWhiteSpace(token))
@@ -58,18 +64,21 @@ public sealed class AdminTokenProtector(IOptions<AdminAuthOptions> options)
     }
 
     /// <summary>
-    /// 创建随机刷新令牌。
+    /// 创建 refresh token 明文。
     /// </summary>
-    public static string CreateRefreshToken()
+    /// <returns>refresh token。</returns>
+    public string CreateRefreshToken()
     {
         var bytes = RandomNumberGenerator.GetBytes(48);
         return Base64UrlEncode(bytes);
     }
 
     /// <summary>
-    /// 对刷新令牌做哈希。
+    /// 计算 refresh token 哈希。
     /// </summary>
-    public static string HashRefreshToken(string refreshToken)
+    /// <param name="refreshToken">refresh token 明文。</param>
+    /// <returns>哈希值。</returns>
+    public string HashRefreshToken(string refreshToken)
     {
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(refreshToken));
         return Convert.ToHexString(hash);
@@ -99,8 +108,3 @@ public sealed class AdminTokenProtector(IOptions<AdminAuthOptions> options)
         return Convert.FromBase64String(text);
     }
 }
-
-/// <summary>
-/// Access token 载荷。
-/// </summary>
-public sealed record TokenPayload(long UserId, string UserName, long ExpiresAt);

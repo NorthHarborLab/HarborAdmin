@@ -129,7 +129,7 @@ public sealed class AuthService(IAdminDbContext db, AdminTokenProtector tokenPro
             throw new UnauthorizedDomainException("刷新令牌不存在。");
         }
 
-        var tokenHash = AdminTokenProtector.HashRefreshToken(refreshToken);
+        var tokenHash = tokenProtector.HashRefreshToken(refreshToken);
         var token = await Orm.Select<AdminRefreshToken>()
             .Where(item => item.TokenHash == tokenHash)
             .ToOneAsync(cancellationToken);
@@ -164,7 +164,7 @@ public sealed class AuthService(IAdminDbContext db, AdminTokenProtector tokenPro
     {
         if (request.Cookies.TryGetValue(RefreshCookieName, out var refreshToken))
         {
-            var tokenHash = AdminTokenProtector.HashRefreshToken(refreshToken);
+            var tokenHash = tokenProtector.HashRefreshToken(refreshToken);
             var token = await Orm.Select<AdminRefreshToken>()
                 .Where(item => item.TokenHash == tokenHash)
                 .ToOneAsync(cancellationToken);
@@ -231,11 +231,11 @@ public sealed class AuthService(IAdminDbContext db, AdminTokenProtector tokenPro
     /// <param name="cancellationToken">取消令牌。</param>
     private async Task IssueRefreshTokenAsync(long userId, HttpResponse response, CancellationToken cancellationToken)
     {
-        var refreshToken = AdminTokenProtector.CreateRefreshToken();
+        var refreshToken = tokenProtector.CreateRefreshToken();
         await Orm.Insert(new AdminRefreshToken
         {
             UserId = userId,
-            TokenHash = AdminTokenProtector.HashRefreshToken(refreshToken),
+            TokenHash = tokenProtector.HashRefreshToken(refreshToken),
             ExpiresAt = DateTimeOffset.UtcNow.AddDays(authOptions.Value.RefreshTokenDays),
             CreatedAt = DateTimeOffset.UtcNow,
         }).ExecuteAffrowsAsync(cancellationToken);
