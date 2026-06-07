@@ -1,5 +1,7 @@
 using System.Text;
+using HarborAdmin.Modules.Admin.Contracts.Auth.Dto;
 using HarborAdmin.Modules.Admin.Contracts.Auth.Request;
+using HarborAdmin.Modules.Admin.Contracts.Captcha.Dto;
 using HarborAdmin.Modules.Admin.Infrastructure.Options;
 using SkiaSharp;
 

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using HarborAdmin.Modules.Admin.Contracts.Captcha.Dto;
 
 namespace HarborAdmin.Modules.Admin.Contracts.Auth.Request;
 

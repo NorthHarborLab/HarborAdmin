@@ -11,5 +11,5 @@ public sealed class AdminDbContext(
     DbEntityRegistry entityRegistry) : IAdminDbContext
 {
     /// <inheritdoc />
-    public IFreeSql Orm => cloud.Use(entityRegistry.GetDbKey<AdminResource>());
+    public IFreeSql Orm => cloud.Use(entityRegistry.GetDbKey<AdminFeature>());
 }
