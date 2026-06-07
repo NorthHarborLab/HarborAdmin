@@ -13,6 +13,15 @@ public sealed class AccessQueryService(IAdminRepository repository, AdminService
     private IFreeSql Orm => context.Orm;
 
     /// <summary>
+    /// 判断用户是否为超级管理员。
+    /// </summary>
+    public async Task<bool> IsSuperAdminAsync(long userId, CancellationToken cancellationToken)
+    {
+        var user = await Orm.Select<AdminUser>().Where(item => item.Id == userId).ToOneAsync(cancellationToken);
+        return user is { Enabled: true, IsSuperAdmin: true };
+    }
+
+    /// <summary>
     /// 获取用户已启用的角色列表。
     /// </summary>
     public async Task<IReadOnlyList<AdminRole>> GetEnabledUserRolesAsync(long userId, CancellationToken cancellationToken)
@@ -32,13 +41,13 @@ public sealed class AccessQueryService(IAdminRepository repository, AdminService
     /// </summary>
     public async Task<IReadOnlyList<string>> GetUserPermissionsAsync(long userId, CancellationToken cancellationToken)
     {
-        var roles = await GetEnabledUserRolesAsync(userId, cancellationToken);
-        if (roles.Any(role => role.RoleCode == "super_admin"))
+        if (await IsSuperAdminAsync(userId, cancellationToken))
         {
             var allPermissions = await repository.GetEnabledFeatureActionsAsync(cancellationToken);
             return allPermissions.Select(action => action.PermissionCode).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         }
 
+        var roles = await GetEnabledUserRolesAsync(userId, cancellationToken);
         var roleIds = roles.Select(role => role.Id).ToArray();
         if (roleIds.Length == 0)
         {
@@ -54,13 +63,13 @@ public sealed class AccessQueryService(IAdminRepository repository, AdminService
     /// </summary>
     public async Task<IReadOnlyList<AdminMenu>> GetUserMenusAsync(long userId, CancellationToken cancellationToken)
     {
-        var roles = await GetEnabledUserRolesAsync(userId, cancellationToken);
         var query = Orm.Select<AdminMenu>().Where(menu => menu.Enabled && menu.MenuType != "button");
-        if (roles.Any(role => role.RoleCode == "super_admin"))
+        if (await IsSuperAdminAsync(userId, cancellationToken))
         {
             return await query.OrderBy(menu => menu.SortOrder).ToListAsync(cancellationToken);
         }
 
+        var roles = await GetEnabledUserRolesAsync(userId, cancellationToken);
         var roleIds = roles.Select(role => role.Id).ToArray();
         if (roleIds.Length == 0)
         {
@@ -96,6 +105,11 @@ public sealed class AccessQueryService(IAdminRepository repository, AdminService
     /// </summary>
     public async Task<ISet<long>?> GetAllowedDepartmentIdsAsync(long userId, CancellationToken cancellationToken)
     {
+        if (await IsSuperAdminAsync(userId, cancellationToken))
+        {
+            return null;
+        }
+
         var roles = await GetEnabledUserRolesAsync(userId, cancellationToken);
         if (roles.Any(role => role.DataScopeType == "All"))
         {

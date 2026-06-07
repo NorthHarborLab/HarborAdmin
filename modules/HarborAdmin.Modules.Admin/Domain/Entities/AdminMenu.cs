@@ -9,7 +9,8 @@ namespace HarborAdmin.Modules.Admin.Domain.Entities;
 [DbKey("AdminDb")]
 [Index("ux_admin_menu_code", nameof(MenuCode), true)]
 [Index("ux_admin_menu_route_path", nameof(RoutePath), true)]
-public sealed class AdminMenu : EntityBase
+[Index("idx_admin_menu_feature_id", nameof(AdminFeatureId), false)]
+public sealed class AdminMenu : AuditableEntity
 {
     /// <summary>
     /// 菜单编码。
@@ -22,7 +23,30 @@ public sealed class AdminMenu : EntityBase
     public long? ParentId { get; set; }
 
     /// <summary>
-    /// 绑定功能编码。
+    /// 上级菜单。
+    /// </summary>
+    [Navigate(nameof(ParentId))]
+    public AdminMenu? Parent { get; set; }
+
+    /// <summary>
+    /// 子菜单。
+    /// </summary>
+    [Navigate(nameof(ParentId))]
+    public List<AdminMenu> Children { get; set; } = [];
+
+    /// <summary>
+    /// 绑定功能 ID。
+    /// </summary>
+    public long? AdminFeatureId { get; set; }
+
+    /// <summary>
+    /// 绑定功能。
+    /// </summary>
+    [Navigate(nameof(AdminFeatureId))]
+    public AdminFeature? AdminFeature { get; set; }
+
+    /// <summary>
+    /// 绑定功能编码（冗余）。
     /// </summary>
     public string? FeatureCode { get; set; }
 
@@ -78,12 +102,8 @@ public sealed class AdminMenu : EntityBase
     public string? MetaJson { get; set; }
 
     /// <summary>
-    /// 创建时间。
+    /// 角色菜单关系。
     /// </summary>
-    public DateTimeOffset CreatedAt { get; set; }
-
-    /// <summary>
-    /// 更新时间。
-    /// </summary>
-    public DateTimeOffset UpdatedAt { get; set; }
+    [Navigate(nameof(AdminRoleMenu.MenuId))]
+    public List<AdminRoleMenu> RoleMenus { get; set; } = [];
 }

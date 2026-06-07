@@ -16,8 +16,7 @@ public sealed class ApiAuthorizationService(
     /// </summary>
     public async Task<bool> CanAccessApiAsync(long userId, string path, string method, CancellationToken cancellationToken)
     {
-        var roles = await accessQuery.GetEnabledUserRolesAsync(userId, cancellationToken);
-        if (roles.Any(role => role.RoleCode == "super_admin"))
+        if (await accessQuery.IsSuperAdminAsync(userId, cancellationToken))
         {
             return true;
         }

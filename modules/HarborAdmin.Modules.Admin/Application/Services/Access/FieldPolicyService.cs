@@ -15,6 +15,11 @@ public sealed class FieldPolicyService(AdminServiceContext context, AccessQueryS
     /// </summary>
     public async Task<IReadOnlyList<FieldPolicyDto>> GetFieldPoliciesForUserAsync(long userId, CancellationToken cancellationToken)
     {
+        if (await accessQuery.IsSuperAdminAsync(userId, cancellationToken))
+        {
+            return [];
+        }
+
         var roles = await accessQuery.GetEnabledUserRolesAsync(userId, cancellationToken);
         var roleIds = roles.Select(role => role.Id).ToArray();
         return await GetFieldPoliciesAsync(roleIds, cancellationToken);
@@ -41,6 +46,7 @@ public sealed class FieldPolicyService(AdminServiceContext context, AccessQueryS
 
         var policies = await Orm.Select<Domain.Entities.AdminRoleFieldPermission>()
             .Where(policy => roleIds.Contains(policy.RoleId))
+            .Include(policy => policy.AdminFeatureField)
             .ToListAsync(cancellationToken);
         return policies
             .GroupBy(policy => (policy.FeatureCode, policy.FieldName))

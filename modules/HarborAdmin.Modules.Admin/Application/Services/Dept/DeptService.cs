@@ -8,9 +8,9 @@ namespace HarborAdmin.Modules.Admin.Application.Services.Dept;
 /// <summary>
 /// 部门管理服务。
 /// </summary>
-public sealed class DeptService(AdminServiceContext context)
+public sealed class DeptService(SystemServiceContext systemContext, AdminServiceContext context)
 {
-    private IFreeSql Orm => context.Orm;
+    private IFreeSql Orm => systemContext.Orm;
 
     /// <summary>
     /// 获取部门树。

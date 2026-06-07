@@ -16,6 +16,12 @@ public sealed class AdminRoleDataScope : EntityBase
     public long RoleId { get; set; }
 
     /// <summary>
+    /// 角色。
+    /// </summary>
+    [Navigate(nameof(RoleId))]
+    public AdminRole Role { get; set; } = null!;
+
+    /// <summary>
     /// 范围类型。
     /// </summary>
     public string ScopeType { get; set; } = string.Empty;

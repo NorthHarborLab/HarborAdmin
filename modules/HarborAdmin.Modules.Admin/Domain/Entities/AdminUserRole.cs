@@ -16,7 +16,19 @@ public sealed class AdminUserRole : EntityBase
     public long UserId { get; set; }
 
     /// <summary>
+    /// 用户。
+    /// </summary>
+    [Navigate(nameof(UserId))]
+    public AdminUser User { get; set; } = null!;
+
+    /// <summary>
     /// 角色 ID。
     /// </summary>
     public long RoleId { get; set; }
+
+    /// <summary>
+    /// 角色。
+    /// </summary>
+    [Navigate(nameof(RoleId))]
+    public AdminRole Role { get; set; } = null!;
 }

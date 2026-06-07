@@ -25,14 +25,14 @@ public sealed class UserController(UserService userService, ICurrentUser current
     /// </summary>
     [HttpPost]
     public async Task<ApiResult<SystemUserDto>> Create([FromBody] SaveSystemUserRequest request, CancellationToken cancellationToken) =>
-        ApiResult.Ok(await userService.SaveUserAsync(null, request, cancellationToken));
+        ApiResult.Ok(await userService.SaveUserAsync(currentUser.Id, null, request, cancellationToken));
 
     /// <summary>
     /// 更新用户。
     /// </summary>
     [HttpPut("{id:long}")]
     public async Task<ApiResult<SystemUserDto>> Update(long id, [FromBody] SaveSystemUserRequest request, CancellationToken cancellationToken) =>
-        ApiResult.Ok(await userService.SaveUserAsync(id, request, cancellationToken));
+        ApiResult.Ok(await userService.SaveUserAsync(currentUser.Id, id, request, cancellationToken));
 
     /// <summary>
     /// 删除用户。

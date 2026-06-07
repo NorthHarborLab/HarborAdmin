@@ -1,4 +1,5 @@
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
+using HarborAdmin.Modules.Admin.Application.Abstractions;
 using HarborAdmin.Modules.Admin.Contracts.System;
 using HarborAdmin.Modules.Admin.Domain.Entities;
 using HarborAdmin.Modules.Admin.Application.Services.Shared;
@@ -8,20 +9,15 @@ namespace HarborAdmin.Modules.Admin.Application.Services.Role;
 /// <summary>
 /// 角色管理服务。
 /// </summary>
-public sealed class RoleService(AdminServiceContext context)
+public sealed class RoleService(SystemServiceContext systemContext, AdminServiceContext context, IAdminRepository repository)
 {
-    private IFreeSql Orm => context.Orm;
-
     /// <summary>
     /// 获取角色列表及其权限配置。
     /// </summary>
     public async Task<IReadOnlyList<SystemRoleDto>> ListRolesAsync(CancellationToken cancellationToken)
     {
-        var roles = await Orm.Select<AdminRole>().OrderBy(role => role.Id).ToListAsync(cancellationToken);
-        var links = await Orm.Select<AdminRoleMenu>().ToListAsync(cancellationToken);
-        var permissionLinks = await Orm.Select<AdminRolePermission>().ToListAsync(cancellationToken);
-        var fieldPolicies = await Orm.Select<AdminRoleFieldPermission>().ToListAsync(cancellationToken);
-        return roles.Select(role => ToRoleDto(role, links, permissionLinks, fieldPolicies)).ToArray();
+        var roles = await repository.ListRolesWithGrantsAsync(cancellationToken);
+        return roles.Select(ToRoleDto).ToArray();
     }
 
     /// <summary>
@@ -30,10 +26,16 @@ public sealed class RoleService(AdminServiceContext context)
     public async Task<SystemRoleDto> SaveRoleAsync(long? id, SaveSystemRoleRequest request, CancellationToken cancellationToken)
     {
         var now = DateTimeOffset.UtcNow;
-        var role = id.HasValue
-            ? await Orm.Select<AdminRole>().Where(item => item.Id == id).ToOneAsync(cancellationToken)
-              ?? throw new NotFoundDomainException("角色不存在。")
-            : new AdminRole { CreatedAt = now };
+        AdminRole role;
+        if (id.HasValue)
+        {
+            role = await systemContext.LoadRoleAggregateAsync(id.Value, cancellationToken);
+        }
+        else
+        {
+            role = new AdminRole { CreatedAt = now };
+        }
+
         role.Name = request.Name;
         role.RoleCode = string.IsNullOrWhiteSpace(request.RoleCode) ? AdminIdHelper.BuildCode(request.Name) : request.RoleCode;
         role.DataScopeType = string.IsNullOrWhiteSpace(request.DataScopeType) ? "Self" : request.DataScopeType;
@@ -41,27 +43,60 @@ public sealed class RoleService(AdminServiceContext context)
         role.Enabled = request.Status == 1;
         role.UpdatedAt = now;
 
+        var roleRepository = systemContext.GetRoleRepository();
         if (id.HasValue)
         {
-            await Orm.Update<AdminRole>().SetSource(role).ExecuteAffrowsAsync(cancellationToken);
+            await roleRepository.UpdateAsync(role, cancellationToken);
         }
         else
         {
-            await Orm.Insert(role).ExecuteAffrowsAsync(cancellationToken);
+            await roleRepository.InsertAsync(role, cancellationToken);
         }
 
-        await ReplaceRolePermissionsAsync(
-            role.Id,
-            request.MenuIds ?? ExtractMenuIds(request.Permissions ?? []),
-            request.PermissionCodes ?? ExtractPermissionCodes(request.Permissions ?? []),
-            cancellationToken);
-        await ReplaceRoleFieldPoliciesAsync(role.Id, request.FieldPolicies ?? [], cancellationToken);
-        await ReplaceRoleDataScopeAsync(role, cancellationToken);
+        var menuIds = (request.MenuIds ?? ExtractMenuIds(request.Permissions ?? []))
+            .Select(AdminIdHelper.ParseId)
+            .Distinct()
+            .ToArray();
+        role.RoleMenus = menuIds
+            .Select(menuId => new AdminRoleMenu { RoleId = role.Id, MenuId = menuId })
+            .ToList();
+        systemContext.SaveRoleChildren(role, nameof(AdminRole.RoleMenus));
+
+        var permissionCodes = (request.PermissionCodes ?? ExtractPermissionCodes(request.Permissions ?? []))
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var rolePermissions = new List<AdminRolePermission>(permissionCodes.Length);
+        foreach (var permissionCode in permissionCodes)
+        {
+            var action = await systemContext.ResolveFeatureActionByPermissionCodeAsync(permissionCode, cancellationToken);
+            rolePermissions.Add(new AdminRolePermission
+            {
+                RoleId = role.Id,
+                AdminFeatureActionId = action.Id,
+                PermissionCode = action.PermissionCode,
+            });
+        }
+
+        role.RolePermissions = rolePermissions;
+        systemContext.SaveRoleChildren(role, nameof(AdminRole.RolePermissions));
+
+        role.FieldPermissions = await BuildFieldPermissionsAsync(role.Id, request.FieldPolicies ?? [], cancellationToken);
+        systemContext.SaveRoleChildren(role, nameof(AdminRole.FieldPermissions));
+
+        role.DataScopes =
+        [
+            new AdminRoleDataScope
+            {
+                RoleId = role.Id,
+                ScopeType = role.DataScopeType,
+            },
+        ];
+        systemContext.SaveRoleChildren(role, nameof(AdminRole.DataScopes));
+
         await context.BumpSessionVersionAsync(cancellationToken);
-        var roleMenus = await Orm.Select<AdminRoleMenu>().ToListAsync(cancellationToken);
-        var rolePermissions = await Orm.Select<AdminRolePermission>().ToListAsync(cancellationToken);
-        var roleFieldPolicies = await Orm.Select<AdminRoleFieldPermission>().ToListAsync(cancellationToken);
-        return ToRoleDto(role, roleMenus, rolePermissions, roleFieldPolicies);
+        role = await systemContext.LoadRoleAggregateAsync(role.Id, cancellationToken);
+        return ToRoleDto(role);
     }
 
     /// <summary>
@@ -69,69 +104,39 @@ public sealed class RoleService(AdminServiceContext context)
     /// </summary>
     public async Task DeleteRoleAsync(long id, CancellationToken cancellationToken)
     {
-        await Orm.Delete<AdminUserRole>().Where(link => link.RoleId == id).ExecuteAffrowsAsync(cancellationToken);
-        await Orm.Delete<AdminRoleMenu>().Where(link => link.RoleId == id).ExecuteAffrowsAsync(cancellationToken);
-        await Orm.Delete<AdminRolePermission>().Where(link => link.RoleId == id).ExecuteAffrowsAsync(cancellationToken);
-        await Orm.Delete<AdminRoleFieldPermission>().Where(link => link.RoleId == id).ExecuteAffrowsAsync(cancellationToken);
-        await Orm.Delete<AdminRoleDataScope>().Where(link => link.RoleId == id).ExecuteAffrowsAsync(cancellationToken);
-        await Orm.Delete<AdminRole>().Where(role => role.Id == id).ExecuteAffrowsAsync(cancellationToken);
+        _ = await systemContext.LoadRoleAggregateAsync(id, cancellationToken);
+        await systemContext.GetRoleRepository().DeleteCascadeByDatabaseAsync(role => role.Id == id, cancellationToken);
         await context.BumpSessionVersionAsync(cancellationToken);
     }
 
-    private async Task ReplaceRolePermissionsAsync(
+    private async Task<List<AdminRoleFieldPermission>> BuildFieldPermissionsAsync(
         long roleId,
-        IReadOnlyList<string> selectedMenuIds,
-        IReadOnlyList<string> selectedPermissionCodes,
+        IReadOnlyList<SystemRoleFieldPolicyDto> policies,
         CancellationToken cancellationToken)
     {
-        await Orm.Delete<AdminRoleMenu>().Where(link => link.RoleId == roleId).ExecuteAffrowsAsync(cancellationToken);
-        await Orm.Delete<AdminRolePermission>().Where(link => link.RoleId == roleId).ExecuteAffrowsAsync(cancellationToken);
-        var menuIds = selectedMenuIds
-            .Select(AdminIdHelper.ParseId)
-            .Distinct()
-            .ToArray();
-        var permissionCodes = selectedPermissionCodes
-            .Where(value => !string.IsNullOrWhiteSpace(value))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-
-        if (menuIds.Length > 0)
-        {
-            await Orm.Insert(menuIds.Select(menuId => new AdminRoleMenu { RoleId = roleId, MenuId = menuId })).ExecuteAffrowsAsync(cancellationToken);
-        }
-
-        if (permissionCodes.Length > 0)
-        {
-            await Orm.Insert(permissionCodes.Select(code => new AdminRolePermission { RoleId = roleId, PermissionCode = code }))
-                .ExecuteAffrowsAsync(cancellationToken);
-        }
-    }
-
-    private async Task ReplaceRoleFieldPoliciesAsync(long roleId, IReadOnlyList<SystemRoleFieldPolicyDto> policies, CancellationToken cancellationToken)
-    {
-        await Orm.Delete<AdminRoleFieldPermission>().Where(link => link.RoleId == roleId).ExecuteAffrowsAsync(cancellationToken);
         var normalized = policies
             .Where(policy => !string.IsNullOrWhiteSpace(policy.FeatureCode) && !string.IsNullOrWhiteSpace(policy.FieldName))
             .GroupBy(policy => $"{policy.FeatureCode.Trim()}\u001F{policy.FieldName.Trim()}", StringComparer.OrdinalIgnoreCase)
-            .Select(group =>
-            {
-                var policy = group.Last();
-                return new AdminRoleFieldPermission
-                {
-                    RoleId = roleId,
-                    FeatureCode = policy.FeatureCode.Trim(),
-                    FieldName = policy.FieldName.Trim(),
-                    Visible = policy.Visible,
-                    Editable = policy.Editable,
-                    Exportable = policy.Exportable,
-                    Masked = policy.Masked,
-                };
-            })
+            .Select(group => group.Last())
             .ToArray();
-        if (normalized.Length > 0)
+        var result = new List<AdminRoleFieldPermission>(normalized.Length);
+        foreach (var policy in normalized)
         {
-            await Orm.Insert(normalized).ExecuteAffrowsAsync(cancellationToken);
+            var field = await systemContext.ResolveFeatureFieldAsync(policy.FeatureCode, policy.FieldName, cancellationToken);
+            result.Add(new AdminRoleFieldPermission
+            {
+                RoleId = roleId,
+                AdminFeatureFieldId = field.Id,
+                FeatureCode = field.FeatureCode,
+                FieldName = field.FieldCode,
+                Visible = policy.Visible,
+                Editable = policy.Editable,
+                Exportable = policy.Exportable,
+                Masked = policy.Masked,
+            });
         }
+
+        return result;
     }
 
     private static IReadOnlyList<string> ExtractMenuIds(IReadOnlyList<string> selectedValues) =>
@@ -145,33 +150,12 @@ public sealed class RoleService(AdminServiceContext context)
             .Select(value => value["perm:".Length..])
             .ToArray();
 
-    private async Task ReplaceRoleDataScopeAsync(AdminRole role, CancellationToken cancellationToken)
+    private static SystemRoleDto ToRoleDto(AdminRole role)
     {
-        await Orm.Delete<AdminRoleDataScope>().Where(scope => scope.RoleId == role.Id).ExecuteAffrowsAsync(cancellationToken);
-        await Orm.Insert(new AdminRoleDataScope
-        {
-            RoleId = role.Id,
-            ScopeType = role.DataScopeType,
-        }).ExecuteAffrowsAsync(cancellationToken);
-    }
-
-    private static SystemRoleDto ToRoleDto(
-        AdminRole role,
-        IReadOnlyList<AdminRoleMenu> menus,
-        IReadOnlyList<AdminRolePermission> permissions,
-        IReadOnlyList<AdminRoleFieldPermission> fieldPolicies)
-    {
-        var menuIds = menus
-            .Where(link => link.RoleId == role.Id)
-            .Select(link => link.MenuId.ToString())
-            .ToArray();
-        var permissionCodes = permissions
-            .Where(link => link.RoleId == role.Id)
-            .Select(link => link.PermissionCode)
-            .ToArray();
+        var menuIds = role.RoleMenus.Select(link => link.MenuId.ToString()).ToArray();
+        var permissionCodes = role.RolePermissions.Select(link => link.PermissionCode).ToArray();
         var values = menuIds.Concat(permissionCodes.Select(code => $"perm:{code}")).ToArray();
-        var policies = fieldPolicies
-            .Where(policy => policy.RoleId == role.Id)
+        var policies = role.FieldPermissions
             .Select(policy => new SystemRoleFieldPolicyDto(
                 policy.FeatureCode,
                 policy.FieldName,

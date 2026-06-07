@@ -74,19 +74,25 @@ public sealed class FeatureDesignFeatureService
         var normalized = featureCode.Trim();
         var feature = await _context.LoadFeatureAggregateAsync(normalized, cancellationToken)
                       ?? throw new NotFoundDomainException($"Feature '{normalized}' was not found.");
-        var usedByMenu = await _context.Db.Orm.Select<AdminMenu>().Where(menu => menu.FeatureCode == normalized).AnyAsync(cancellationToken);
+        var usedByMenu = await _context.Db.Orm.Select<AdminMenu>()
+            .Where(menu => menu.AdminFeatureId == feature.Id || menu.FeatureCode == normalized)
+            .AnyAsync(cancellationToken);
         if (usedByMenu)
         {
             throw new ConflictDomainException("功能已被菜单引用，不能删除。");
         }
 
-        var permissionCodes = feature.Actions.Select(item => item.PermissionCode).ToArray();
-        if (permissionCodes.Length > 0)
+        var actionIds = feature.Actions.Select(item => item.Id).ToArray();
+        if (actionIds.Length > 0)
         {
-            await _context.Db.Orm.Delete<AdminRolePermission>().Where(item => permissionCodes.Contains(item.PermissionCode)).ExecuteAffrowsAsync(cancellationToken);
+            await _context.Db.Orm.Delete<AdminRolePermission>().Where(item => actionIds.Contains(item.AdminFeatureActionId)).ExecuteAffrowsAsync(cancellationToken);
         }
 
-        await _context.Db.Orm.Delete<AdminRoleFieldPermission>().Where(item => item.FeatureCode == normalized).ExecuteAffrowsAsync(cancellationToken);
+        var fieldIds = feature.Fields.Select(item => item.Id).ToArray();
+        if (fieldIds.Length > 0)
+        {
+            await _context.Db.Orm.Delete<AdminRoleFieldPermission>().Where(item => fieldIds.Contains(item.AdminFeatureFieldId)).ExecuteAffrowsAsync(cancellationToken);
+        }
         await _context.GetFeatureRepository().DeleteCascadeByDatabaseAsync(item => item.Id == feature.Id, cancellationToken);
         await _context.AdminContext.BumpSessionVersionAsync(cancellationToken);
     }

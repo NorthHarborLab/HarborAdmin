@@ -7,7 +7,8 @@ namespace HarborAdmin.Modules.Admin.Domain.Entities;
 /// Admin 角色字段权限。
 /// </summary>
 [DbKey("AdminDb")]
-[Index("ux_admin_role_field_permission", $"{nameof(RoleId)},{nameof(FeatureCode)},{nameof(FieldName)}", true)]
+[Index("ux_admin_role_field_permission", $"{nameof(RoleId)},{nameof(AdminFeatureFieldId)}", true)]
+[Index("idx_admin_role_field_permission_field_id", nameof(AdminFeatureFieldId), false)]
 public sealed class AdminRoleFieldPermission : EntityBase
 {
     /// <summary>
@@ -16,12 +17,29 @@ public sealed class AdminRoleFieldPermission : EntityBase
     public long RoleId { get; set; }
 
     /// <summary>
-    /// 功能编码。
+    /// 角色。
+    /// </summary>
+    [Navigate(nameof(RoleId))]
+    public AdminRole Role { get; set; } = null!;
+
+    /// <summary>
+    /// 功能字段 ID。
+    /// </summary>
+    public long AdminFeatureFieldId { get; set; }
+
+    /// <summary>
+    /// 功能字段。
+    /// </summary>
+    [Navigate(nameof(AdminFeatureFieldId))]
+    public AdminFeatureField AdminFeatureField { get; set; } = null!;
+
+    /// <summary>
+    /// 功能编码（冗余）。
     /// </summary>
     public string FeatureCode { get; set; } = string.Empty;
 
     /// <summary>
-    /// 字段名。
+    /// 字段名（冗余）。
     /// </summary>
     public string FieldName { get; set; } = string.Empty;
 

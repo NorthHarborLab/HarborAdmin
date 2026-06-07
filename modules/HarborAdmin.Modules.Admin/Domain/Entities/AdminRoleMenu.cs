@@ -16,7 +16,19 @@ public sealed class AdminRoleMenu : EntityBase
     public long RoleId { get; set; }
 
     /// <summary>
+    /// 角色。
+    /// </summary>
+    [Navigate(nameof(RoleId))]
+    public AdminRole Role { get; set; } = null!;
+
+    /// <summary>
     /// 菜单 ID。
     /// </summary>
     public long MenuId { get; set; }
+
+    /// <summary>
+    /// 菜单。
+    /// </summary>
+    [Navigate(nameof(MenuId))]
+    public AdminMenu Menu { get; set; } = null!;
 }

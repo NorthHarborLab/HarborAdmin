@@ -16,6 +16,12 @@ public sealed class AdminRefreshToken : EntityBase
     public long UserId { get; set; }
 
     /// <summary>
+    /// 用户。
+    /// </summary>
+    [Navigate(nameof(UserId))]
+    public AdminUser User { get; set; } = null!;
+
+    /// <summary>
     /// 令牌哈希。
     /// </summary>
     public string TokenHash { get; set; } = string.Empty;

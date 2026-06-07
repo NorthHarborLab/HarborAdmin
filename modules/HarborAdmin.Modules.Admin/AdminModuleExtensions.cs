@@ -51,8 +51,11 @@ public static class AdminModuleExtensions
         services.AddSingleton<CaptchaImagePool>();
         services.AddSingleton<CaptchaChallengeService>();
         services.AddScoped<AdminServiceContext>();
+        services.AddScoped<SystemServiceContext>();
         services.AddScoped<IAdminDynamicResourceHandlerResolver, AdminDynamicResourceHandlerResolver>();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, AdminApiPathMigrationHostedService>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, AdminEntityFkMigrationHostedService>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, AdminSuperAdminMigrationHostedService>());
     }
 
     private static void AddAdminAuth(IServiceCollection services)

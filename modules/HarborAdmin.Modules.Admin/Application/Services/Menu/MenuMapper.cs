@@ -36,7 +36,11 @@ internal static class MenuMapper
         IReadOnlyList<AdminMenu> allMenus,
         IReadOnlyList<AdminFeatureAction>? actions = null)
     {
-        featureMap.TryGetValue(menu.FeatureCode ?? string.Empty, out var feature);
+        var feature = menu.AdminFeature;
+        if (feature is null && !featureMap.TryGetValue(menu.FeatureCode ?? string.Empty, out feature))
+        {
+            feature = null;
+        }
         var children = allMenus
             .Where(child => child.ParentId == menu.Id)
             .OrderBy(child => child.SortOrder)
@@ -95,7 +99,11 @@ internal static class MenuMapper
         IReadOnlyDictionary<string, AdminFeature> featureMap,
         IReadOnlyList<string> permissions)
     {
-        featureMap.TryGetValue(menu.FeatureCode ?? string.Empty, out var feature);
+        var feature = menu.AdminFeature;
+        if (feature is null && !featureMap.TryGetValue(menu.FeatureCode ?? string.Empty, out feature))
+        {
+            feature = null;
+        }
         var children = allMenus
             .Where(child => child.ParentId == menu.Id)
             .OrderBy(child => child.SortOrder)

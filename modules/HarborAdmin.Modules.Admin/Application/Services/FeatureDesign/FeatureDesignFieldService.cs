@@ -88,15 +88,13 @@ public sealed class FeatureDesignFieldService
                       ?? throw new NotFoundDomainException($"Feature '{featureCode}' was not found.");
         var normalized = feature.FeatureCode;
         var normalizedField = fieldCode.Trim();
-        var removed = feature.Fields.RemoveAll(item => string.Equals(item.FieldCode, normalizedField, StringComparison.OrdinalIgnoreCase));
-        if (removed == 0)
-        {
-            throw new NotFoundDomainException($"Feature field '{normalized}.{normalizedField}' was not found.");
-        }
-
+        var field = feature.Fields.FirstOrDefault(item => string.Equals(item.FieldCode, normalizedField, StringComparison.OrdinalIgnoreCase))
+                    ?? throw new NotFoundDomainException($"Feature field '{normalized}.{normalizedField}' was not found.");
+        var fieldId = field.Id;
+        feature.Fields.Remove(field);
         _context.SaveFeatureChildren(feature, nameof(AdminFeature.Fields));
         await _context.Db.Orm.Delete<AdminRoleFieldPermission>()
-            .Where(item => item.FeatureCode == normalized && item.FieldName == normalizedField)
+            .Where(item => item.AdminFeatureFieldId == fieldId)
             .ExecuteAffrowsAsync(cancellationToken);
         await _context.IncrementSchemaVersionAsync(normalized, cancellationToken);
         await _context.AdminContext.BumpSessionVersionAsync(cancellationToken);

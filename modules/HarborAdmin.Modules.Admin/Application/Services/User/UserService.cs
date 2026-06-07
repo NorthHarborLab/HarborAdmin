@@ -1,4 +1,5 @@
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
+using HarborAdmin.Modules.Admin.Application.Abstractions;
 using HarborAdmin.Modules.Admin.Contracts.Access.Dto;
 using HarborAdmin.Modules.Admin.Contracts.System;
 using HarborAdmin.Modules.Admin.Domain.Entities;
@@ -11,23 +12,27 @@ namespace HarborAdmin.Modules.Admin.Application.Services.User;
 /// <summary>
 /// 用户管理服务。
 /// </summary>
-public sealed class UserService(AdminServiceContext context, AccessQueryService accessQuery, FieldPolicyService fieldPolicyService)
+public sealed class UserService(
+    SystemServiceContext systemContext,
+    AdminServiceContext context,
+    IAdminRepository repository,
+    AccessQueryService accessQuery,
+    FieldPolicyService fieldPolicyService)
 {
     private readonly PasswordHasher<AdminUser> _passwordHasher = new();
-    private IFreeSql Orm => context.Orm;
 
     /// <summary>
     /// 根据用户 ID 获取用户实体。
     /// </summary>
     public async Task<AdminUser?> GetUserAsync(long userId, CancellationToken cancellationToken) =>
-        await Orm.Select<AdminUser>().Where(user => user.Id == userId).ToOneAsync(cancellationToken);
+        await repository.GetUserAggregateAsync(userId, cancellationToken);
 
     /// <summary>
     /// 按数据范围获取用户列表，并应用字段脱敏策略。
     /// </summary>
     public async Task<IReadOnlyList<SystemUserDto>> ListUsersAsync(long currentUserId, long? deptId, CancellationToken cancellationToken)
     {
-        var users = await Orm.Select<AdminUser>().OrderBy(user => user.Id).ToListAsync(cancellationToken);
+        var users = await repository.ListUsersWithRolesAsync(cancellationToken);
         var allowedDeptIds = await accessQuery.GetAllowedDepartmentIdsAsync(currentUserId, cancellationToken);
         if (allowedDeptIds is not null)
         {
@@ -39,21 +44,27 @@ public sealed class UserService(AdminServiceContext context, AccessQueryService 
             users = users.Where(user => user.DeptId == deptId.Value).ToList();
         }
 
-        var userRoles = await Orm.Select<AdminUserRole>().ToListAsync(cancellationToken);
         var policies = await fieldPolicyService.GetPoliciesForFeatureAsync(currentUserId, "system.user", cancellationToken);
-        return users.Select(user => ApplyUserFieldPolicies(ToUserDto(user, userRoles), policies)).ToArray();
+        return users.Select(user => ApplyUserFieldPolicies(ToUserDto(user), policies)).ToArray();
     }
 
     /// <summary>
     /// 新增或更新用户，并同步角色关联。
     /// </summary>
-    public async Task<SystemUserDto> SaveUserAsync(long? id, SaveSystemUserRequest request, CancellationToken cancellationToken)
+    public async Task<SystemUserDto> SaveUserAsync(long currentUserId, long? id, SaveSystemUserRequest request, CancellationToken cancellationToken)
     {
         var now = DateTimeOffset.UtcNow;
-        var user = id.HasValue
-            ? await Orm.Select<AdminUser>().Where(item => item.Id == id).ToOneAsync(cancellationToken)
-              ?? throw new NotFoundDomainException("用户不存在。")
-            : new AdminUser { CreatedAt = now };
+        AdminUser user;
+        if (id.HasValue)
+        {
+            user = await systemContext.LoadUserAggregateAsync(id.Value, cancellationToken)
+                   ?? throw new NotFoundDomainException("用户不存在。");
+        }
+        else
+        {
+            user = new AdminUser { CreatedAt = now };
+        }
+
         user.UserName = string.IsNullOrWhiteSpace(request.UserName) ? AdminIdHelper.BuildCode(request.Name) : request.UserName;
         user.DisplayName = request.Name;
         user.DeptId = AdminIdHelper.ParseNullableId(request.DeptId);
@@ -61,25 +72,36 @@ public sealed class UserService(AdminServiceContext context, AccessQueryService 
         user.Enabled = request.Status == 1;
         user.HomePath ??= "/dashboard";
         user.UpdatedAt = now;
+        await ApplySuperAdminFlagAsync(currentUserId, user, request.IsSuperAdmin, cancellationToken);
 
         if (!string.IsNullOrWhiteSpace(request.Password) || !id.HasValue)
         {
             user.PasswordHash = _passwordHasher.HashPassword(user, string.IsNullOrWhiteSpace(request.Password) ? "HarborAdmin@123456" : request.Password);
         }
 
+        var userRepository = systemContext.GetUserRepository();
         if (id.HasValue)
         {
-            await Orm.Update<AdminUser>().SetSource(user).ExecuteAffrowsAsync(cancellationToken);
+            await userRepository.UpdateAsync(user, cancellationToken);
         }
         else
         {
-            await Orm.Insert(user).ExecuteAffrowsAsync(cancellationToken);
+            await userRepository.InsertAsync(user, cancellationToken);
         }
 
-        await ReplaceUserRolesAsync(user.Id, request.RoleIds ?? request.Permissions ?? [], cancellationToken);
+        var roleIds = (request.RoleIds ?? request.Permissions ?? [])
+            .Select(AdminIdHelper.ParseId)
+            .Distinct()
+            .ToArray();
+        user.UserRoles = roleIds
+            .Select(roleId => new AdminUserRole { UserId = user.Id, RoleId = roleId })
+            .ToList();
+        systemContext.SaveUserChildren(user, nameof(AdminUser.UserRoles));
+
         await context.BumpSessionVersionAsync(cancellationToken);
-        var userRoles = await Orm.Select<AdminUserRole>().ToListAsync(cancellationToken);
-        return ToUserDto(user, userRoles);
+        user = await systemContext.LoadUserAggregateAsync(user.Id, cancellationToken)
+               ?? throw new NotFoundDomainException("用户不存在。");
+        return ToUserDto(user);
     }
 
     /// <summary>
@@ -87,25 +109,28 @@ public sealed class UserService(AdminServiceContext context, AccessQueryService 
     /// </summary>
     public async Task DeleteUserAsync(long id, CancellationToken cancellationToken)
     {
-        await Orm.Delete<AdminUserRole>().Where(link => link.UserId == id).ExecuteAffrowsAsync(cancellationToken);
-        await Orm.Delete<AdminRefreshToken>().Where(token => token.UserId == id).ExecuteAffrowsAsync(cancellationToken);
-        await Orm.Delete<AdminUser>().Where(user => user.Id == id).ExecuteAffrowsAsync(cancellationToken);
+        _ = await systemContext.LoadUserAggregateAsync(id, cancellationToken)
+            ?? throw new NotFoundDomainException("用户不存在。");
+        await systemContext.GetUserRepository().DeleteCascadeByDatabaseAsync(user => user.Id == id, cancellationToken);
         await context.BumpSessionVersionAsync(cancellationToken);
     }
 
-    private async Task ReplaceUserRolesAsync(long userId, IReadOnlyList<string> selectedValues, CancellationToken cancellationToken)
+    private async Task ApplySuperAdminFlagAsync(long currentUserId, AdminUser user, bool requested, CancellationToken cancellationToken)
     {
-        await Orm.Delete<AdminUserRole>().Where(link => link.UserId == userId).ExecuteAffrowsAsync(cancellationToken);
-        var roleIds = selectedValues.Select(AdminIdHelper.ParseId).Distinct().ToArray();
-        if (roleIds.Length > 0)
+        if (requested && !await accessQuery.IsSuperAdminAsync(currentUserId, cancellationToken))
         {
-            await Orm.Insert(roleIds.Select(roleId => new AdminUserRole { UserId = userId, RoleId = roleId })).ExecuteAffrowsAsync(cancellationToken);
+            throw new ValidationDomainException("无权设置超级管理员。");
+        }
+
+        if (await accessQuery.IsSuperAdminAsync(currentUserId, cancellationToken))
+        {
+            user.IsSuperAdmin = requested;
         }
     }
 
-    private static SystemUserDto ToUserDto(AdminUser user, IReadOnlyList<AdminUserRole> userRoles)
+    private static SystemUserDto ToUserDto(AdminUser user)
     {
-        var roleIds = userRoles.Where(link => link.UserId == user.Id).Select(link => link.RoleId.ToString()).ToArray();
+        var roleIds = user.UserRoles.Select(link => link.RoleId.ToString()).ToArray();
         return new SystemUserDto(
             user.Id.ToString(),
             user.DisplayName,
@@ -115,7 +140,8 @@ public sealed class UserService(AdminServiceContext context, AccessQueryService 
             roleIds,
             user.Remark,
             user.Enabled ? 1 : 0,
-            user.CreatedAt.ToString("O"));
+            user.CreatedAt.ToString("O"),
+            user.IsSuperAdmin);
     }
 
     private static SystemUserDto ApplyUserFieldPolicies(SystemUserDto user, IReadOnlyList<FieldPolicyDto> policies)

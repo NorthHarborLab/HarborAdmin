@@ -8,7 +8,7 @@ namespace HarborAdmin.Modules.Admin.Domain.Entities;
 /// </summary>
 [DbKey("AdminDb")]
 [Index("ux_admin_department_code", nameof(DeptCode), true)]
-public sealed class AdminDepartment : EntityBase
+public sealed class AdminDepartment : AuditableEntity
 {
     /// <summary>
     /// 部门编码。
@@ -19,6 +19,18 @@ public sealed class AdminDepartment : EntityBase
     /// 上级部门 ID。
     /// </summary>
     public long? ParentId { get; set; }
+
+    /// <summary>
+    /// 上级部门。
+    /// </summary>
+    [Navigate(nameof(ParentId))]
+    public AdminDepartment? Parent { get; set; }
+
+    /// <summary>
+    /// 子部门。
+    /// </summary>
+    [Navigate(nameof(ParentId))]
+    public List<AdminDepartment> Children { get; set; } = [];
 
     /// <summary>
     /// 部门名称。
@@ -36,12 +48,8 @@ public sealed class AdminDepartment : EntityBase
     public bool Enabled { get; set; } = true;
 
     /// <summary>
-    /// 创建时间。
+    /// 部门用户。
     /// </summary>
-    public DateTimeOffset CreatedAt { get; set; }
-
-    /// <summary>
-    /// 更新时间。
-    /// </summary>
-    public DateTimeOffset UpdatedAt { get; set; }
+    [Navigate(nameof(AdminUser.DeptId))]
+    public List<AdminUser> Users { get; set; } = [];
 }

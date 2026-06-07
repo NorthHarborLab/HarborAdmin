@@ -12,7 +12,8 @@ public sealed record SystemUserDto(
     IReadOnlyList<string> RoleIds,
     string? Remark,
     int Status,
-    string CreateTime);
+    string CreateTime,
+    bool IsSuperAdmin);
 
 /// <summary>
 /// 保存用户请求。
@@ -25,4 +26,5 @@ public sealed record SaveSystemUserRequest(
     IReadOnlyList<string>? Permissions,
     IReadOnlyList<string>? RoleIds,
     string? Remark,
-    int Status);
+    int Status,
+    bool IsSuperAdmin = false);

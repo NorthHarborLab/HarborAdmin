@@ -8,7 +8,7 @@ namespace HarborAdmin.Modules.Admin.Domain.Entities;
 /// </summary>
 [DbKey("AdminDb")]
 [Index("ux_admin_role_code", nameof(RoleCode), true)]
-public sealed class AdminRole : EntityBase
+public sealed class AdminRole : AuditableEntity
 {
     /// <summary>
     /// 角色编码。
@@ -36,12 +36,32 @@ public sealed class AdminRole : EntityBase
     public bool Enabled { get; set; } = true;
 
     /// <summary>
-    /// 创建时间。
+    /// 用户角色关系。
     /// </summary>
-    public DateTimeOffset CreatedAt { get; set; }
+    [Navigate(nameof(AdminUserRole.RoleId))]
+    public List<AdminUserRole> UserRoles { get; set; } = [];
 
     /// <summary>
-    /// 更新时间。
+    /// 角色菜单关系。
     /// </summary>
-    public DateTimeOffset UpdatedAt { get; set; }
+    [Navigate(nameof(AdminRoleMenu.RoleId))]
+    public List<AdminRoleMenu> RoleMenus { get; set; } = [];
+
+    /// <summary>
+    /// 角色权限关系。
+    /// </summary>
+    [Navigate(nameof(AdminRolePermission.RoleId))]
+    public List<AdminRolePermission> RolePermissions { get; set; } = [];
+
+    /// <summary>
+    /// 角色字段权限。
+    /// </summary>
+    [Navigate(nameof(AdminRoleFieldPermission.RoleId))]
+    public List<AdminRoleFieldPermission> FieldPermissions { get; set; } = [];
+
+    /// <summary>
+    /// 角色数据范围。
+    /// </summary>
+    [Navigate(nameof(AdminRoleDataScope.RoleId))]
+    public List<AdminRoleDataScope> DataScopes { get; set; } = [];
 }

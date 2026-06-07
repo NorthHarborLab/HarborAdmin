@@ -29,11 +29,10 @@ public sealed class SessionService(
         var user = await userService.GetUserAsync(userId, cancellationToken)
                    ?? throw new NotFoundDomainException("用户不存在。");
         var roles = await accessQuery.GetEnabledUserRolesAsync(userId, cancellationToken);
-        var roleIds = roles.Select(role => role.Id).ToArray();
         var permissions = await accessQuery.GetUserPermissionsAsync(userId, cancellationToken);
         var menus = await accessQuery.GetUserMenusAsync(userId, cancellationToken);
         var routes = await MenuMapper.BuildRoutesAsync(context.Orm, menus, permissions, cancellationToken);
-        var fieldPolicies = await fieldPolicyService.GetFieldPoliciesAsync(roleIds, cancellationToken);
+        var fieldPolicies = await fieldPolicyService.GetFieldPoliciesForUserAsync(userId, cancellationToken);
         var dataScopes = await accessQuery.GetDataScopesAsync(roles, cancellationToken);
         var sessionVersion = await context.GetSessionVersionValueAsync(cancellationToken);
         var homePath = user.HomePath;
@@ -51,7 +50,8 @@ public sealed class SessionService(
                 user.Avatar ?? string.Empty,
                 user.Remark ?? string.Empty,
                 homePath,
-                roles.Select(role => role.RoleCode).ToArray()),
+                roles.Select(role => role.RoleCode).ToArray(),
+                user.IsSuperAdmin),
             permissions,
             routes,
             fieldPolicies,

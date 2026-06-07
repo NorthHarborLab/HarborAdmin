@@ -8,7 +8,7 @@ namespace HarborAdmin.Modules.Admin.Domain.Entities;
 /// </summary>
 [DbKey("AdminDb")]
 [Index("ux_admin_user_name", nameof(UserName), true)]
-public sealed class AdminUser : EntityBase
+public sealed class AdminUser : AuditableEntity
 {
     /// <summary>
     /// 登录名。
@@ -32,6 +32,12 @@ public sealed class AdminUser : EntityBase
     public long? DeptId { get; set; }
 
     /// <summary>
+    /// 所属部门。
+    /// </summary>
+    [Navigate(nameof(DeptId))]
+    public AdminDepartment? Dept { get; set; }
+
+    /// <summary>
     /// 首页路径。
     /// </summary>
     public string? HomePath { get; set; }
@@ -52,12 +58,19 @@ public sealed class AdminUser : EntityBase
     public bool Enabled { get; set; } = true;
 
     /// <summary>
-    /// 创建时间。
+    /// 是否为超级管理员（拥有全部权限）。
     /// </summary>
-    public DateTimeOffset CreatedAt { get; set; }
+    public bool IsSuperAdmin { get; set; }
 
     /// <summary>
-    /// 更新时间。
+    /// 用户角色关系。
     /// </summary>
-    public DateTimeOffset UpdatedAt { get; set; }
+    [Navigate(nameof(AdminUserRole.UserId))]
+    public List<AdminUserRole> UserRoles { get; set; } = [];
+
+    /// <summary>
+    /// 刷新令牌。
+    /// </summary>
+    [Navigate(nameof(AdminRefreshToken.UserId))]
+    public List<AdminRefreshToken> RefreshTokens { get; set; } = [];
 }

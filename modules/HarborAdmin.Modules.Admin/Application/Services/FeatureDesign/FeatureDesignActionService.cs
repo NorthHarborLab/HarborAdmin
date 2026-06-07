@@ -100,7 +100,7 @@ public sealed class FeatureDesignActionService
         {
             await _context.Db.Orm.Update<AdminRolePermission>()
                 .Set(item => item.PermissionCode, action.PermissionCode)
-                .Where(item => item.PermissionCode == oldPermissionCode)
+                .Where(item => item.AdminFeatureActionId == action.Id)
                 .ExecuteAffrowsAsync(cancellationToken);
         }
 
@@ -124,7 +124,7 @@ public sealed class FeatureDesignActionService
                      ?? throw new NotFoundDomainException($"Feature action '{normalized}.{normalizedAction}' was not found.");
         action.ActionApis.Clear();
         _context.SaveActionChildren(action, nameof(AdminFeatureAction.ActionApis));
-        await _context.Db.Orm.Delete<AdminRolePermission>().Where(item => item.PermissionCode == action.PermissionCode).ExecuteAffrowsAsync(cancellationToken);
+        await _context.Db.Orm.Delete<AdminRolePermission>().Where(item => item.AdminFeatureActionId == action.Id).ExecuteAffrowsAsync(cancellationToken);
         feature.Actions.Remove(action);
         _context.SaveFeatureChildren(feature, nameof(AdminFeature.Actions));
         await _context.IncrementSchemaVersionAsync(normalized, cancellationToken);
