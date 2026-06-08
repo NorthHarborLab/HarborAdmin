@@ -35,8 +35,11 @@ public sealed class DeptService(
             ? await repository.GetDepartmentAsync(id.Value, cancellationToken)
               ?? throw new NotFoundDomainException("部门不存在。")
             : new AdminDepartment { CreatedAt = now, DeptCode = AdminIdHelper.BuildCode(request.Name) };
+        var parentId = AdminIdHelper.ParseNullableId(request.Pid);
+        await EnsureValidParentAsync(id, parentId, cancellationToken);
+
         dept.Name = request.Name;
-        dept.ParentId = AdminIdHelper.ParseNullableId(request.Pid);
+        dept.ParentId = parentId;
         dept.Remark = request.Remark;
         dept.Enabled = request.Status == 1;
         dept.UpdatedAt = now;
@@ -59,6 +62,13 @@ public sealed class DeptService(
     /// </summary>
     public async Task DeleteDepartmentAsync(long id, CancellationToken cancellationToken)
     {
+        _ = await repository.GetDepartmentAsync(id, cancellationToken)
+            ?? throw new NotFoundDomainException("部门不存在。");
+        if (await repository.CountChildDepartmentsAsync(id, cancellationToken) > 0)
+        {
+            throw new ConflictDomainException("请先删除下级部门。");
+        }
+
         if (await repository.DepartmentHasUsersAsync(id, cancellationToken))
         {
             throw new ConflictDomainException("部门下存在用户，不能删除。");
@@ -68,12 +78,18 @@ public sealed class DeptService(
         await context.BumpSessionVersionAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// 将部门列表构建为树形 DTO。
+    /// </summary>
     private IReadOnlyList<SystemDeptDto> BuildDepartmentTree(IReadOnlyList<AdminDepartment> departments) =>
         departments
             .Where(dept => !dept.ParentId.HasValue)
             .Select(dept => ToDeptTreeNode(dept, departments))
             .ToArray();
 
+    /// <summary>
+    /// 递归构建单个部门树节点。
+    /// </summary>
     private SystemDeptDto ToDeptTreeNode(AdminDepartment dept, IReadOnlyList<AdminDepartment> departments)
     {
         var children = departments
@@ -82,5 +98,43 @@ public sealed class DeptService(
             .ToArray();
         var dto = mapper.Map<SystemDeptDto>(dept);
         return dto with { Children = children.Length > 0 ? children : null };
+    }
+
+    /// <summary>
+    /// 校验部门父级存在且不会形成循环。
+    /// </summary>
+    private async Task EnsureValidParentAsync(long? currentId, long? parentId, CancellationToken cancellationToken)
+    {
+        if (!parentId.HasValue)
+        {
+            return;
+        }
+
+        if (currentId == parentId)
+        {
+            throw new ValidationDomainException("上级部门不能选择当前部门。");
+        }
+
+        var departments = await repository.ListDepartmentsAsync(cancellationToken);
+        if (departments.All(dept => dept.Id != parentId.Value))
+        {
+            throw new NotFoundDomainException("上级部门不存在。");
+        }
+
+        if (!currentId.HasValue)
+        {
+            return;
+        }
+
+        var nextParentId = parentId;
+        while (nextParentId.HasValue)
+        {
+            if (nextParentId.Value == currentId.Value)
+            {
+                throw new ValidationDomainException("上级部门不能选择当前部门的下级部门。");
+            }
+
+            nextParentId = departments.FirstOrDefault(dept => dept.Id == nextParentId.Value)?.ParentId;
+        }
     }
 }

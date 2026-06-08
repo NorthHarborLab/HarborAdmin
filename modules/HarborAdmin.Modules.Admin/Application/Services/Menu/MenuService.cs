@@ -52,9 +52,11 @@ public sealed class MenuService(SystemServiceContext systemContext, AdminService
             ? await repository.GetMenuWithFeatureAsync(id.Value, cancellationToken)
               ?? throw new NotFoundDomainException("菜单不存在。")
             : new AdminMenu { CreatedAt = now };
+        var parentId = AdminIdHelper.ParseNullableId(request.Pid);
+        await EnsureValidParentAsync(id, parentId, cancellationToken);
 
         menu.MenuCode = MenuMapper.BuildMenuCode(menuType, routePath, request.AuthCode);
-        menu.ParentId = AdminIdHelper.ParseNullableId(request.Pid);
+        menu.ParentId = parentId;
         menu.AdminFeatureId = feature?.Id;
         menu.FeatureCode = feature?.FeatureCode;
         menu.PermissionCode = string.IsNullOrWhiteSpace(request.AuthCode) ? null : request.AuthCode;
@@ -117,6 +119,7 @@ public sealed class MenuService(SystemServiceContext systemContext, AdminService
             var nextMetaJson = JsonSerializer.Serialize(nextMeta, MenuMapper.JsonOptions);
             if (menu.SortOrder != order || menu.MetaJson != nextMetaJson)
             {
+                // 菜单排序同时写实体字段和 meta.order，保持后端路由与前端 Vben 菜单元数据一致。
                 menu.SortOrder = order;
                 menu.MetaJson = nextMetaJson;
                 menu.UpdatedAt = now;
@@ -161,6 +164,9 @@ public sealed class MenuService(SystemServiceContext systemContext, AdminService
     public Task<bool> MenuPathExistsAsync(string path, long? id, CancellationToken cancellationToken) =>
         repository.MenuPathExistsAsync(path, id, cancellationToken);
 
+    /// <summary>
+    /// 从菜单集合中提取去重后的绑定功能。
+    /// </summary>
     private static IReadOnlyList<AdminFeature> ExtractFeatures(IReadOnlyList<AdminMenu> menus) =>
         menus
             .Where(menu => menu.AdminFeature is not null)
@@ -168,4 +174,42 @@ public sealed class MenuService(SystemServiceContext systemContext, AdminService
             .GroupBy(feature => feature.Id)
             .Select(group => group.First())
             .ToArray();
+
+    /// <summary>
+    /// 校验菜单父级存在且不会形成循环。
+    /// </summary>
+    private async Task EnsureValidParentAsync(long? currentId, long? parentId, CancellationToken cancellationToken)
+    {
+        if (!parentId.HasValue)
+        {
+            return;
+        }
+
+        if (currentId == parentId)
+        {
+            throw new ValidationDomainException("上级菜单不能选择当前菜单。");
+        }
+
+        var menus = await repository.ListMenusWithFeaturesAsync(cancellationToken);
+        if (menus.All(menu => menu.Id != parentId.Value))
+        {
+            throw new NotFoundDomainException("上级菜单不存在。");
+        }
+
+        if (!currentId.HasValue)
+        {
+            return;
+        }
+
+        var nextParentId = parentId;
+        while (nextParentId.HasValue)
+        {
+            if (nextParentId.Value == currentId.Value)
+            {
+                throw new ValidationDomainException("上级菜单不能选择当前菜单的下级菜单。");
+            }
+
+            nextParentId = menus.FirstOrDefault(menu => menu.Id == nextParentId.Value)?.ParentId;
+        }
+    }
 }

@@ -100,6 +100,9 @@ public sealed class FeatureDesignFieldService
         await _context.AdminContext.BumpSessionVersionAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// 将字段配置请求归一化后写回字段实体。
+    /// </summary>
     private static void ApplyField(AdminFeatureField field, SaveAdminFeatureFieldRequest request, DateTimeOffset now)
     {
         field.FieldCode = request.FieldCode.Trim();
@@ -116,6 +119,7 @@ public sealed class FeatureDesignFieldService
         field.Readonly = request.Readonly;
         field.Required = request.Required;
         field.SortOrder = request.SortOrder;
+        // FreeSql/前端 schema 均用 null 表示未指定宽度，避免把非法宽度持久化为 0。
         field.Width = request.Width is <= 0 ? null : request.Width;
         field.OptionsJson = string.IsNullOrWhiteSpace(request.OptionsJson) ? null : request.OptionsJson;
         field.ValidationJson = string.IsNullOrWhiteSpace(request.ValidationJson) ? null : request.ValidationJson;

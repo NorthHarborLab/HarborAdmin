@@ -41,13 +41,13 @@ public sealed class CaptchaImagePool(IOptions<AdminAuthOptions> authOptions)
         PickRandomInternal(random, RotateImageNames.Value, RotateSubfolder);
 
     /// <summary>
-    /// 随机选取一张图片字节（拼图/通用）。
+    /// 优先从外部文件池选图，缺省时回退嵌入资源。
     /// </summary>
-    /// <param name="random">随机数生成器</param>
-    /// <param name="embeddedNames">嵌入资源名称</param>
-    /// <param name="subfolder">子文件夹</param>
-    /// <returns>图片字节</returns>
-    /// <exception cref="InvalidOperationException">验证码图片池为空，请检查 EmbeddedResource 或 ImagePoolPath 配置。</exception>
+    /// <param name="random">随机数生成器。</param>
+    /// <param name="embeddedNames">当前场景可用的嵌入资源名称。</param>
+    /// <param name="subfolder">可选资源子目录。</param>
+    /// <returns>图片字节。</returns>
+    /// <exception cref="InvalidOperationException">验证码图片池为空或嵌入资源无法读取。</exception>
     private byte[] PickRandomInternal(Random random, string[] embeddedNames, string? subfolder)
     {
         var fileCandidate = LoadFileCandidate(random, subfolder);
@@ -71,13 +71,11 @@ public sealed class CaptchaImagePool(IOptions<AdminAuthOptions> authOptions)
     }
 
     /// <summary>
-    /// 加载文件候选。
+    /// 从配置的图片池目录中随机读取一张候选图片。
     /// </summary>
-    /// <param name="random">随机数生成器</param>
-    /// <param name="subfolder">子文件夹</param>
-    /// <returns>图片字节</returns>
-    /// <exception cref="InvalidOperationException">验证码图片池为空，请检查 EmbeddedResource 或 ImagePoolPath 配置。</exception>
-    /// <returns></returns>
+    /// <param name="random">随机数生成器。</param>
+    /// <param name="subfolder">可选资源子目录。</param>
+    /// <returns>找到候选图时返回图片字节，否则返回 <see langword="null"/>。</returns>
     private byte[]? LoadFileCandidate(Random random, string? subfolder)
     {
         var relativePath = authOptions.Value.Captcha.ImagePoolPath
@@ -100,6 +98,7 @@ public sealed class CaptchaImagePool(IOptions<AdminAuthOptions> authOptions)
                 continue;
             }
 
+            // 同时查 AppContext.BaseDirectory 与当前工作目录，兼容 dotnet run、发布目录和测试执行目录。
             var files = Directory.GetFiles(directory)
                 .Where(IsSupportedImage)
                 .ToArray();
@@ -113,11 +112,10 @@ public sealed class CaptchaImagePool(IOptions<AdminAuthOptions> authOptions)
     }
 
     /// <summary>
-    /// 加载嵌入资源名称。
+    /// 按场景加载嵌入的验证码图片资源名称。
     /// </summary>
-    /// <param name="subfolder">子文件夹</param>
-    /// <returns>嵌入资源名称</returns>
-    /// <returns></returns>
+    /// <param name="subfolder">可选资源子目录。</param>
+    /// <returns>嵌入资源名称集合。</returns>
     private static string[] LoadEmbeddedImageNames(string? subfolder)
     {
         return Assembly.GetManifestResourceNames()
@@ -130,11 +128,10 @@ public sealed class CaptchaImagePool(IOptions<AdminAuthOptions> authOptions)
     }
 
     /// <summary>
-    /// 是否支持图片。
+    /// 判断文件路径是否为支持的验证码图片格式。
     /// </summary>
-    /// <param name="path">路径</param>
-    /// <returns>是否支持图片</returns>
-    /// <returns></returns>
+    /// <param name="path">文件路径。</param>
+    /// <returns>支持时返回 <see langword="true"/>。</returns>
     private static bool IsSupportedImage(string path)
     {
         var extension = Path.GetExtension(path);
@@ -145,11 +142,10 @@ public sealed class CaptchaImagePool(IOptions<AdminAuthOptions> authOptions)
     }
 
     /// <summary>
-    /// 是否支持资源名称。
+    /// 判断嵌入资源名称是否为支持的验证码图片格式。
     /// </summary>
-    /// <param name="resourceName">资源名称</param>
-    /// <returns>是否支持资源名称</returns>
-    /// <returns></returns>
+    /// <param name="resourceName">嵌入资源名称。</param>
+    /// <returns>支持时返回 <see langword="true"/>。</returns>
     private static bool IsSupportedResourceName(string resourceName)
     {
         return resourceName.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase)

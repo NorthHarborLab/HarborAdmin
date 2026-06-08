@@ -299,6 +299,9 @@ public sealed class AccessCacheService(IHarborCache cache, IHarborCacheInvalidat
     public ValueTask InvalidateAllRolesAccessAsync(CancellationToken cancellationToken) =>
         cacheInvalidator.InvalidateTagAsync(AdminAccessCacheKeys.AllRolesTag, cancellationToken);
 
+    /// <summary>
+    /// 从数据库加载用户访问快照。
+    /// </summary>
     private async ValueTask<UserAccessSnapshotCacheModel> LoadUserSnapshotAsync(
         long userId,
         long sessionVersion,
@@ -316,6 +319,7 @@ public sealed class AccessCacheService(IHarborCache cache, IHarborCacheInvalidat
 
         if (user.IsSuperAdmin)
         {
+            // 超级管理员不受数据范围限制，菜单和权限来自全部启用资源。
             var allActions = await repository.GetEnabledFeatureActionsAsync(cancellationToken);
             var allMenus = await context.Orm.Select<AdminMenu>()
                 .Where(menu => menu.Enabled && menu.MenuType != "button")
@@ -390,6 +394,9 @@ public sealed class AccessCacheService(IHarborCache cache, IHarborCacheInvalidat
         };
     }
 
+    /// <summary>
+    /// 根据角色数据范围计算用户可访问部门集合。
+    /// </summary>
     private async Task<long[]?> ComputeAllowedDepartmentIdsAsync(
         AdminUser user,
         IReadOnlyList<AdminRole> roles,
@@ -397,6 +404,7 @@ public sealed class AccessCacheService(IHarborCache cache, IHarborCacheInvalidat
     {
         if (roles.Any(role => role.DataScopeType == "All"))
         {
+            // null 表示无限制，比空数组更能表达 All 范围。
             return null;
         }
 
@@ -421,6 +429,9 @@ public sealed class AccessCacheService(IHarborCache cache, IHarborCacheInvalidat
         return [];
     }
 
+    /// <summary>
+    /// 递归追加指定部门的所有子部门 ID。
+    /// </summary>
     private static void AddChildDepartmentIds(long parentId, IReadOnlyList<AdminDepartment> departments, ISet<long> ids)
     {
         foreach (var child in departments.Where(dept => dept.ParentId == parentId))

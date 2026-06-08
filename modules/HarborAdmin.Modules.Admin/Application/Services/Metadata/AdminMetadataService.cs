@@ -58,6 +58,9 @@ public sealed class AdminMetadataService(AccessCacheService accessCache)
             ToEndpointSchema(apis));
     }
 
+    /// <summary>
+    /// 转换字段运行时 schema。
+    /// </summary>
     private static DynamicFieldSchemaDto ToFieldSchema(FeatureFieldCacheItem field) =>
         new(
             field.FieldCode,
@@ -74,6 +77,9 @@ public sealed class AdminMetadataService(AccessCacheService accessCache)
             ParseOptions(field.OptionsJson),
             ParseValidation(field.ValidationJson));
 
+    /// <summary>
+    /// 转换动作运行时 schema。
+    /// </summary>
     private static DynamicActionSchemaDto ToActionSchema(FeatureActionCacheItem action) =>
         new(
             action.ActionCode,
@@ -82,6 +88,9 @@ public sealed class AdminMetadataService(AccessCacheService accessCache)
             action.PermissionCode,
             action.SortOrder);
 
+    /// <summary>
+    /// 从 Feature API 列表中提取动态 CRUD 端点。
+    /// </summary>
     private static DynamicEndpointSchemaDto? ToEndpointSchema(IReadOnlyList<FeatureApiCacheItem> apis)
     {
         if (apis.Count == 0)
@@ -98,6 +107,9 @@ public sealed class AdminMetadataService(AccessCacheService accessCache)
             map.GetValueOrDefault("delete")?.Path);
     }
 
+    /// <summary>
+    /// 解析字段选项 JSON。
+    /// </summary>
     private static IReadOnlyList<DynamicFieldOptionDto>? ParseOptions(string? optionsJson)
     {
         if (string.IsNullOrWhiteSpace(optionsJson))
@@ -108,6 +120,9 @@ public sealed class AdminMetadataService(AccessCacheService accessCache)
         return JsonSerializer.Deserialize<IReadOnlyList<DynamicFieldOptionDto>>(optionsJson, JsonOptions);
     }
 
+    /// <summary>
+    /// 解析字段校验 JSON。
+    /// </summary>
     private static JsonElement? ParseValidation(string? validationJson)
     {
         if (string.IsNullOrWhiteSpace(validationJson))
@@ -118,6 +133,9 @@ public sealed class AdminMetadataService(AccessCacheService accessCache)
         return JsonSerializer.Deserialize<JsonElement>(validationJson, JsonOptions);
     }
 
+    /// <summary>
+    /// 规范化 Feature 编码。
+    /// </summary>
     private static string NormalizeFeatureCode(string featureCode)
     {
         var normalized = featureCode.Trim();

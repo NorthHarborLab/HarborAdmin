@@ -148,6 +148,9 @@ public sealed class FeatureDesignActionService
         return MapAction(saved);
     }
 
+    /// <summary>
+    /// 整体替换动作绑定的 API 列表。
+    /// </summary>
     private async Task ReplaceActionApisAsync(string featureCode, string actionCode, IReadOnlyList<long> apiIds, CancellationToken cancellationToken)
     {
         var feature = await _context.LoadFeatureAggregateAsync(featureCode, cancellationToken)
@@ -159,6 +162,7 @@ public sealed class FeatureDesignActionService
             .Distinct()
             .ToArray();
 
+        // 绑定列表按请求整体替换，先删旧关系再插入新关系。
         await _context.Db.Orm.Delete<AdminFeatureActionApi>()
             .Where(item => item.AdminFeatureActionId == action.Id)
             .ExecuteAffrowsAsync(cancellationToken);
@@ -186,6 +190,9 @@ public sealed class FeatureDesignActionService
         await _context.Db.Orm.Insert(action.ActionApis).ExecuteAffrowsAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// 映射动作 DTO 并附加已绑定 API ID。
+    /// </summary>
     private AdminFeatureActionDto MapAction(AdminFeatureAction action) =>
         _context.Mapper.Map<AdminFeatureActionDto>(
             new AdminFeatureActionMappingSource(
@@ -194,6 +201,9 @@ public sealed class FeatureDesignActionService
                     .Select(link => link.AdminFeatureApiId)
                     .ToArray()));
 
+    /// <summary>
+    /// 将请求值应用到动作实体。
+    /// </summary>
     private static void ApplyAction(AdminFeatureAction action, SaveAdminFeatureActionRequest request, DateTimeOffset now)
     {
         action.ActionCode = request.ActionCode.Trim();

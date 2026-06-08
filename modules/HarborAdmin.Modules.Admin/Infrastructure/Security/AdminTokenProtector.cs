@@ -84,12 +84,18 @@ public sealed class AdminTokenProtector(IOptions<AdminAuthOptions> options)
         return Convert.ToHexString(hash);
     }
 
+    /// <summary>
+    /// 对 access token payload 做 HMAC 签名。
+    /// </summary>
     private string Sign(string payloadText)
     {
         using var hmac = new HMACSHA256(_key);
         return Base64UrlEncode(hmac.ComputeHash(Encoding.UTF8.GetBytes(payloadText)));
     }
 
+    /// <summary>
+    /// 用固定时间比较签名，降低时序侧信道风险。
+    /// </summary>
     private static bool FixedTimeEquals(string left, string right)
     {
         var leftBytes = Encoding.UTF8.GetBytes(left);
@@ -98,9 +104,15 @@ public sealed class AdminTokenProtector(IOptions<AdminAuthOptions> options)
             && CryptographicOperations.FixedTimeEquals(leftBytes, rightBytes);
     }
 
+    /// <summary>
+    /// 将字节数组编码为 Base64Url 字符串。
+    /// </summary>
     private static string Base64UrlEncode(byte[] bytes) =>
         Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 
+    /// <summary>
+    /// 将 Base64Url 字符串解码为字节数组。
+    /// </summary>
     private static byte[] Base64UrlDecode(string value)
     {
         var text = value.Replace('-', '+').Replace('_', '/');

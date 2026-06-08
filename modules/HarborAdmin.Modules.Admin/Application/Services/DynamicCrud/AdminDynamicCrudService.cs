@@ -84,6 +84,9 @@ public sealed class AdminDynamicCrudService(IAdminDynamicResourceHandlerResolver
         await handler.DeleteAsync(id, cancellationToken);
     }
 
+    /// <summary>
+    /// 规范化动态功能编码。
+    /// </summary>
     private static string NormalizeFeatureCode(string featureCode)
     {
         var normalized = featureCode.Trim();
@@ -92,6 +95,9 @@ public sealed class AdminDynamicCrudService(IAdminDynamicResourceHandlerResolver
             : normalized;
     }
 
+    /// <summary>
+    /// 规范化动态查询分页、搜索和排序参数。
+    /// </summary>
     private static DynamicQueryRequest NormalizeQueryRequest(DynamicQueryRequest request)
     {
         var page = request.Page <= 0 ? 1 : request.Page;

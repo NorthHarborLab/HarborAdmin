@@ -97,6 +97,9 @@ public sealed class FeatureDesignFeatureService
         await _context.AdminContext.BumpSessionVersionAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// 将保存请求归一化后写回 Feature 聚合根。
+    /// </summary>
     private static void ApplyFeature(AdminFeature feature, SaveAdminFeatureRequest request, DateTimeOffset now)
     {
         feature.FeatureCode = request.FeatureCode.Trim();

@@ -206,12 +206,16 @@ public sealed class FeatureDesignApiService
         return await ListApisAsync(normalized, cancellationToken);
     }
 
+    /// <summary>
+    /// 将 API 配置请求归一化后写回 API 实体。
+    /// </summary>
     private static void ApplyApi(AdminFeatureApi api, SaveAdminFeatureApiRequest request, DateTimeOffset now)
     {
         api.ApiCode = request.ApiCode.Trim();
         api.NameKey = request.NameKey.Trim();
         api.NameFallback = string.IsNullOrWhiteSpace(request.NameFallback) ? null : request.NameFallback.Trim();
         api.Path = request.Path.Trim();
+        // HTTP 方法统一大写，便于运行期权限匹配按 method + path 做稳定比较。
         api.HttpMethod = request.HttpMethod.Trim().ToUpperInvariant();
         api.EnabledLog = request.EnabledLog;
         api.EnabledParams = request.EnabledParams;

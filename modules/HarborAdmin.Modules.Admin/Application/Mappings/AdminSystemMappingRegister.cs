@@ -39,6 +39,6 @@ public sealed class AdminSystemMappingRegister : IRegister
             .Map(destination => destination.Id, source => source.Id.ToString())
             .Map(destination => destination.Pid, source => source.ParentId.HasValue ? source.ParentId.Value.ToString() : "0")
             .Map(destination => destination.Status, source => source.Enabled ? 1 : 0)
-            .Ignore(destination => destination.Children);
+            .Map(destination => destination.Children, _ => Array.Empty<SystemDeptDto>());
     }
 }

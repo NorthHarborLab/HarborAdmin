@@ -18,9 +18,19 @@ public partial interface IAdminRepository
     Task<AdminDepartment?> GetDepartmentAsync(long id, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 按 ID 批量加载部门。
+    /// </summary>
+    Task<IReadOnlyList<AdminDepartment>> GetDepartmentsByIdsAsync(IReadOnlyList<long> ids, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 判断部门下是否存在用户。
     /// </summary>
     Task<bool> DepartmentHasUsersAsync(long id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 统计子部门数量。
+    /// </summary>
+    Task<long> CountChildDepartmentsAsync(long parentId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 新增部门。

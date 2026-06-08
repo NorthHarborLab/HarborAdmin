@@ -68,6 +68,9 @@ public sealed class CacheManagementService(IHarborCacheManager cacheManager)
     public ValueTask InvalidateGroupAsync(string groupPrefix, CancellationToken cancellationToken = default) =>
         cacheManager.InvalidateGroupAsync(groupPrefix, cancellationToken);
 
+    /// <summary>
+    /// 将缓存运行时分组描述映射为管理端概览 DTO。
+    /// </summary>
     private static CacheGroupSummaryDto MapGroup(CacheGroupDescriptor group)
     {
         var models = group.Models

@@ -70,7 +70,13 @@ public sealed class UserService(
 
         user.UserName = string.IsNullOrWhiteSpace(request.UserName) ? AdminIdHelper.BuildCode(request.Name) : request.UserName;
         user.DisplayName = request.Name;
-        user.DeptId = AdminIdHelper.ParseNullableId(request.DeptId);
+        var deptId = AdminIdHelper.ParseNullableId(request.DeptId);
+        if (deptId.HasValue && await repository.GetDepartmentAsync(deptId.Value, cancellationToken) is null)
+        {
+            throw new NotFoundDomainException("部门不存在。");
+        }
+
+        user.DeptId = deptId;
         user.Remark = request.Remark;
         user.Enabled = request.Status == 1;
         user.HomePath ??= "/dashboard";
@@ -96,6 +102,7 @@ public sealed class UserService(
             .Select(AdminIdHelper.ParseId)
             .Distinct()
             .ToArray();
+        await EnsureRolesExistAsync(roleIds, cancellationToken);
         user.UserRoles = roleIds
             .Select(roleId => new AdminUserRole { UserId = user.Id, RoleId = roleId })
             .ToList();
@@ -118,6 +125,9 @@ public sealed class UserService(
         await context.BumpSessionVersionAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// 应用超级管理员标记变更。
+    /// </summary>
     private async Task ApplySuperAdminFlagAsync(long currentUserId, AdminUser user, bool requested, CancellationToken cancellationToken)
     {
         if (requested && !await accessQuery.IsSuperAdminAsync(currentUserId, cancellationToken))
@@ -127,10 +137,14 @@ public sealed class UserService(
 
         if (await accessQuery.IsSuperAdminAsync(currentUserId, cancellationToken))
         {
+            // 只有当前超级管理员能写入该字段，普通管理员保存用户时不改变既有状态。
             user.IsSuperAdmin = requested;
         }
     }
 
+    /// <summary>
+    /// 对用户 DTO 应用字段可见性策略。
+    /// </summary>
     private static SystemUserDto ApplyUserFieldPolicies(SystemUserDto user, IReadOnlyList<FieldPolicyDto> policies)
     {
         var hidden = policies.Where(policy => !policy.Visible).Select(policy => policy.FieldName).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -138,5 +152,24 @@ public sealed class UserService(
         {
             Remark = hidden.Contains("remark") ? null : user.Remark,
         };
+    }
+
+    /// <summary>
+    /// 校验用户绑定的角色全部存在。
+    /// </summary>
+    private async Task EnsureRolesExistAsync(IReadOnlyList<long> roleIds, CancellationToken cancellationToken)
+    {
+        if (roleIds.Count == 0)
+        {
+            return;
+        }
+
+        var roles = await repository.GetRolesByIdsAsync(roleIds, enabledOnly: false, cancellationToken);
+        var existingIds = roles.Select(role => role.Id).ToHashSet();
+        var missingIds = roleIds.Where(roleId => !existingIds.Contains(roleId)).ToArray();
+        if (missingIds.Length > 0)
+        {
+            throw new NotFoundDomainException($"角色不存在：{string.Join(", ", missingIds)}");
+        }
     }
 }

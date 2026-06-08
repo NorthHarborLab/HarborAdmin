@@ -23,6 +23,11 @@ public partial interface IAdminRepository
     Task<IReadOnlyList<AdminMenu>> ListSiblingMenusAsync(long? parentId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 按 ID 批量加载菜单。
+    /// </summary>
+    Task<IReadOnlyList<AdminMenu>> GetMenusByIdsAsync(IReadOnlyList<long> menuIds, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 统计子菜单数量。
     /// </summary>
     Task<long> CountChildMenusAsync(long parentId, CancellationToken cancellationToken = default);

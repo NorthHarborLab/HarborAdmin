@@ -54,6 +54,9 @@ internal static class RotateCaptchaGenerator
     internal static bool Validate(int initialDegree, int currentRotate, int diffDegree) =>
         Math.Abs(initialDegree - currentRotate) < diffDegree;
 
+    /// <summary>
+    /// 将 JPEG 字节编码为 Data URI。
+    /// </summary>
     private static string ToDataUri(byte[] bytes) =>
         $"data:image/jpeg;base64,{Convert.ToBase64String(bytes)}";
 }

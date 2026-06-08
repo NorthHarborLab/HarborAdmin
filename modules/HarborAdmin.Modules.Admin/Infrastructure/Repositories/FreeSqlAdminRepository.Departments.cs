@@ -8,21 +8,30 @@ namespace HarborAdmin.Modules.Admin.Infrastructure.Repositories;
 public sealed partial class FreeSqlAdminRepository
 {
     /// <inheritdoc />
-    public Task<IReadOnlyList<AdminDepartment>> ListDepartmentsAsync(CancellationToken cancellationToken = default) =>
-        FreeSql.Select<AdminDepartment>()
+    public async Task<IReadOnlyList<AdminDepartment>> ListDepartmentsAsync(CancellationToken cancellationToken = default) =>
+        await FreeSql.Select<AdminDepartment>()
             .OrderBy(dept => dept.Id)
-            .ToListAsync(cancellationToken)
-            .ContinueWith(task => (IReadOnlyList<AdminDepartment>)task.Result, cancellationToken);
+            .ToListAsync(cancellationToken);
 
     /// <inheritdoc />
-    public Task<AdminDepartment?> GetDepartmentAsync(long id, CancellationToken cancellationToken = default) =>
-        FreeSql.Select<AdminDepartment>()
+    public async Task<AdminDepartment?> GetDepartmentAsync(long id, CancellationToken cancellationToken = default) =>
+        await FreeSql.Select<AdminDepartment>()
             .Where(dept => dept.Id == id)
             .ToOneAsync(cancellationToken);
 
     /// <inheritdoc />
+    public async Task<IReadOnlyList<AdminDepartment>> GetDepartmentsByIdsAsync(IReadOnlyList<long> ids, CancellationToken cancellationToken = default) =>
+        await FreeSql.Select<AdminDepartment>()
+            .Where(dept => ids.Contains(dept.Id))
+            .ToListAsync(cancellationToken);
+
+    /// <inheritdoc />
     public Task<bool> DepartmentHasUsersAsync(long id, CancellationToken cancellationToken = default) =>
         FreeSql.Select<AdminUser>().Where(user => user.DeptId == id).AnyAsync(cancellationToken);
+
+    /// <inheritdoc />
+    public Task<long> CountChildDepartmentsAsync(long parentId, CancellationToken cancellationToken = default) =>
+        FreeSql.Select<AdminDepartment>().Where(dept => dept.ParentId == parentId).CountAsync(cancellationToken);
 
     /// <inheritdoc />
     public Task InsertDepartmentAsync(AdminDepartment department, CancellationToken cancellationToken = default) =>

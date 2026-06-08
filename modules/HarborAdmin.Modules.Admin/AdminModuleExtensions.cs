@@ -40,6 +40,9 @@ public static class AdminModuleExtensions
         return services;
     }
 
+    /// <summary>
+    /// 注册 Admin 基础设施。
+    /// </summary>
     private static void AddAdminInfrastructure(IServiceCollection services)
     {
         services.AddOptions<AdminAuthOptions>().BindConfiguration(AdminAuthOptions.SectionName);
@@ -53,11 +56,17 @@ public static class AdminModuleExtensions
         services.AddScoped<IAdminDynamicResourceHandlerResolver, AdminDynamicResourceHandlerResolver>();
     }
 
+    /// <summary>
+    /// 注册匿名认证服务。
+    /// </summary>
     private static void AddAdminAuth(IServiceCollection services)
     {
         services.AddScoped<AuthService>();
     }
 
+    /// <summary>
+    /// 注册访问控制服务。
+    /// </summary>
     private static void AddAdminAccess(IServiceCollection services)
     {
         services.AddScoped<AccessCacheService>();
@@ -69,6 +78,9 @@ public static class AdminModuleExtensions
         services.AddScoped<FieldPolicyService>();
     }
 
+    /// <summary>
+    /// 注册系统管理服务。
+    /// </summary>
     private static void AddAdminSystemManagement(IServiceCollection services)
     {
         services.AddScoped<MenuService>();
@@ -78,6 +90,9 @@ public static class AdminModuleExtensions
         services.AddScoped<CacheManagementService>();
     }
 
+    /// <summary>
+    /// 注册功能设计服务。
+    /// </summary>
     private static void AddAdminFeatureDesign(IServiceCollection services)
     {
         services.AddScoped<AdminMetadataService>();
@@ -88,6 +103,9 @@ public static class AdminModuleExtensions
         services.AddScoped<FeatureDesignActionService>();
     }
 
+    /// <summary>
+    /// 注册动态 CRUD 服务。
+    /// </summary>
     private static void AddAdminDynamicCrud(IServiceCollection services)
     {
         services.AddScoped<AdminDynamicCrudService>();

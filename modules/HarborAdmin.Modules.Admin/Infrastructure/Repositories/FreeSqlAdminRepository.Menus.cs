@@ -8,17 +8,15 @@ namespace HarborAdmin.Modules.Admin.Infrastructure.Repositories;
 public sealed partial class FreeSqlAdminRepository
 {
     /// <inheritdoc />
-    public Task<IReadOnlyList<AdminFeature>> ListFeaturesAsync(CancellationToken cancellationToken = default) =>
-        FreeSql.Select<AdminFeature>()
-            .ToListAsync(cancellationToken)
-            .ContinueWith(task => (IReadOnlyList<AdminFeature>)task.Result, cancellationToken);
+    public async Task<IReadOnlyList<AdminFeature>> ListFeaturesAsync(CancellationToken cancellationToken = default) =>
+        await FreeSql.Select<AdminFeature>()
+            .ToListAsync(cancellationToken);
 
     /// <inheritdoc />
-    public Task<IReadOnlyList<AdminFeatureAction>> ListEnabledFeatureActionsAsync(CancellationToken cancellationToken = default) =>
-        FreeSql.Select<AdminFeatureAction>()
+    public async Task<IReadOnlyList<AdminFeatureAction>> ListEnabledFeatureActionsAsync(CancellationToken cancellationToken = default) =>
+        await FreeSql.Select<AdminFeatureAction>()
             .Where(action => action.Enabled)
-            .ToListAsync(cancellationToken)
-            .ContinueWith(task => (IReadOnlyList<AdminFeatureAction>)task.Result, cancellationToken);
+            .ToListAsync(cancellationToken);
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<AdminMenu>> ListSiblingMenusAsync(long? parentId, CancellationToken cancellationToken = default)
@@ -29,6 +27,12 @@ public sealed partial class FreeSqlAdminRepository
             : query.Where(menu => !menu.ParentId.HasValue);
         return await query.OrderBy(menu => menu.SortOrder).ToListAsync(cancellationToken);
     }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<AdminMenu>> GetMenusByIdsAsync(IReadOnlyList<long> menuIds, CancellationToken cancellationToken = default) =>
+        await FreeSql.Select<AdminMenu>()
+            .Where(menu => menuIds.Contains(menu.Id))
+            .ToListAsync(cancellationToken);
 
     /// <inheritdoc />
     public Task<long> CountChildMenusAsync(long parentId, CancellationToken cancellationToken = default) =>

@@ -1,3 +1,4 @@
+using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.BuildingBlocks.Mapping;
 using HarborAdmin.Modules.Admin.Application.Abstractions;
 using HarborAdmin.Modules.Admin.Contracts.System.Dto;
@@ -62,6 +63,7 @@ public sealed class RoleService(
             .Select(AdminIdHelper.ParseId)
             .Distinct()
             .ToArray();
+        await EnsureMenusExistAsync(menuIds, cancellationToken);
         role.RoleMenus = menuIds
             .Select(menuId => new AdminRoleMenu { RoleId = role.Id, MenuId = menuId })
             .ToList();
@@ -114,6 +116,9 @@ public sealed class RoleService(
         await context.BumpSessionVersionAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// 根据请求字段策略构建角色字段权限实体。
+    /// </summary>
     private async Task<List<AdminRoleFieldPermission>> BuildFieldPermissionsAsync(
         long roleId,
         IReadOnlyList<SystemRoleFieldPolicyDto> policies,
@@ -122,6 +127,7 @@ public sealed class RoleService(
         var normalized = policies
             .Where(policy => !string.IsNullOrWhiteSpace(policy.FeatureCode) && !string.IsNullOrWhiteSpace(policy.FieldName))
             .GroupBy(policy => $"{policy.FeatureCode.Trim()}\u001F{policy.FieldName.Trim()}", StringComparer.OrdinalIgnoreCase)
+            // 同一 Feature 字段多次提交时以后者为准，匹配前端编辑表格的覆盖语义。
             .Select(group => group.Last())
             .ToArray();
         var result = new List<AdminRoleFieldPermission>(normalized.Length);
@@ -144,15 +150,39 @@ public sealed class RoleService(
         return result;
     }
 
+    /// <summary>
+    /// 从前端权限树选中值中提取菜单 ID。
+    /// </summary>
     private static IReadOnlyList<string> ExtractMenuIds(IReadOnlyList<string> selectedValues) =>
         selectedValues
             .Where(value => !value.StartsWith("perm:", StringComparison.OrdinalIgnoreCase))
             .ToArray();
 
+    /// <summary>
+    /// 从前端权限树选中值中提取权限码。
+    /// </summary>
     private static IReadOnlyList<string> ExtractPermissionCodes(IReadOnlyList<string> selectedValues) =>
         selectedValues
             .Where(value => value.StartsWith("perm:", StringComparison.OrdinalIgnoreCase))
             .Select(value => value["perm:".Length..])
             .ToArray();
 
+    /// <summary>
+    /// 校验角色绑定的菜单全部存在。
+    /// </summary>
+    private async Task EnsureMenusExistAsync(IReadOnlyList<long> menuIds, CancellationToken cancellationToken)
+    {
+        if (menuIds.Count == 0)
+        {
+            return;
+        }
+
+        var menus = await repository.GetMenusByIdsAsync(menuIds, cancellationToken);
+        var existingIds = menus.Select(menu => menu.Id).ToHashSet();
+        var missingIds = menuIds.Where(menuId => !existingIds.Contains(menuId)).ToArray();
+        if (missingIds.Length > 0)
+        {
+            throw new NotFoundDomainException($"菜单不存在：{string.Join(", ", missingIds)}");
+        }
+    }
 }
