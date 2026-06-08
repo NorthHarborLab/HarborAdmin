@@ -1,19 +1,17 @@
 using HarborAdmin.Client.ConfigCenter;
 using Microsoft.AspNetCore.Mvc;
-using HarborAdmin.BuildingBlocks.Abstractions.Api;
+using Microsoft.Extensions.Configuration;
 
-namespace HarborAdmin.Host.Controllers;
+namespace HarborAdmin.Modules.ConfigCenter.Controllers.Diagnostics;
 
 /// <summary>
-/// Host 作为 ConfigCenter 运行中客户端的只读诊断接口。
+/// 当前进程作为 ConfigCenter 运行中客户端的只读诊断接口。
 /// </summary>
 /// <param name="state">配置中心客户端状态</param>
-/// <param name="configuration">当前 Host 配置</param>
+/// <param name="configuration">当前进程配置</param>
 [ApiController]
 [Route("api/admin/config-center/client-state")]
-public sealed class ConfigCenterClientDiagnosticsController(
-    IConfigCenterClientState state,
-    IConfiguration configuration) : ControllerBase
+public sealed class ConfigCenterClientDiagnosticsController(IConfigCenterClientState state, IConfiguration configuration) : ControllerBase
 {
     /// <summary>
     /// 获取当前连接状态、版本与可选配置键的当前值。
@@ -43,5 +41,3 @@ public sealed class ConfigCenterClientDiagnosticsController(
         }));
     }
 }
-
-

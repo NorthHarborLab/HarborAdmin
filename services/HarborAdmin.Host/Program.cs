@@ -7,7 +7,7 @@ using HarborAdmin.BuildingBlocks.Caching;
 using HarborAdmin.BuildingBlocks.Caching.Options;
 using HarborAdmin.BuildingBlocks.Mapping;
 using HarborAdmin.BuildingBlocks.Secrets.DependencyInjection;
-using HarborAdmin.BuildingBlocks.Secrets.Domain;
+using HarborAdmin.Modules.Secrets.Domain.Entities;
 using HarborAdmin.Client.AI;
 using HarborAdmin.Client.ConfigCenter;
 using HarborAdmin.Host.Infrastructure;
