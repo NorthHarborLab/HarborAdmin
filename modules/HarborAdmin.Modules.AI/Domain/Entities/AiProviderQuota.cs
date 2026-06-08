@@ -49,5 +49,11 @@ public class AiProviderQuota : EntityBase
     /// 是否启用。
     /// </summary>
     public bool Enabled { get; set; }
+
+    /// <summary>
+    /// 所属供应商。
+    /// </summary>
+    [Navigate(nameof(ProviderId))]
+    public AiProvider? Provider { get; set; }
 }
 

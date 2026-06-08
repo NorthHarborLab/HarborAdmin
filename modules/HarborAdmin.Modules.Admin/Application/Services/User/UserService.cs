@@ -1,7 +1,9 @@
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
+using HarborAdmin.BuildingBlocks.Mapping;
 using HarborAdmin.Modules.Admin.Application.Abstractions;
 using HarborAdmin.Modules.Admin.Contracts.Access.Dto;
-using HarborAdmin.Modules.Admin.Contracts.System;
+using HarborAdmin.Modules.Admin.Contracts.System.Dto;
+using HarborAdmin.Modules.Admin.Contracts.System.Request;
 using HarborAdmin.Modules.Admin.Domain.Entities;
 using HarborAdmin.Modules.Admin.Application.Services.Access;
 using HarborAdmin.Modules.Admin.Application.Services.Shared;
@@ -17,7 +19,8 @@ public sealed class UserService(
     AdminServiceContext context,
     IAdminRepository repository,
     AccessQueryService accessQuery,
-    FieldPolicyService fieldPolicyService)
+    FieldPolicyService fieldPolicyService,
+    IHarborMapper mapper)
 {
     private readonly PasswordHasher<AdminUser> _passwordHasher = new();
 
@@ -45,7 +48,7 @@ public sealed class UserService(
         }
 
         var policies = await fieldPolicyService.GetPoliciesForFeatureAsync(currentUserId, "system.user", cancellationToken);
-        return users.Select(user => ApplyUserFieldPolicies(ToUserDto(user), policies)).ToArray();
+        return users.Select(user => ApplyUserFieldPolicies(mapper.Map<SystemUserDto>(user), policies)).ToArray();
     }
 
     /// <summary>
@@ -101,7 +104,7 @@ public sealed class UserService(
         await context.BumpSessionVersionAsync(cancellationToken);
         user = await systemContext.LoadUserAggregateAsync(user.Id, cancellationToken)
                ?? throw new NotFoundDomainException("用户不存在。");
-        return ToUserDto(user);
+        return mapper.Map<SystemUserDto>(user);
     }
 
     /// <summary>
@@ -126,22 +129,6 @@ public sealed class UserService(
         {
             user.IsSuperAdmin = requested;
         }
-    }
-
-    private static SystemUserDto ToUserDto(AdminUser user)
-    {
-        var roleIds = user.UserRoles.Select(link => link.RoleId.ToString()).ToArray();
-        return new SystemUserDto(
-            user.Id.ToString(),
-            user.DisplayName,
-            user.UserName,
-            user.DeptId?.ToString(),
-            roleIds,
-            roleIds,
-            user.Remark,
-            user.Enabled ? 1 : 0,
-            user.CreatedAt.ToString("O"),
-            user.IsSuperAdmin);
     }
 
     private static SystemUserDto ApplyUserFieldPolicies(SystemUserDto user, IReadOnlyList<FieldPolicyDto> policies)

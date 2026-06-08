@@ -1,5 +1,8 @@
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
-using HarborAdmin.Modules.Admin.Contracts.System;
+using HarborAdmin.BuildingBlocks.Mapping;
+using HarborAdmin.Modules.Admin.Application.Abstractions;
+using HarborAdmin.Modules.Admin.Contracts.System.Dto;
+using HarborAdmin.Modules.Admin.Contracts.System.Request;
 using HarborAdmin.Modules.Admin.Domain.Entities;
 using HarborAdmin.Modules.Admin.Application.Services.Shared;
 
@@ -8,18 +11,17 @@ namespace HarborAdmin.Modules.Admin.Application.Services.Dept;
 /// <summary>
 /// 部门管理服务。
 /// </summary>
-public sealed class DeptService(SystemServiceContext systemContext, AdminServiceContext context)
+public sealed class DeptService(
+    AdminServiceContext context,
+    IAdminRepository repository,
+    IHarborMapper mapper)
 {
-    private IFreeSql Orm => systemContext.Orm;
-
     /// <summary>
     /// 获取部门树。
     /// </summary>
     public async Task<IReadOnlyList<SystemDeptDto>> ListDepartmentsAsync(CancellationToken cancellationToken)
     {
-        var depts = await Orm.Select<AdminDepartment>()
-            .OrderBy(dept => dept.Id)
-            .ToListAsync(cancellationToken);
+        var depts = await repository.ListDepartmentsAsync(cancellationToken);
         return BuildDepartmentTree(depts);
     }
 
@@ -30,7 +32,7 @@ public sealed class DeptService(SystemServiceContext systemContext, AdminService
     {
         var now = DateTimeOffset.UtcNow;
         var dept = id.HasValue
-            ? await Orm.Select<AdminDepartment>().Where(item => item.Id == id).ToOneAsync(cancellationToken)
+            ? await repository.GetDepartmentAsync(id.Value, cancellationToken)
               ?? throw new NotFoundDomainException("部门不存在。")
             : new AdminDepartment { CreatedAt = now, DeptCode = AdminIdHelper.BuildCode(request.Name) };
         dept.Name = request.Name;
@@ -41,15 +43,15 @@ public sealed class DeptService(SystemServiceContext systemContext, AdminService
 
         if (id.HasValue)
         {
-            await Orm.Update<AdminDepartment>().SetSource(dept).ExecuteAffrowsAsync(cancellationToken);
+            await repository.UpdateDepartmentAsync(dept, cancellationToken);
         }
         else
         {
-            await Orm.Insert(dept).ExecuteAffrowsAsync(cancellationToken);
+            await repository.InsertDepartmentAsync(dept, cancellationToken);
         }
 
         await context.BumpSessionVersionAsync(cancellationToken);
-        return ToDeptDto(dept, []);
+        return mapper.Map<SystemDeptDto>(dept);
     }
 
     /// <summary>
@@ -57,34 +59,28 @@ public sealed class DeptService(SystemServiceContext systemContext, AdminService
     /// </summary>
     public async Task DeleteDepartmentAsync(long id, CancellationToken cancellationToken)
     {
-        var hasUser = await Orm.Select<AdminUser>().Where(user => user.DeptId == id).AnyAsync(cancellationToken);
-        if (hasUser)
+        if (await repository.DepartmentHasUsersAsync(id, cancellationToken))
         {
             throw new ConflictDomainException("部门下存在用户，不能删除。");
         }
 
-        await Orm.Delete<AdminDepartment>().Where(dept => dept.Id == id).ExecuteAffrowsAsync(cancellationToken);
+        await repository.DeleteDepartmentAsync(id, cancellationToken);
         await context.BumpSessionVersionAsync(cancellationToken);
     }
 
-    private static IReadOnlyList<SystemDeptDto> BuildDepartmentTree(IReadOnlyList<AdminDepartment> departments) =>
+    private IReadOnlyList<SystemDeptDto> BuildDepartmentTree(IReadOnlyList<AdminDepartment> departments) =>
         departments
             .Where(dept => !dept.ParentId.HasValue)
-            .Select(dept => ToDeptDto(dept, departments))
+            .Select(dept => ToDeptTreeNode(dept, departments))
             .ToArray();
 
-    private static SystemDeptDto ToDeptDto(AdminDepartment dept, IReadOnlyList<AdminDepartment> departments)
+    private SystemDeptDto ToDeptTreeNode(AdminDepartment dept, IReadOnlyList<AdminDepartment> departments)
     {
         var children = departments
             .Where(child => child.ParentId == dept.Id)
-            .Select(child => ToDeptDto(child, departments))
+            .Select(child => ToDeptTreeNode(child, departments))
             .ToArray();
-        return new SystemDeptDto(
-            dept.Id.ToString(),
-            dept.ParentId?.ToString() ?? "0",
-            dept.Name,
-            dept.Remark,
-            dept.Enabled ? 1 : 0,
-            children.Length > 0 ? children : null);
+        var dto = mapper.Map<SystemDeptDto>(dept);
+        return dto with { Children = children.Length > 0 ? children : null };
     }
 }

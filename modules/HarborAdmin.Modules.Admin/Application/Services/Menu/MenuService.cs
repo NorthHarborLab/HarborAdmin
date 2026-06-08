@@ -1,7 +1,8 @@
 using System.Text.Json;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.Modules.Admin.Application.Abstractions;
-using HarborAdmin.Modules.Admin.Contracts.System;
+using HarborAdmin.Modules.Admin.Contracts.System.Dto;
+using HarborAdmin.Modules.Admin.Contracts.System.Request;
 using HarborAdmin.Modules.Admin.Domain.Entities;
 using HarborAdmin.Modules.Admin.Application.Services.Shared;
 
@@ -12,8 +13,6 @@ namespace HarborAdmin.Modules.Admin.Application.Services.Menu;
 /// </summary>
 public sealed class MenuService(SystemServiceContext systemContext, AdminServiceContext context, IAdminRepository repository)
 {
-    private IFreeSql Orm => systemContext.Orm;
-
     /// <summary>
     /// 获取完整菜单树。
     /// </summary>
@@ -30,8 +29,8 @@ public sealed class MenuService(SystemServiceContext systemContext, AdminService
     public async Task<IReadOnlyList<SystemMenuDto>> ListMenuPermissionTreeAsync(CancellationToken cancellationToken)
     {
         var menus = await repository.ListMenusWithFeaturesAsync(cancellationToken);
-        var features = await Orm.Select<AdminFeature>().ToListAsync(cancellationToken);
-        var actions = await Orm.Select<AdminFeatureAction>().Where(action => action.Enabled).ToListAsync(cancellationToken);
+        var features = await repository.ListFeaturesAsync(cancellationToken);
+        var actions = await repository.ListEnabledFeatureActionsAsync(cancellationToken);
         return MenuMapper.BuildSystemMenuTree(menus, features, actions);
     }
 
@@ -44,11 +43,11 @@ public sealed class MenuService(SystemServiceContext systemContext, AdminService
         var menuType = MenuMapper.NormalizeMenuType(request.Type);
         var meta = MenuMapper.NormalizeMenuMeta(request, menuType);
         var routePath = MenuMapper.NormalizeMenuPath(request, meta, menuType);
-        var featureCode = await MenuMapper.EnsureFeatureForMenuAsync(Orm, request, menuType, cancellationToken);
+        var featureCode = await MenuMapper.EnsureFeatureForMenuAsync(systemContext.Orm, request, menuType, cancellationToken);
         var feature = featureCode is null
             ? null
             : await systemContext.ResolveFeatureByCodeAsync(featureCode, cancellationToken)
-              ?? throw new NotFoundDomainException($"Feature '{featureCode}' was not found.");
+              ?? throw new NotFoundDomainException($"未找到功能资源 '{featureCode}'。");
         var menu = id.HasValue
             ? await repository.GetMenuWithFeatureAsync(id.Value, cancellationToken)
               ?? throw new NotFoundDomainException("菜单不存在。")
@@ -92,23 +91,9 @@ public sealed class MenuService(SystemServiceContext systemContext, AdminService
     /// </summary>
     public async Task ReorderMenusAsync(ReorderSystemMenuRequest request, CancellationToken cancellationToken)
     {
-        if (request.OrderedIds is null || request.OrderedIds.Count == 0)
-        {
-            throw new ValidationDomainException("排序菜单不能为空。");
-        }
-
         var parentId = AdminIdHelper.ParseNullableId(request.Pid);
-        var orderedIds = request.OrderedIds.Select(AdminIdHelper.ParseId).ToArray();
-        if (orderedIds.Distinct().Count() != orderedIds.Length)
-        {
-            throw new ValidationDomainException("排序菜单不能重复。");
-        }
-
-        var siblingQuery = Orm.Select<AdminMenu>();
-        siblingQuery = parentId.HasValue
-            ? siblingQuery.Where(menu => menu.ParentId == parentId.Value)
-            : siblingQuery.Where(menu => !menu.ParentId.HasValue);
-        var siblings = await siblingQuery.OrderBy(menu => menu.SortOrder).ToListAsync(cancellationToken);
+        var orderedIds = request.OrderedIds!.Select(AdminIdHelper.ParseId).ToArray();
+        var siblings = await repository.ListSiblingMenusAsync(parentId, cancellationToken);
         if (siblings.Count != orderedIds.Length)
         {
             throw new ConflictDomainException("排序列表与当前同级菜单数量不一致，请刷新后重试。");
@@ -144,7 +129,7 @@ public sealed class MenuService(SystemServiceContext systemContext, AdminService
             return;
         }
 
-        await Orm.Update<AdminMenu>().SetSource(siblings).ExecuteAffrowsAsync(cancellationToken);
+        await repository.UpdateMenusAsync(siblings, cancellationToken);
         await context.BumpSessionVersionAsync(cancellationToken);
     }
 
@@ -153,8 +138,7 @@ public sealed class MenuService(SystemServiceContext systemContext, AdminService
     /// </summary>
     public async Task DeleteMenuAsync(long id, CancellationToken cancellationToken)
     {
-        var children = await Orm.Select<AdminMenu>().Where(menu => menu.ParentId == id).CountAsync(cancellationToken);
-        if (children > 0)
+        if (await repository.CountChildMenusAsync(id, cancellationToken) > 0)
         {
             throw new ConflictDomainException("请先删除下级菜单。");
         }
@@ -169,17 +153,13 @@ public sealed class MenuService(SystemServiceContext systemContext, AdminService
     /// 判断菜单名称是否已存在。
     /// </summary>
     public Task<bool> MenuNameExistsAsync(string name, long? id, CancellationToken cancellationToken) =>
-        Orm.Select<AdminMenu>()
-            .Where(menu => menu.Title == name && (!id.HasValue || menu.Id != id.Value))
-            .AnyAsync(cancellationToken);
+        repository.MenuNameExistsAsync(name, id, cancellationToken);
 
     /// <summary>
     /// 判断菜单路径是否已存在。
     /// </summary>
     public Task<bool> MenuPathExistsAsync(string path, long? id, CancellationToken cancellationToken) =>
-        Orm.Select<AdminMenu>()
-            .Where(menu => menu.RoutePath == path && (!id.HasValue || menu.Id != id.Value))
-            .AnyAsync(cancellationToken);
+        repository.MenuPathExistsAsync(path, id, cancellationToken);
 
     private static IReadOnlyList<AdminFeature> ExtractFeatures(IReadOnlyList<AdminMenu> menus) =>
         menus

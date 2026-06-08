@@ -46,5 +46,11 @@ public class AiBusinessProviderRoute : EntityBase
     /// </summary>
     [Column(StringLength = -1)]
     public string? OpenRouterOptionsJson { get; set; }
+
+    /// <summary>
+    /// 所属业务。
+    /// </summary>
+    [Navigate(nameof(BusinessId))]
+    public AiBusiness? Business { get; set; }
 }
 

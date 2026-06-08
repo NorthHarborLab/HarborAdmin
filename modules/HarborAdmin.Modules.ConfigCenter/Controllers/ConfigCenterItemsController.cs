@@ -12,7 +12,7 @@ namespace HarborAdmin.Modules.ConfigCenter.Controllers;
 /// <param name="service">配置中心应用服务。</param>
 [ApiController]
 [Route("api/admin/config-center/{appId}/items")]
-public sealed class ConfigCenterItemsController(ConfigCenterService service) : ControllerBase
+public sealed class ConfigCenterItemsController(ConfigCenterItemService service) : ControllerBase
 {
     /// <summary>
     /// 列出草稿配置项。

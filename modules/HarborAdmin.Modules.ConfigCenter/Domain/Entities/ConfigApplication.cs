@@ -29,4 +29,16 @@ public class ConfigApplication : EntityBase
     /// 创建时间（UTC）
     /// </summary>
     public DateTimeOffset CreatedAt { get; set; }
+
+    /// <summary>
+    /// 草稿配置项。
+    /// </summary>
+    [Navigate(nameof(AppId))]
+    public List<ConfigItem> Items { get; set; } = [];
+
+    /// <summary>
+    /// 发布记录。
+    /// </summary>
+    [Navigate(nameof(AppId))]
+    public List<ConfigRelease> Releases { get; set; } = [];
 }

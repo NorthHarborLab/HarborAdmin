@@ -1,3 +1,4 @@
+using HarborAdmin.Modules.Secrets.Application.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -16,6 +17,7 @@ public static class SecretsModuleExtensions
     /// <returns>原服务集合。</returns>
     public static IServiceCollection AddSecretsModule(this IServiceCollection services, IConfiguration configuration)
     {
+        services.AddScoped<SecretService>();
         return services;
     }
 }

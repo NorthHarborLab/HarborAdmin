@@ -1,5 +1,6 @@
 using Mapster;
 using HarborAdmin.Modules.AI.Contracts.Dtos;
+using HarborAdmin.Modules.AI.Contracts.Snapshots;
 using HarborAdmin.Modules.AI.Domain.Entities;
 
 namespace HarborAdmin.Modules.AI.Application.Mappings;
@@ -25,5 +26,28 @@ public sealed class AiMappingRegister : IRegister
         config.NewConfig<AiQuotaBucket, AiUsageLedgerDto>()
             .Map(destination => destination.RequestCount,
                 source => source.ReservedRequests + source.SuccessRequests + source.FailedRequests);
+
+        config.NewConfig<AiProviderModel, AiProviderModelSnapshot>();
+        config.NewConfig<AiBusinessProviderRoute, AiBusinessRouteSnapshot>();
+        config.NewConfig<AiPrompt, AiPromptSnapshot>();
+        config.NewConfig<AiKnowledgeBase, AiKnowledgeSnapshot>();
+        config.NewConfig<AiModelQuota, AiModelQuotaSnapshot>();
+
+        config.NewConfig<AiProvider, AiProviderSnapshot>()
+            .Map(destination => destination.Models,
+                source => source.Models.Where(model => model.Enabled).OrderBy(model => model.SortOrder));
+
+        config.NewConfig<AiBusiness, AiBusinessSnapshot>()
+            .Map(destination => destination.Routes,
+                source => source.Routes.Where(route => route.Enabled).OrderBy(route => route.Priority));
+
+        config.NewConfig<AiProviderQuotaSnapshotSource, AiProviderQuotaSnapshot>()
+            .Map(destination => destination.ProviderKey, source => source.ProviderKey)
+            .Map(destination => destination.ProducerKey, source => source.Quota.ProducerKey)
+            .Map(destination => destination.RequestsPerMinute, source => source.Quota.RequestsPerMinute)
+            .Map(destination => destination.RequestsPerDay, source => source.Quota.RequestsPerDay)
+            .Map(destination => destination.TokensPerDay, source => source.Quota.TokensPerDay)
+            .Map(destination => destination.TokensPerMonth, source => source.Quota.TokensPerMonth)
+            .Map(destination => destination.MonthlyBudget, source => source.Quota.MonthlyBudget);
     }
 }

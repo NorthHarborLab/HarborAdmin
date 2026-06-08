@@ -20,6 +20,7 @@ public static class AiModuleExtensions
         services.AddSingleton<IAiDbContext, AiDbContext>();
         services.AddSingleton<IAiRepository, FreeSqlAiRepository>();
         services.AddScoped<AiManagementService>();
+        services.AddScoped<AiChatStreamService>();
         return services;
     }
 }

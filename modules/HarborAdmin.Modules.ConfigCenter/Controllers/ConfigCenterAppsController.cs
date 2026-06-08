@@ -12,7 +12,7 @@ namespace HarborAdmin.Modules.ConfigCenter.Controllers;
 /// <param name="service">配置中心应用服务。</param>
 [ApiController]
 [Route("api/admin/config-center/apps")]
-public sealed class ConfigCenterAppsController(ConfigCenterService service) : ControllerBase
+public sealed class ConfigCenterAppsController(ConfigCenterApplicationService service) : ControllerBase
 {
     /// <summary>列出所有已注册应用。</summary>
     /// <param name="cancellationToken">取消令牌。</param>

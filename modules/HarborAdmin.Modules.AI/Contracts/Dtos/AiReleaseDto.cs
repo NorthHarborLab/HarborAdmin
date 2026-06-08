@@ -22,7 +22,3 @@ public sealed record AiPublishedSnapshotDto(
     string SnapshotJson,
     DateTimeOffset PublishedAt);
 
-/// <summary>
-/// 发布 AI 配置请求。
-/// </summary>
-public sealed record PublishAiConfigRequest(string? PublishedBy, string? Remark);

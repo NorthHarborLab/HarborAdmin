@@ -75,7 +75,15 @@ public sealed partial class FreeSqlInternationalRepository
     /// <inheritdoc />
     public async Task DeleteEntryAsync(long id, CancellationToken cancellationToken = default)
     {
-        var entries = await FreeSql.Select<InternationalEntry>().ToListAsync(cancellationToken);
+        var entry = await GetEntryAsync(id, cancellationToken);
+        if (entry is null)
+        {
+            return;
+        }
+
+        var entries = await FreeSql.Select<InternationalEntry>()
+            .Where(e => e.PageId == entry.PageId)
+            .ToListAsync(cancellationToken);
         var deleteIds = CollectDescendantIds(entries, id);
         if (deleteIds.Count == 0)
         {

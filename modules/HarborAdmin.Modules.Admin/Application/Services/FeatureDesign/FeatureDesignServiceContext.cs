@@ -45,12 +45,12 @@ public sealed class FeatureDesignServiceContext
         var normalizedAction = actionCode.Trim();
         if (string.IsNullOrWhiteSpace(normalized))
         {
-            throw new ValidationDomainException("Feature code is required.");
+            throw new ValidationDomainException("功能编码不能为空。");
         }
 
         if (string.IsNullOrWhiteSpace(normalizedAction))
         {
-            throw new ValidationDomainException("Action code is required.");
+            throw new ValidationDomainException("动作编码不能为空。");
         }
 
         return await _repository.GetFeatureActionAsync(normalized, normalizedAction, cancellationToken)
@@ -62,7 +62,7 @@ public sealed class FeatureDesignServiceContext
         var normalized = featureCode.Trim();
         if (string.IsNullOrWhiteSpace(normalized))
         {
-            throw new ValidationDomainException("Feature code is required.");
+            throw new ValidationDomainException("功能编码不能为空。");
         }
 
         return await _repository.GetFeatureAggregateAsync(normalized, cancellationToken);
@@ -90,7 +90,7 @@ public sealed class FeatureDesignServiceContext
         var normalized = featureCode.Trim();
         if (string.IsNullOrWhiteSpace(normalized))
         {
-            throw new ValidationDomainException("Feature code is required.");
+            throw new ValidationDomainException("功能编码不能为空。");
         }
 
         var feature = await Db.Orm.Select<AdminFeature>().Where(item => item.FeatureCode == normalized).ToOneAsync(cancellationToken)

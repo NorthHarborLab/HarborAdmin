@@ -12,7 +12,7 @@ namespace HarborAdmin.Modules.ConfigCenter.Controllers;
 /// <param name="service">配置中心应用服务。</param>
 [ApiController]
 [Route("api/admin/config-center/{appId}")]
-public sealed class ConfigCenterPublishController(ConfigCenterService service) : ControllerBase
+public sealed class ConfigCenterPublishController(ConfigCenterPublishService service) : ControllerBase
 {
     /// <summary>
     /// 列出发布历史（按版本降序）。

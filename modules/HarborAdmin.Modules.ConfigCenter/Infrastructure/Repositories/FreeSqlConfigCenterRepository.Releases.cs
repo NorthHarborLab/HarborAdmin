@@ -24,7 +24,10 @@ public sealed partial class FreeSqlConfigCenterRepository
 
     /// <inheritdoc />
     public async Task<ConfigRelease?> GetReleaseByIdAsync(long releaseId, CancellationToken cancellationToken = default) =>
-        await FreeSql.Select<ConfigRelease>().Where(r => r.Id == releaseId).FirstAsync(cancellationToken);
+        await FreeSql.Select<ConfigRelease>()
+            .Where(r => r.Id == releaseId)
+            .IncludeMany(r => r.Items)
+            .FirstAsync(cancellationToken);
 
     /// <inheritdoc />
     public Task<IReadOnlyList<ConfigReleaseItem>> ListReleaseItemsAsync(long releaseId, CancellationToken cancellationToken = default) =>

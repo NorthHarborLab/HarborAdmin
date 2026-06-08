@@ -31,19 +31,34 @@ public sealed partial class FreeSqlConfigCenterRepository
     /// <inheritdoc />
     public async Task DeleteApplicationAsync(string appId, CancellationToken cancellationToken = default)
     {
-        var releaseIds = await FreeSql.Select<ConfigRelease>()
-            .Where(r => r.AppId == appId)
-            .ToListAsync(r => r.Id, cancellationToken);
-
-        if (releaseIds.Count > 0)
+        var application = await FreeSql.Select<ConfigApplication>()
+            .Where(a => a.AppId == appId)
+            .IncludeMany(a => a.Releases, then => then.IncludeMany(r => r.Items))
+            .IncludeMany(a => a.Items)
+            .FirstAsync(cancellationToken);
+        if (application is null)
         {
-            await FreeSql.Delete<ConfigReleaseItem>()
-                .Where(i => releaseIds.Contains(i.ReleaseId))
-                .ExecuteAffrowsAsync(cancellationToken);
+            return;
         }
 
-        await FreeSql.Delete<ConfigItem>().Where(i => i.AppId == appId).ExecuteAffrowsAsync(cancellationToken);
-        await FreeSql.Delete<ConfigRelease>().Where(r => r.AppId == appId).ExecuteAffrowsAsync(cancellationToken);
+        var releaseItemIds = application.Releases.SelectMany(release => release.Items).Select(item => item.Id).ToArray();
+        if (releaseItemIds.Length > 0)
+        {
+            await FreeSql.Delete<ConfigReleaseItem>().Where(item => releaseItemIds.Contains(item.Id)).ExecuteAffrowsAsync(cancellationToken);
+        }
+
+        var releaseIds = application.Releases.Select(release => release.Id).ToArray();
+        if (releaseIds.Length > 0)
+        {
+            await FreeSql.Delete<ConfigRelease>().Where(release => releaseIds.Contains(release.Id)).ExecuteAffrowsAsync(cancellationToken);
+        }
+
+        var itemIds = application.Items.Select(item => item.Id).ToArray();
+        if (itemIds.Length > 0)
+        {
+            await FreeSql.Delete<ConfigItem>().Where(item => itemIds.Contains(item.Id)).ExecuteAffrowsAsync(cancellationToken);
+        }
+
         await FreeSql.Delete<ConfigApplication>().Where(a => a.AppId == appId).ExecuteAffrowsAsync(cancellationToken);
     }
 }

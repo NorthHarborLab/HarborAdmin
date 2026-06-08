@@ -122,7 +122,7 @@ public sealed class AdminMetadataService(AccessCacheService accessCache)
     {
         var normalized = featureCode.Trim();
         return string.IsNullOrWhiteSpace(normalized)
-            ? throw new ValidationDomainException("FeatureCode is required.")
+            ? throw new ValidationDomainException("功能编码不能为空。")
             : normalized;
     }
 }

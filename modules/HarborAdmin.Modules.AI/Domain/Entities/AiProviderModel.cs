@@ -119,5 +119,11 @@ public class AiProviderModel : EntityBase
     /// 更新时间。
     /// </summary>
     public DateTimeOffset UpdatedAt { get; set; }
+
+    /// <summary>
+    /// 所属供应商。
+    /// </summary>
+    [Navigate(nameof(ProviderId))]
+    public AiProvider? Provider { get; set; }
 }
 

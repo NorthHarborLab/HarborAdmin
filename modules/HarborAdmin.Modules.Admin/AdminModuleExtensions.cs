@@ -12,17 +12,12 @@ using HarborAdmin.Modules.Admin.Application.Services.Role;
 using HarborAdmin.Modules.Admin.Application.Services.Shared;
 using HarborAdmin.Modules.Admin.Application.Services.System;
 using HarborAdmin.Modules.Admin.Application.Services.User;
-using HarborAdmin.BuildingBlocks.Data;
 using HarborAdmin.Modules.Admin.Infrastructure.Contexts;
-using HarborAdmin.Modules.Admin.Infrastructure.Migrations;
 using HarborAdmin.Modules.Admin.Infrastructure.Options;
 using HarborAdmin.Modules.Admin.Infrastructure.Repositories;
 using HarborAdmin.Modules.Admin.Infrastructure.Resolvers;
 using HarborAdmin.Modules.Admin.Infrastructure.Security;
-using HarborAdmin.Modules.Admin.Infrastructure.Seed;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Hosting;
 
 namespace HarborAdmin.Modules.Admin;
 
@@ -56,10 +51,6 @@ public static class AdminModuleExtensions
         services.AddScoped<AdminServiceContext>();
         services.AddScoped<SystemServiceContext>();
         services.AddScoped<IAdminDynamicResourceHandlerResolver, AdminDynamicResourceHandlerResolver>();
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHarborFreeSqlPreSyncHook, AdminEntityFkPreSyncMigration>());
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, AdminApiPathMigrationHostedService>());
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, AdminEntityFkMigrationHostedService>());
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, AdminSuperAdminMigrationHostedService>());
     }
 
     private static void AddAdminAuth(IServiceCollection services)

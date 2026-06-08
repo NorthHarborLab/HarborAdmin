@@ -43,25 +43,4 @@ public sealed class AiProvidersController(AiManagementService service) : Control
         await service.DeleteProviderAsync(id, cancellationToken);
         return ApiResult.Ok(true);
     }
-
-    /// <summary>
-    /// 获取供应商限额。
-    /// </summary>
-    [HttpGet("{providerId:long}/quota")]
-    public async Task<ApiResult<AiProviderQuotaDto?>> GetQuota(long providerId, [FromQuery] string? producerKey, CancellationToken cancellationToken) =>
-        ApiResult.Ok(await service.GetProviderQuotaAsync(providerId, producerKey, cancellationToken));
-
-    /// <summary>
-    /// 保存供应商限额。
-    /// </summary>
-    [HttpPut("{providerId:long}/quota")]
-    public async Task<ApiResult<AiProviderQuotaDto>> SaveQuota(
-        long providerId,
-        [FromBody] SaveAiProviderQuotaRequest request,
-        CancellationToken cancellationToken) =>
-        ApiResult.Ok(await service.SaveProviderQuotaAsync(providerId, request, cancellationToken));
 }
-
-
-
-

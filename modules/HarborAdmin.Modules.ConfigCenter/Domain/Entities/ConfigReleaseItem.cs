@@ -40,4 +40,10 @@ public class ConfigReleaseItem : EntityBase
     /// 扁平化配置键。存在 <see cref="Group"/> 时生成 <c>Group:Key</c>，否则保留 <see cref="Key"/>。
     /// </summary>
     public string ConfigKey => string.IsNullOrWhiteSpace(Group) ? Key : $"{Group.Trim()}:{Key}";
+
+    /// <summary>
+    /// 所属发布记录。
+    /// </summary>
+    [Navigate(nameof(ReleaseId))]
+    public ConfigRelease? Release { get; set; }
 }

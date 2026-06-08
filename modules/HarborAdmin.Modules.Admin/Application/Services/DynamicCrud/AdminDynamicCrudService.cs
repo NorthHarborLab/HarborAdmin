@@ -1,5 +1,4 @@
 using HarborAdmin.Modules.Admin.Application.Abstractions;
-using HarborAdmin.BuildingBlocks.Abstractions.Api;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.Modules.Admin.Contracts.DynamicCrud.Dto;
 using HarborAdmin.Modules.Admin.Contracts.DynamicCrud.Request;
@@ -21,7 +20,7 @@ public sealed class AdminDynamicCrudService(IAdminDynamicResourceHandlerResolver
     {
         if (request is null)
         {
-            throw new ValidationDomainException("Dynamic query request is required.");
+            throw new ValidationDomainException("动态查询请求不能为空。");
         }
 
         var handler = await handlerResolver.ResolveAsync(NormalizeFeatureCode(featureCode), cancellationToken);
@@ -51,7 +50,7 @@ public sealed class AdminDynamicCrudService(IAdminDynamicResourceHandlerResolver
     {
         if (values is null)
         {
-            throw new ValidationDomainException("Dynamic record values are required.");
+            throw new ValidationDomainException("动态记录数据不能为空。");
         }
 
         var handler = await handlerResolver.ResolveAsync(NormalizeFeatureCode(featureCode), cancellationToken);
@@ -69,7 +68,7 @@ public sealed class AdminDynamicCrudService(IAdminDynamicResourceHandlerResolver
     {
         if (values is null)
         {
-            throw new ValidationDomainException("Dynamic record values are required.");
+            throw new ValidationDomainException("动态记录数据不能为空。");
         }
 
         var handler = await handlerResolver.ResolveAsync(NormalizeFeatureCode(featureCode), cancellationToken);
@@ -89,7 +88,7 @@ public sealed class AdminDynamicCrudService(IAdminDynamicResourceHandlerResolver
     {
         var normalized = featureCode.Trim();
         return string.IsNullOrWhiteSpace(normalized)
-            ? throw new ValidationDomainException("Dynamic featureCode is required.")
+            ? throw new ValidationDomainException("动态功能编码不能为空。")
             : normalized;
     }
 

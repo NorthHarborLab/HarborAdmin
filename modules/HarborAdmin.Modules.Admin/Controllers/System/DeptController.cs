@@ -1,5 +1,6 @@
 using HarborAdmin.Modules.Admin.Application.Services.Dept;
-using HarborAdmin.Modules.Admin.Contracts.System;
+using HarborAdmin.Modules.Admin.Contracts.System.Dto;
+using HarborAdmin.Modules.Admin.Contracts.System.Request;
 using Microsoft.AspNetCore.Mvc;
 using HarborAdmin.BuildingBlocks.Abstractions.Api;
 

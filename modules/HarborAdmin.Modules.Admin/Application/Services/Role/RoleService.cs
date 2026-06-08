@@ -1,5 +1,7 @@
+using HarborAdmin.BuildingBlocks.Mapping;
 using HarborAdmin.Modules.Admin.Application.Abstractions;
-using HarborAdmin.Modules.Admin.Contracts.System;
+using HarborAdmin.Modules.Admin.Contracts.System.Dto;
+using HarborAdmin.Modules.Admin.Contracts.System.Request;
 using HarborAdmin.Modules.Admin.Domain.Entities;
 using HarborAdmin.Modules.Admin.Application.Services.Shared;
 
@@ -8,7 +10,11 @@ namespace HarborAdmin.Modules.Admin.Application.Services.Role;
 /// <summary>
 /// 角色管理服务。
 /// </summary>
-public sealed class RoleService(SystemServiceContext systemContext, AdminServiceContext context, IAdminRepository repository)
+public sealed class RoleService(
+    SystemServiceContext systemContext,
+    AdminServiceContext context,
+    IAdminRepository repository,
+    IHarborMapper mapper)
 {
     /// <summary>
     /// 获取角色列表及其权限配置。
@@ -16,7 +22,7 @@ public sealed class RoleService(SystemServiceContext systemContext, AdminService
     public async Task<IReadOnlyList<SystemRoleDto>> ListRolesAsync(CancellationToken cancellationToken)
     {
         var roles = await repository.ListRolesWithGrantsAsync(cancellationToken);
-        return roles.Select(ToRoleDto).ToArray();
+        return roles.Select(role => mapper.Map<SystemRoleDto>(role)).ToArray();
     }
 
     /// <summary>
@@ -95,7 +101,7 @@ public sealed class RoleService(SystemServiceContext systemContext, AdminService
 
         await context.BumpSessionVersionAsync(cancellationToken);
         role = await systemContext.LoadRoleAggregateAsync(role.Id, cancellationToken);
-        return ToRoleDto(role);
+        return mapper.Map<SystemRoleDto>(role);
     }
 
     /// <summary>
@@ -149,31 +155,4 @@ public sealed class RoleService(SystemServiceContext systemContext, AdminService
             .Select(value => value["perm:".Length..])
             .ToArray();
 
-    private static SystemRoleDto ToRoleDto(AdminRole role)
-    {
-        var menuIds = role.RoleMenus.Select(link => link.MenuId.ToString()).ToArray();
-        var permissionCodes = role.RolePermissions.Select(link => link.PermissionCode).ToArray();
-        var values = menuIds.Concat(permissionCodes.Select(code => $"perm:{code}")).ToArray();
-        var policies = role.FieldPermissions
-            .Select(policy => new SystemRoleFieldPolicyDto(
-                policy.FeatureCode,
-                policy.FieldName,
-                policy.Visible,
-                policy.Editable,
-                policy.Exportable,
-                policy.Masked))
-            .ToArray();
-        return new SystemRoleDto(
-            role.Id.ToString(),
-            role.Name,
-            role.RoleCode,
-            menuIds,
-            permissionCodes,
-            policies,
-            values,
-            role.Remark,
-            role.Enabled ? 1 : 0,
-            role.DataScopeType,
-            role.CreatedAt.ToString("O"));
-    }
 }

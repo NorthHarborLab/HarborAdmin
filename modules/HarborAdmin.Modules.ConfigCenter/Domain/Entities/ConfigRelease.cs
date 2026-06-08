@@ -29,4 +29,16 @@ public class ConfigRelease : EntityBase
     /// 发布时间(UTC)
     /// </summary>
     public DateTimeOffset PublishedAt { get; set; }
+
+    /// <summary>
+    /// 所属应用。
+    /// </summary>
+    [Navigate(nameof(AppId))]
+    public ConfigApplication? Application { get; set; }
+
+    /// <summary>
+    /// 发布快照项。
+    /// </summary>
+    [Navigate(nameof(ConfigReleaseItem.ReleaseId))]
+    public List<ConfigReleaseItem> Items { get; set; } = [];
 }

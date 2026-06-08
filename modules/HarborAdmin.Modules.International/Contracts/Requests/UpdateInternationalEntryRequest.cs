@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using HarborAdmin.Modules.International.Contracts.Dtos;
 
 namespace HarborAdmin.Modules.International.Contracts.Requests;
@@ -5,8 +6,28 @@ namespace HarborAdmin.Modules.International.Contracts.Requests;
 /// <summary>
 /// 更新国际化树节点请求。
 /// </summary>
-public sealed record UpdateInternationalEntryRequest(
-    string Key,
-    string? Remark,
-    int SortOrder,
-    IReadOnlyList<InternationalEntryTranslationDto> Translations);
+public sealed class UpdateInternationalEntryRequest
+{
+    /// <summary>
+    /// 条目键名。
+    /// </summary>
+    [Required(ErrorMessage = "条目键名不能为空。")]
+    [MaxLength(120)]
+    public string Key { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 备注。
+    /// </summary>
+    [MaxLength(500)]
+    public string? Remark { get; set; }
+
+    /// <summary>
+    /// 排序值。
+    /// </summary>
+    public int SortOrder { get; set; }
+
+    /// <summary>
+    /// 翻译列表。
+    /// </summary>
+    public IReadOnlyList<InternationalEntryTranslationDto> Translations { get; set; } = [];
+}

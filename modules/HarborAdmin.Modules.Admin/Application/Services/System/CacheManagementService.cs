@@ -1,5 +1,5 @@
 using HarborAdmin.BuildingBlocks.Caching.Abstractions;
-using HarborAdmin.Modules.Admin.Contracts.System;
+using HarborAdmin.Modules.Admin.Contracts.System.Dto;
 
 namespace HarborAdmin.Modules.Admin.Application.Services.System;
 
