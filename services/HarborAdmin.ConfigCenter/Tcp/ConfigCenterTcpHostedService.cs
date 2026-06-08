@@ -40,6 +40,7 @@ public sealed class ConfigCenterTcpHostedService(
                 var client = await _listener.AcceptTcpClientAsync(stoppingToken);
                 _ = Task.Run(async () =>
                 {
+                    // 每条 TCP 连接使用独立 DI scope，避免 Scoped 服务在多个连接之间共享状态。
                     await using var scope = serviceProvider.CreateAsyncScope();
                     var handler = new ConfigCenterConnectionHandler(
                         client,

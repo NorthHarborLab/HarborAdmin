@@ -40,6 +40,7 @@ public sealed class ConfigSubscriptionHub
         };
 
         var frame = message.ToFrameBytes();
+        // 先复制目标列表，避免广播过程中订阅集合变化影响本次遍历。
         var targets = _subscriptions.Values
             .Where(s => s.AppId == appId)
             .ToList();
@@ -58,5 +59,8 @@ public sealed class ConfigSubscriptionHub
         }
     }
 
+    /// <summary>
+    /// 单条配置变更订阅。
+    /// </summary>
     private sealed record SubscriptionEntry(string AppId, NetworkStream Stream);
 }
