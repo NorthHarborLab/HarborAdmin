@@ -1,6 +1,4 @@
-using HarborAdmin.BuildingBlocks.Abstractions.Secrets;
 using HarborAdmin.BuildingBlocks.Secrets.Protection;
-using HarborAdmin.BuildingBlocks.Secrets.Stores;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -12,14 +10,11 @@ namespace HarborAdmin.BuildingBlocks.Secrets.DependencyInjection;
 public static class SecretsServiceCollectionExtensions
 {
     /// <summary>
-    /// 注册通用 Secret Store。
+    /// 注册通用 Secret 保护器。
     /// </summary>
     public static IServiceCollection AddHarborSecrets(this IServiceCollection services)
     {
         services.TryAddSingleton<ISecretProtector, AesGcmSecretProtector>();
-        services.TryAddScoped<HarborSecretStore>();
-        services.TryAddScoped<ISecretStore>(sp => sp.GetRequiredService<HarborSecretStore>());
-        services.TryAddScoped<ISecretResolver>(sp => sp.GetRequiredService<HarborSecretStore>());
         return services;
     }
 }
