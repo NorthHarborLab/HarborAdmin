@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace HarborAdmin.Modules.ConfigCenter.Contracts.Requests;
+namespace HarborAdmin.Modules.ConfigCenter.Contracts.Publish.Request;
 
 /// <summary>
 /// 发布操作请求。

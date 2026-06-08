@@ -1,7 +1,4 @@
 using HarborAdmin.Client.ConfigCenter.Protocol;
-using HarborAdmin.BuildingBlocks.Abstractions.Api;
-using HarborAdmin.BuildingBlocks.Abstractions.Exception;
-using HarborAdmin.Modules.ConfigCenter.Application.Abstractions;
 using HarborAdmin.Modules.ConfigCenter.Infrastructure.Options;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
@@ -14,15 +11,10 @@ namespace HarborAdmin.Modules.ConfigCenter.Infrastructure.Clients;
 /// </summary>
 /// <param name="options">服务地址配置</param>
 /// <param name="logger">日志</param>
-public sealed class TcpConfigCenterNotifyClient(
-    IOptions<ConfigCenterServerOptions> options,
-    ILogger<TcpConfigCenterNotifyClient> logger) : IConfigCenterNotifyClient
+public sealed class TcpConfigCenterNotifyClient(IOptions<ConfigCenterServerOptions> options, ILogger<TcpConfigCenterNotifyClient> logger) : IConfigCenterNotifyClient
 {
     /// <inheritdoc />
-    public async Task NotifyPublishedAsync(
-        string appId,
-        long releaseId,
-        CancellationToken cancellationToken = default)
+    public async Task NotifyPublishedAsync(string appId, long releaseId, CancellationToken cancellationToken = default)
     {
         var settings = options.Value;
         await using var client = new ConfigTcpClient();

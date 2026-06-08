@@ -1,14 +1,11 @@
-using FreeSql.DataAnnotations;
-using HarborAdmin.BuildingBlocks.Abstractions.Domain;
-
 namespace HarborAdmin.Modules.ConfigCenter.Domain.Entities;
 
 /// <summary>
-/// 发布快照中的单条配置,发布时从 <see cref="ConfigItem"/> 草稿复制
+/// 发布快照中的单条配置，发布时从 <see cref="ConfigItem"/> 草稿复制。
 /// </summary>
 [DbKey("ConfigCenterDb")]
-[Index("ux_config_release_item_release_group_key", "ReleaseId,Group,Key", true)]
-public class ConfigReleaseItem : EntityBase
+[Index("ux_config_release_item_release_group_key", $"{nameof(ReleaseId)},{nameof(Group)},{nameof(Key)}", true)]
+public sealed class ConfigReleaseItem : EntityBase
 {
     /// <summary>
     /// 所属发布记录主键。
@@ -26,13 +23,13 @@ public class ConfigReleaseItem : EntityBase
     public string Key { get; set; } = string.Empty;
 
     /// <summary>
-    /// 配置值
+    /// 配置值。
     /// </summary>
     [Column(StringLength = -1)]
     public string Value { get; set; } = string.Empty;
 
     /// <summary>
-    /// 值类型提示
+    /// 值类型提示。
     /// </summary>
     public string ValueType { get; set; } = "string";
 

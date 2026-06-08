@@ -1,5 +1,3 @@
-using HarborAdmin.Modules.ConfigCenter.Domain.Entities;
-
 namespace HarborAdmin.Modules.ConfigCenter.Application.Abstractions;
 
 /// <summary>

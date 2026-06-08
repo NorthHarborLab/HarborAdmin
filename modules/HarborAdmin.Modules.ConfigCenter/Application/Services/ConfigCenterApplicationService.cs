@@ -1,9 +1,6 @@
-using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.BuildingBlocks.Mapping;
-using HarborAdmin.Modules.ConfigCenter.Application.Abstractions;
-using HarborAdmin.Modules.ConfigCenter.Contracts.Dtos;
-using HarborAdmin.Modules.ConfigCenter.Contracts.Requests;
-using HarborAdmin.Modules.ConfigCenter.Domain.Entities;
+using HarborAdmin.Modules.ConfigCenter.Contracts.Application.Dto;
+using HarborAdmin.Modules.ConfigCenter.Contracts.Application.Request;
 
 namespace HarborAdmin.Modules.ConfigCenter.Application.Services;
 
@@ -17,44 +14,20 @@ public sealed class ConfigCenterApplicationService(IConfigCenterRepository repos
     /// </summary>
     public async Task<IReadOnlyList<ConfigApplicationDto>> ListApplicationsAsync(CancellationToken cancellationToken = default) =>
         (await repository.ListApplicationsAsync(cancellationToken))
-        .Select(application => mapper.Map<ConfigApplicationDto>(application))
+        .Select(mapper.Map<ConfigApplicationDto>)
         .ToList();
 
     /// <summary>
-    /// 注册新应用。
+    /// 保存应用（创建或更新）。
     /// </summary>
-    public async Task<ConfigApplicationDto> CreateApplicationAsync(CreateConfigApplicationRequest request, CancellationToken cancellationToken = default)
+    public async Task<ConfigApplicationDto> SaveApplicationAsync(string? appId, SaveConfigApplicationRequest request, CancellationToken cancellationToken = default)
     {
-        var appId = request.AppId.Trim();
-        var existing = await repository.GetApplicationByAppIdAsync(appId, cancellationToken);
-        if (existing is not null)
+        if (string.IsNullOrWhiteSpace(appId))
         {
-            throw new ConflictDomainException($"应用 '{appId}' 已存在。");
+            return await CreateApplicationAsync(request, cancellationToken);
         }
 
-        var entity = new ConfigApplication
-        {
-            AppId = appId,
-            Name = request.Name.Trim(),
-            Description = request.Description?.Trim(),
-            CreatedAt = DateTimeOffset.UtcNow
-        };
-
-        var created = await repository.InsertApplicationAsync(entity, cancellationToken);
-        return mapper.Map<ConfigApplicationDto>(created);
-    }
-
-    /// <summary>
-    /// 更新应用元数据。
-    /// </summary>
-    public async Task<ConfigApplicationDto> UpdateApplicationAsync(string appId, UpdateConfigApplicationRequest request,
-        CancellationToken cancellationToken = default)
-    {
-        var entity = await RequireApplicationAsync(appId, cancellationToken);
-        entity.Name = request.Name.Trim();
-        entity.Description = request.Description?.Trim();
-        await repository.UpdateApplicationAsync(entity, cancellationToken);
-        return mapper.Map<ConfigApplicationDto>(entity);
+        return await UpdateApplicationAsync(appId, request, cancellationToken);
     }
 
     /// <summary>
@@ -69,4 +42,44 @@ public sealed class ConfigCenterApplicationService(IConfigCenterRepository repos
     internal async Task<ConfigApplication> RequireApplicationAsync(string appId, CancellationToken cancellationToken) =>
         await repository.GetApplicationByAppIdAsync(appId.Trim(), cancellationToken)
         ?? throw new NotFoundDomainException($"应用 '{appId}' 不存在。");
+
+    /// <summary>
+    /// 创建配置中心应用。
+    /// </summary>
+    private async Task<ConfigApplicationDto> CreateApplicationAsync(SaveConfigApplicationRequest request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.AppId))
+        {
+            throw new ValidationDomainException("AppId 不能为空。");
+        }
+
+        var appId = request.AppId.Trim();
+        var existing = await repository.GetApplicationByAppIdAsync(appId, cancellationToken);
+        if (existing is not null)
+        {
+            throw new ConflictDomainException($"应用 '{appId}' 已存在。");
+        }
+
+        var entity = new ConfigApplication
+        {
+            AppId = appId,
+            Name = request.Name.Trim(),
+            Description = request.Description?.Trim()
+        };
+
+        var created = await repository.InsertApplicationAsync(entity, cancellationToken);
+        return mapper.Map<ConfigApplicationDto>(created);
+    }
+
+    /// <summary>
+    /// 更新配置中心应用基础信息。
+    /// </summary>
+    private async Task<ConfigApplicationDto> UpdateApplicationAsync(string appId, SaveConfigApplicationRequest request, CancellationToken cancellationToken)
+    {
+        var entity = await RequireApplicationAsync(appId, cancellationToken);
+        entity.Name = request.Name.Trim();
+        entity.Description = request.Description?.Trim();
+        await repository.UpdateApplicationAsync(entity, cancellationToken);
+        return mapper.Map<ConfigApplicationDto>(entity);
+    }
 }

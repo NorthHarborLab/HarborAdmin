@@ -1,5 +1,3 @@
-using HarborAdmin.Modules.ConfigCenter.Domain.Entities;
-
 namespace HarborAdmin.Modules.ConfigCenter.Infrastructure.Repositories;
 
 /// <summary>
@@ -8,12 +6,11 @@ namespace HarborAdmin.Modules.ConfigCenter.Infrastructure.Repositories;
 public sealed partial class FreeSqlConfigCenterRepository
 {
     /// <inheritdoc />
-    public Task<IReadOnlyList<ConfigRelease>> ListReleasesAsync(string appId, CancellationToken cancellationToken = default) =>
-        FreeSql.Select<ConfigRelease>()
+    public async Task<IReadOnlyList<ConfigRelease>> ListReleasesAsync(string appId, CancellationToken cancellationToken = default) =>
+        await FreeSql.Select<ConfigRelease>()
             .Where(r => r.AppId == appId)
             .OrderByDescending(r => r.Version)
-            .ToListAsync(cancellationToken)
-            .ContinueWith(t => (IReadOnlyList<ConfigRelease>)t.Result, cancellationToken);
+            .ToListAsync(cancellationToken);
 
     /// <inheritdoc />
     public async Task<ConfigRelease?> GetLatestReleaseAsync(string appId, CancellationToken cancellationToken = default) =>
@@ -30,13 +27,12 @@ public sealed partial class FreeSqlConfigCenterRepository
             .FirstAsync(cancellationToken);
 
     /// <inheritdoc />
-    public Task<IReadOnlyList<ConfigReleaseItem>> ListReleaseItemsAsync(long releaseId, CancellationToken cancellationToken = default) =>
-        FreeSql.Select<ConfigReleaseItem>()
+    public async Task<IReadOnlyList<ConfigReleaseItem>> ListReleaseItemsAsync(long releaseId, CancellationToken cancellationToken = default) =>
+        await FreeSql.Select<ConfigReleaseItem>()
             .Where(i => i.ReleaseId == releaseId)
             .OrderBy(i => i.Group)
             .OrderBy(i => i.Key)
-            .ToListAsync(cancellationToken)
-            .ContinueWith(t => (IReadOnlyList<ConfigReleaseItem>)t.Result, cancellationToken);
+            .ToListAsync(cancellationToken);
 
     /// <inheritdoc />
     public async Task<ConfigRelease> InsertReleaseAsync(

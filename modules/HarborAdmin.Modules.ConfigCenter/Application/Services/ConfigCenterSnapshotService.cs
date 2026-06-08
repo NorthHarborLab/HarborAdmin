@@ -1,11 +1,6 @@
 using System.Text.Json;
-using HarborAdmin.BuildingBlocks.Abstractions.Api;
-using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.BuildingBlocks.Abstractions.Secrets;
 using HarborAdmin.BuildingBlocks.Secrets.References;
-using HarborAdmin.Modules.ConfigCenter.Application.Abstractions;
-using HarborAdmin.Modules.ConfigCenter.Contracts.Dtos;
-using HarborAdmin.Modules.ConfigCenter.Domain.Entities;
 using Microsoft.AspNetCore.Http;
 
 namespace HarborAdmin.Modules.ConfigCenter.Application.Services;
@@ -13,17 +8,12 @@ namespace HarborAdmin.Modules.ConfigCenter.Application.Services;
 /// <summary>
 /// 配置中心已发布快照读取服务。
 /// </summary>
-public sealed class ConfigCenterSnapshotService(
-    IConfigCenterRepository repository,
-    ISecretStore secretStore)
+public sealed class ConfigCenterSnapshotService(IConfigCenterRepository repository, ISecretStore secretStore)
 {
     /// <summary>
     /// 获取已发布配置快照。
     /// </summary>
-    public async Task<PublishedConfigSnapshot?> GetPublishedSnapshotAsync(
-        string appId,
-        int version = 0,
-        CancellationToken cancellationToken = default)
+    public async Task<PublishedConfigSnapshot?> GetPublishedSnapshotAsync(string appId, int version = 0, CancellationToken cancellationToken = default)
     {
         var normalizedAppId = appId.Trim();
 
@@ -51,10 +41,7 @@ public sealed class ConfigCenterSnapshotService(
     /// <summary>
     /// 获取已发布配置快照，并在内存中解析 Secret 引用。
     /// </summary>
-    public async Task<PublishedConfigSnapshot?> GetResolvedPublishedSnapshotAsync(
-        string appId,
-        int version = 0,
-        CancellationToken cancellationToken = default)
+    public async Task<PublishedConfigSnapshot?> GetResolvedPublishedSnapshotAsync(string appId, int version = 0, CancellationToken cancellationToken = default)
     {
         var snapshot = await GetPublishedSnapshotAsync(appId, version, cancellationToken);
         return snapshot is null
@@ -65,9 +52,7 @@ public sealed class ConfigCenterSnapshotService(
     /// <summary>
     /// 按发布主键获取配置快照。
     /// </summary>
-    public async Task<PublishedConfigSnapshot> GetPublishedSnapshotByReleaseIdAsync(
-        long releaseId,
-        CancellationToken cancellationToken = default)
+    public async Task<PublishedConfigSnapshot> GetPublishedSnapshotByReleaseIdAsync(long releaseId, CancellationToken cancellationToken = default)
     {
         var release = await repository.GetReleaseByIdAsync(releaseId, cancellationToken)
                       ?? throw new NotFoundDomainException($"Release {releaseId} not found.");
@@ -80,14 +65,15 @@ public sealed class ConfigCenterSnapshotService(
     /// <summary>
     /// 按发布主键获取配置快照，并在内存中解析 Secret 引用。
     /// </summary>
-    public async Task<PublishedConfigSnapshot> GetResolvedPublishedSnapshotByReleaseIdAsync(
-        long releaseId,
-        CancellationToken cancellationToken = default)
+    public async Task<PublishedConfigSnapshot> GetResolvedPublishedSnapshotByReleaseIdAsync(long releaseId, CancellationToken cancellationToken = default)
     {
         var snapshot = await GetPublishedSnapshotByReleaseIdAsync(releaseId, cancellationToken);
         return new PublishedConfigSnapshot(snapshot.Version, await ResolveSnapshotDataAsync(snapshot.Data, cancellationToken));
     }
 
+    /// <summary>
+    /// 将发布项构建为客户端消费的扁平配置字典。
+    /// </summary>
     private static IReadOnlyDictionary<string, string> BuildSnapshotData(IEnumerable<ConfigReleaseItem> items)
     {
         var data = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -96,6 +82,7 @@ public sealed class ConfigCenterSnapshotService(
             var configKey = item.ConfigKey;
             if (IsStructuredValueType(item.ValueType))
             {
+                // 结构化值兼容 Microsoft.Extensions.Configuration 的冒号分隔层级键。
                 AddStructuredValue(data, configKey, item.Value);
                 continue;
             }
@@ -106,9 +93,10 @@ public sealed class ConfigCenterSnapshotService(
         return data;
     }
 
-    private async Task<IReadOnlyDictionary<string, string>> ResolveSnapshotDataAsync(
-        IReadOnlyDictionary<string, string> data,
-        CancellationToken cancellationToken)
+    /// <summary>
+    /// 解析快照字典中所有 Secret 引用。
+    /// </summary>
+    private async Task<IReadOnlyDictionary<string, string>> ResolveSnapshotDataAsync(IReadOnlyDictionary<string, string> data, CancellationToken cancellationToken)
     {
         var resolved = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var (key, value) in data)
@@ -121,10 +109,10 @@ public sealed class ConfigCenterSnapshotService(
         return resolved;
     }
 
-    private async Task<string> ResolveSecretReferencesAsync(
-        string value,
-        string configKey,
-        CancellationToken cancellationToken) =>
+    /// <summary>
+    /// 将单个配置值中的 Secret 标记替换为真实 Secret 值。
+    /// </summary>
+    private async Task<string> ResolveSecretReferencesAsync(string value, string configKey, CancellationToken cancellationToken) =>
         await SecretReferenceParser.ReplaceAsync(value, async (reference, token) =>
         {
             var secret = await secretStore.ResolveAsync(reference.SecretRef, reference.Version, token);
@@ -139,15 +127,24 @@ public sealed class ConfigCenterSnapshotService(
             return secret;
         }, cancellationToken);
 
+    /// <summary>
+    /// 判断发布值类型是否需要展开为层级配置键。
+    /// </summary>
     private static bool IsStructuredValueType(string valueType) =>
         valueType.Trim().ToLowerInvariant() is "json" or "object" or "options" or "model";
 
+    /// <summary>
+    /// 将结构化 JSON 值展开到扁平配置字典。
+    /// </summary>
     private static void AddStructuredValue(IDictionary<string, string> data, string baseKey, string value)
     {
         using var document = JsonDocument.Parse(value);
         AddJsonElement(data, baseKey, document.RootElement);
     }
 
+    /// <summary>
+    /// 递归展开 JSON 节点为冒号分隔的配置键。
+    /// </summary>
     private static void AddJsonElement(IDictionary<string, string> data, string key, JsonElement element)
     {
         switch (element.ValueKind)

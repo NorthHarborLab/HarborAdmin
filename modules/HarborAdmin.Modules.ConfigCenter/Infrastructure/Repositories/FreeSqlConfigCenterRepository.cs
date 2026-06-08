@@ -1,4 +1,3 @@
-using HarborAdmin.Modules.ConfigCenter.Application.Abstractions;
 using HarborAdmin.Modules.ConfigCenter.Infrastructure.Contexts;
 
 namespace HarborAdmin.Modules.ConfigCenter.Infrastructure.Repositories;

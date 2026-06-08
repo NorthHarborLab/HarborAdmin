@@ -1,4 +1,3 @@
-using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.BuildingBlocks.Abstractions.Secrets;
 using HarborAdmin.BuildingBlocks.Secrets.References;
 
@@ -65,15 +64,20 @@ public sealed class ConfigSecretReferenceValidator(ISecretStore secretStore)
             await RequireSecretReferenceAsync(reference, token);
             if (reference.Version is { } version)
             {
+                // 已显式指定版本的引用保持原版本，发布快照不做漂移。
                 return SecretReferenceParser.Format(reference.SecretRef, version);
             }
 
+            // 未指定版本时固定到当前最新版本，保证已发布快照可重复读取。
             var descriptor = await secretStore.GetAsync(reference.SecretRef, token)
                              ?? throw new ValidationDomainException($"SecretRef '{reference.SecretRef}' 不存在。");
             return SecretReferenceParser.Format(reference.SecretRef, descriptor.Version);
         }, cancellationToken);
     }
 
+    /// <summary>
+    /// 校验 Secret 引用存在、启用，并在指定版本时校验版本存在。
+    /// </summary>
     private async Task RequireSecretReferenceAsync(SecretReferenceToken reference, CancellationToken cancellationToken)
     {
         var descriptor = await secretStore.GetAsync(reference.SecretRef, cancellationToken);

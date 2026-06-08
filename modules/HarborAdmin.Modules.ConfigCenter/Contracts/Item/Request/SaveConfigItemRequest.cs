@@ -1,11 +1,11 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace HarborAdmin.Modules.ConfigCenter.Contracts.Requests;
+namespace HarborAdmin.Modules.ConfigCenter.Contracts.Item.Request;
 
 /// <summary>
-/// 更新配置项请求。
+/// 保存配置项请求。
 /// </summary>
-public sealed class UpdateConfigItemRequest
+public sealed class SaveConfigItemRequest
 {
     /// <summary>
     /// 配置分组。

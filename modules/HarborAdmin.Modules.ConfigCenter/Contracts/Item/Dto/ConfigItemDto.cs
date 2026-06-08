@@ -1,4 +1,4 @@
-namespace HarborAdmin.Modules.ConfigCenter.Contracts.Dtos;
+namespace HarborAdmin.Modules.ConfigCenter.Contracts.Item.Dto;
 
 /// <summary>
 /// 草稿配置项 DTO。

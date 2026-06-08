@@ -1,18 +1,17 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace HarborAdmin.Modules.ConfigCenter.Contracts.Requests;
+namespace HarborAdmin.Modules.ConfigCenter.Contracts.Application.Request;
 
 /// <summary>
-/// 创建应用请求。
+/// 保存应用请求。
 /// </summary>
-public sealed class CreateConfigApplicationRequest
+public sealed class SaveConfigApplicationRequest
 {
     /// <summary>
-    /// 应用标识。
+    /// 应用标识（创建时必填）。
     /// </summary>
-    [Required(ErrorMessage = "AppId 不能为空。")]
     [MaxLength(120)]
-    public string AppId { get; set; } = string.Empty;
+    public string? AppId { get; set; }
 
     /// <summary>
     /// 应用名称。

@@ -1,5 +1,3 @@
-using HarborAdmin.Modules.ConfigCenter.Domain.Entities;
-
 namespace HarborAdmin.Modules.ConfigCenter.Infrastructure.Repositories;
 
 /// <summary>
@@ -8,13 +6,12 @@ namespace HarborAdmin.Modules.ConfigCenter.Infrastructure.Repositories;
 public sealed partial class FreeSqlConfigCenterRepository
 {
     /// <inheritdoc />
-    public Task<IReadOnlyList<ConfigItem>> ListItemsAsync(string appId, CancellationToken cancellationToken = default) =>
-        FreeSql.Select<ConfigItem>()
+    public async Task<IReadOnlyList<ConfigItem>> ListItemsAsync(string appId, CancellationToken cancellationToken = default) =>
+        await FreeSql.Select<ConfigItem>()
             .Where(i => i.AppId == appId)
             .OrderBy(i => i.Group)
             .OrderBy(i => i.Key)
-            .ToListAsync(cancellationToken)
-            .ContinueWith(t => (IReadOnlyList<ConfigItem>)t.Result, cancellationToken);
+            .ToListAsync(cancellationToken);
 
     /// <inheritdoc />
     public async Task<ConfigItem?> GetItemAsync(long id, CancellationToken cancellationToken = default) =>

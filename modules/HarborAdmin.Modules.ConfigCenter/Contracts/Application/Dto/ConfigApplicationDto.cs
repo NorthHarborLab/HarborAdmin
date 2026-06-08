@@ -1,4 +1,4 @@
-namespace HarborAdmin.Modules.ConfigCenter.Contracts.Dtos;
+namespace HarborAdmin.Modules.ConfigCenter.Contracts.Application.Dto;
 
 /// <summary>
 /// 应用信息 DTO。

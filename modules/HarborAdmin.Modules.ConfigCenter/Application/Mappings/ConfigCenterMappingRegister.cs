@@ -1,6 +1,6 @@
-using HarborAdmin.Modules.ConfigCenter.Contracts.Dtos;
-using HarborAdmin.Modules.ConfigCenter.Domain.Entities;
 using Mapster;
+using HarborAdmin.Modules.ConfigCenter.Contracts.Application.Dto;
+using HarborAdmin.Modules.ConfigCenter.Contracts.Item.Dto;
 
 namespace HarborAdmin.Modules.ConfigCenter.Application.Mappings;
 

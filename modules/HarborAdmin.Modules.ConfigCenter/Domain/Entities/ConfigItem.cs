@@ -1,14 +1,11 @@
-using FreeSql.DataAnnotations;
-using HarborAdmin.BuildingBlocks.Abstractions.Domain;
-
 namespace HarborAdmin.Modules.ConfigCenter.Domain.Entities;
 
 /// <summary>
-/// 草稿配置项;发布前仅在此表维护,发布后快照写入 <see cref="ConfigReleaseItem"/>.
+/// 草稿配置项；发布前仅在此表维护，发布后快照写入 <see cref="ConfigReleaseItem"/>。
 /// </summary>
 [DbKey("ConfigCenterDb")]
-[Index("ux_config_item_app_group_key", "AppId,Group,Key", true)]
-public class ConfigItem : EntityBase
+[Index("ux_config_item_app_group_key", $"{nameof(AppId)},{nameof(Group)},{nameof(Key)}", true)]
+public sealed class ConfigItem : AuditableEntity
 {
     /// <summary>
     /// 所属应用标识
@@ -40,11 +37,6 @@ public class ConfigItem : EntityBase
     /// 备注
     /// </summary>
     public string? Remark { get; set; }
-
-    /// <summary>
-    /// 最后更新时间（UTC）
-    /// </summary>
-    public DateTimeOffset UpdatedAt { get; set; }
 
     /// <summary>
     /// 扁平化配置键。存在 <see cref="Group"/> 时生成 <c>Group:Key</c>，否则保留 <see cref="Key"/>。

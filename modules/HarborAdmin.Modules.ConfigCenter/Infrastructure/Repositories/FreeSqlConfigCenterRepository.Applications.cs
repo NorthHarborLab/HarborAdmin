@@ -1,5 +1,3 @@
-using HarborAdmin.Modules.ConfigCenter.Domain.Entities;
-
 namespace HarborAdmin.Modules.ConfigCenter.Infrastructure.Repositories;
 
 /// <summary>
@@ -8,9 +6,8 @@ namespace HarborAdmin.Modules.ConfigCenter.Infrastructure.Repositories;
 public sealed partial class FreeSqlConfigCenterRepository
 {
     /// <inheritdoc />
-    public Task<IReadOnlyList<ConfigApplication>> ListApplicationsAsync(CancellationToken cancellationToken = default) =>
-        FreeSql.Select<ConfigApplication>().OrderBy(a => a.AppId).ToListAsync(cancellationToken)
-            .ContinueWith(t => (IReadOnlyList<ConfigApplication>)t.Result, cancellationToken);
+    public async Task<IReadOnlyList<ConfigApplication>> ListApplicationsAsync(CancellationToken cancellationToken = default) =>
+        await FreeSql.Select<ConfigApplication>().OrderBy(a => a.AppId).ToListAsync(cancellationToken);
 
     /// <inheritdoc />
     public async Task<ConfigApplication?> GetApplicationByAppIdAsync(string appId, CancellationToken cancellationToken = default) =>
@@ -44,6 +41,7 @@ public sealed partial class FreeSqlConfigCenterRepository
         var releaseItemIds = application.Releases.SelectMany(release => release.Items).Select(item => item.Id).ToArray();
         if (releaseItemIds.Length > 0)
         {
+            // 发布项依赖发布记录，先删明细再删发布头，避免留下孤立发布项。
             await FreeSql.Delete<ConfigReleaseItem>().Where(item => releaseItemIds.Contains(item.Id)).ExecuteAffrowsAsync(cancellationToken);
         }
 
@@ -56,6 +54,7 @@ public sealed partial class FreeSqlConfigCenterRepository
         var itemIds = application.Items.Select(item => item.Id).ToArray();
         if (itemIds.Length > 0)
         {
+            // 草稿项独立于发布项，也要随应用一起清理。
             await FreeSql.Delete<ConfigItem>().Where(item => itemIds.Contains(item.Id)).ExecuteAffrowsAsync(cancellationToken);
         }
 

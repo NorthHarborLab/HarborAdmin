@@ -1,4 +1,4 @@
-namespace HarborAdmin.Modules.ConfigCenter.Contracts.Dtos;
+namespace HarborAdmin.Modules.ConfigCenter.Contracts.Publish.Dto;
 
 /// <summary>
 /// 发布记录 DTO。
