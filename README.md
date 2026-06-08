@@ -14,7 +14,6 @@
 ![HarborAdmin project overview](./docs/assets/harboradmin-project-hero.png)
 
 ## 项目介绍
-<div align=center> ![HarborAdmin icon](./docs/assets/harboradmin-icon.png) </div>
 
 HarborAdmin 是一套面向中后台场景的 .NET 管理框架：**封装克制、结构清晰、可单体可拆分运行**。
 
