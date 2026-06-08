@@ -2,8 +2,6 @@ using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 
 namespace HarborAdmin.AIWorker.Infrastructure;
 
-using HarborAdmin.BuildingBlocks.Abstractions.Api;
-
 /// <summary>
 /// AI 供应商适配器解析器。
 /// </summary>

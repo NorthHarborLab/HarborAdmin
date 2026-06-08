@@ -4,7 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using HarborAdmin.Client.AI.Invocation;
-using HarborAdmin.Modules.AI.Contracts.Constants;
+using HarborAdmin.Modules.AI.Contracts.Shared.Constant;
 
 namespace HarborAdmin.AIWorker.Infrastructure;
 
@@ -121,6 +121,9 @@ public sealed class OpenAiResponsesAdapter(HttpClient httpClient) : IAiProviderA
         }
     }
 
+    /// <summary>
+    /// 构造 OpenAI Responses 请求。
+    /// </summary>
     private static HttpRequestMessage BuildRequest(AiProviderCallRequest request, bool streaming)
     {
         var uri = new Uri(new Uri(request.Provider.BaseUrl.TrimEnd('/') + "/"), "responses");
@@ -149,6 +152,9 @@ public sealed class OpenAiResponsesAdapter(HttpClient httpClient) : IAiProviderA
         return httpRequest;
     }
 
+    /// <summary>
+    /// 转换统一消息为 Responses input 项。
+    /// </summary>
     private static JsonObject ToResponsesInput(AiMessage message) =>
         new()
         {
@@ -158,6 +164,9 @@ public sealed class OpenAiResponsesAdapter(HttpClient httpClient) : IAiProviderA
                 : [new JsonObject { ["type"] = "input_text", ["text"] = message.Content ?? string.Empty }]).ToArray<JsonNode?>())
         };
 
+    /// <summary>
+    /// 转换统一多模态内容块为 Responses content part。
+    /// </summary>
     private static JsonObject ToResponsesPart(AiMessageContentPart part) =>
         part.Type switch
         {
@@ -166,6 +175,9 @@ public sealed class OpenAiResponsesAdapter(HttpClient httpClient) : IAiProviderA
             _ => new JsonObject { ["type"] = "input_text", ["text"] = part.Text ?? part.ResultJson ?? string.Empty }
         };
 
+    /// <summary>
+    /// 应用 Responses 结构化输出选项。
+    /// </summary>
     private static void ApplyResponsesOutputOptions(JsonObject body, AiOutputOptions? options)
     {
         if (options is null || string.IsNullOrWhiteSpace(options.ResponseFormat))
@@ -193,6 +205,9 @@ public sealed class OpenAiResponsesAdapter(HttpClient httpClient) : IAiProviderA
         }
     }
 
+    /// <summary>
+    /// 应用 Responses 工具调用选项。
+    /// </summary>
     private static void ApplyResponsesToolOptions(JsonObject body, AiToolOptions? options)
     {
         if (options?.Tools is not { Count: > 0 })
@@ -213,6 +228,9 @@ public sealed class OpenAiResponsesAdapter(HttpClient httpClient) : IAiProviderA
         }
     }
 
+    /// <summary>
+    /// 从 Responses 响应中提取最终文本。
+    /// </summary>
     private static string ExtractOutputText(JsonElement root)
     {
         if (root.TryGetProperty("output_text", out var outputText))
@@ -245,6 +263,9 @@ public sealed class OpenAiResponsesAdapter(HttpClient httpClient) : IAiProviderA
         return builder.ToString();
     }
 
+    /// <summary>
+    /// 统计 Responses 输出中的工具调用数量。
+    /// </summary>
     private static int CountToolCalls(JsonElement root)
     {
         if (!root.TryGetProperty("output", out var output) || output.ValueKind != JsonValueKind.Array)

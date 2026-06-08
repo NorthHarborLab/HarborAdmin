@@ -1,11 +1,10 @@
 using System.Data;
-using HarborAdmin.BuildingBlocks.Abstractions.Api;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.BuildingBlocks.Data;
 using HarborAdmin.Client.AI.Constants;
 using HarborAdmin.Client.AI.Invocation;
 using HarborAdmin.Modules.AI.Application.Abstractions;
-using HarborAdmin.Modules.AI.Contracts.Snapshots;
+using HarborAdmin.Modules.AI.Contracts.Shared.Snapshot;
 using HarborAdmin.Modules.AI.Domain.Entities;
 using HarborAdmin.Modules.AI.Infrastructure.Contexts;
 
@@ -14,11 +13,7 @@ namespace HarborAdmin.AIWorker.Application;
 /// <summary>
 /// 基于原子窗口桶的 AI 配额服务。
 /// </summary>
-public sealed class AiQuotaService(
-    IAiRepository repository,
-    IAiDbContext dbContext,
-    DbEntityRegistry entityRegistry,
-    UnitOfWorkManagerCloud unitOfWorkManager) : IAiQuotaService
+public sealed class AiQuotaService(IAiRepository repository, IAiDbContext dbContext, DbEntityRegistry entityRegistry, UnitOfWorkManagerCloud unitOfWorkManager) : IAiQuotaService
 {
     /// <inheritdoc />
     public async Task<AiQuotaReservation> ReserveAsync(
@@ -37,6 +32,7 @@ public sealed class AiQuotaService(
         }
 
         var refs = new List<AiQuotaBucketRef>();
+        // Serializable 隔离级别保证并发预留时窗口桶计数不会被突破。
         using var uow = unitOfWorkManager.Begin(entityRegistry.GetDbKey<AiQuotaBucket>(), isolationLevel: IsolationLevel.Serializable);
         using (dbContext.Bind(uow.Orm))
         {
@@ -67,6 +63,7 @@ public sealed class AiQuotaService(
                             errorMeta: new { LimitType = "Budget", Limit = window.BudgetLimit, Current = bucket.Cost, WindowType = window.Type });
                     }
 
+                    // 预留阶段只占用请求名额；真实 token 和成本在调用完成后提交。
                     bucket.ReservedRequests += 1;
                     await repository.SaveQuotaBucketAsync(bucket, cancellationToken);
                     refs.Add(new AiQuotaBucketRef(bucket.ProviderKey, bucket.Model, bucket.BusinessKey, bucket.ProducerKey, bucket.WindowType, bucket.WindowStart));
@@ -86,6 +83,9 @@ public sealed class AiQuotaService(
     public Task CancelAsync(AiQuotaReservation reservation, CancellationToken cancellationToken = default) =>
         ApplyAsync(reservation, new AiUsage(), QuotaCompletion.Cancelled, cancellationToken);
 
+    /// <summary>
+    /// 将预留请求按成功、失败或取消状态落到窗口桶。
+    /// </summary>
     private async Task ApplyAsync(AiQuotaReservation reservation, AiUsage usage, QuotaCompletion completion, CancellationToken cancellationToken)
     {
         if (reservation.Buckets.Count == 0)
@@ -108,6 +108,7 @@ public sealed class AiQuotaService(
                 bucket.ReservedRequests = Math.Max(0, bucket.ReservedRequests - 1);
                 if (completion == QuotaCompletion.Success)
                 {
+                    // 成功调用才累计 token 和成本；失败只累计失败次数，取消只释放预留。
                     bucket.SuccessRequests += 1;
                     bucket.TotalTokens += Math.Max(0, usage.TotalTokens);
                     bucket.Cost += Math.Max(0, usage.Cost);
@@ -124,6 +125,9 @@ public sealed class AiQuotaService(
         uow.Commit();
     }
 
+    /// <summary>
+    /// 获取或创建指定窗口桶。
+    /// </summary>
     private async Task<AiQuotaBucket> GetOrCreateBucketAsync(QuotaRule rule, string windowType, DateTimeOffset windowStart,
         CancellationToken cancellationToken)
     {
@@ -140,6 +144,9 @@ public sealed class AiQuotaService(
         };
     }
 
+    /// <summary>
+    /// 从发布快照中构建当前调用适用的配额规则。
+    /// </summary>
     private static IEnumerable<QuotaRule> BuildRules(AiConfigSnapshot snapshot, string providerKey, string model, string businessKey, string producerKey)
     {
         foreach (var quota in snapshot.ProviderQuotas
@@ -164,6 +171,9 @@ public sealed class AiQuotaService(
         }
     }
 
+    /// <summary>
+    /// 根据限额配置构建分钟、天、月窗口。
+    /// </summary>
     private static IReadOnlyList<QuotaWindow> BuildWindows(
         int? requestsPerMinute,
         int? tokensPerMinute,
@@ -196,9 +206,15 @@ public sealed class AiQuotaService(
         return windows;
     }
 
+    /// <summary>
+    /// 判断必填维度是否匹配。
+    /// </summary>
     private static bool Matches(string configured, string actual) =>
         string.Equals(configured, actual, StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// 判断可选维度是否匹配；空配置表示通配。
+    /// </summary>
     private static bool MatchesOptional(string? configured, string actual) =>
         string.IsNullOrWhiteSpace(configured) || string.Equals(configured, actual, StringComparison.OrdinalIgnoreCase);
 

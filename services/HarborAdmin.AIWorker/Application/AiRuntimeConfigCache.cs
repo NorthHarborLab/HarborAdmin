@@ -1,6 +1,6 @@
 using System.Text.Json;
 using HarborAdmin.Modules.AI.Application.Abstractions;
-using HarborAdmin.Modules.AI.Contracts.Snapshots;
+using HarborAdmin.Modules.AI.Contracts.Shared.Snapshot;
 
 namespace HarborAdmin.AIWorker.Application;
 
@@ -55,6 +55,7 @@ public sealed class AiRuntimeConfigCache(IAiRepository repository, ILogger<AiRun
                 return _current;
             }
 
+            // 快照反序列化成功后才替换 _current；任何异常都会保留旧配置继续服务。
             var snapshot = JsonSerializer.Deserialize<AiConfigSnapshot>(release.SnapshotJson, JsonOptions);
             if (snapshot is null)
             {

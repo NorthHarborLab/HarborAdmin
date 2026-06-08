@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using HarborAdmin.BuildingBlocks.Abstractions.Api;
 using HarborAdmin.AIWorker.Infrastructure;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.BuildingBlocks.Abstractions.Secrets;
@@ -10,7 +9,7 @@ using HarborAdmin.BuildingBlocks.EventBus;
 using HarborAdmin.Client.AI.Constants;
 using HarborAdmin.Client.AI.Invocation;
 using HarborAdmin.Modules.AI.Application.Abstractions;
-using HarborAdmin.Modules.AI.Contracts.Snapshots;
+using HarborAdmin.Modules.AI.Contracts.Shared.Snapshot;
 using HarborAdmin.Modules.AI.Domain.Entities;
 
 namespace HarborAdmin.AIWorker.Application;
@@ -62,6 +61,7 @@ public sealed class AiExecutionService(
         var fallbackTrace = new List<string>();
         foreach (var route in business.Routes.OrderBy(r => r.Priority))
         {
+            // 路由按优先级尝试；校验失败或可恢复错误会进入下一路由。
             var provider = snapshot.Providers.FirstOrDefault(p => string.Equals(p.ProviderKey, route.ProviderKey, StringComparison.Ordinal));
             var model = ResolveModel(normalized, route, provider);
             var profile = BuildCallProfile(business, normalized, route);
@@ -79,6 +79,7 @@ public sealed class AiExecutionService(
                     cancellationToken);
                 var adapter = adapterResolver.Resolve(provider!.AdapterType);
                 var apiKey = await ResolveProviderSecretAsync(provider, cancellationToken);
+                // 所有供应商适配器共享统一请求对象，具体协议差异下沉到 adapter。
                 var callRequest = new AiProviderCallRequest(provider, model!, setup.Messages, false, normalized.InvocationId!, normalized.CorrelationId!,
                     snapshot.Version, apiKey, profile.OutputOptions, profile.ToolOptions, profile.ProviderOptions, route.ProviderOptionsJson,
                     route.OpenRouterOptionsJson);
@@ -117,9 +118,7 @@ public sealed class AiExecutionService(
     /// <summary>
     /// 执行流式 AI 调用。
     /// </summary>
-    public async IAsyncEnumerable<AiStreamEvent> StreamAsync(
-        AiBusinessRequest request,
-        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    public async IAsyncEnumerable<AiStreamEvent> StreamAsync(AiBusinessRequest request, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var normalized = NormalizeRequest(request);
         var setup = await ResolveSetupAsync(normalized, streaming: true, cancellationToken);
@@ -222,6 +221,7 @@ public sealed class AiExecutionService(
                         setup.Snapshot!.Version);
                     if (!emittedToClient && !emittedDelta && CanFallback(ex))
                     {
+                        // 流式调用尚未向客户端输出内容时才允许切换供应商，避免拼接多个模型的输出。
                         shouldFallback = true;
                     }
                     else
@@ -238,6 +238,7 @@ public sealed class AiExecutionService(
 
                 if (!emittedToClient)
                 {
+                    // 引用信息在第一段模型输出前发送，便于前端先展示知识来源。
                     foreach (var referenceEvent in referenceEvents)
                     {
                         yield return referenceEvent with { Sequence = ++sequence };
@@ -288,6 +289,7 @@ public sealed class AiExecutionService(
 
             if (!completed)
             {
+                // 供应商流结束但未显式 done 时补一个 done，统一前端收尾逻辑。
                 yield return new AiStreamEvent("done", normalized.InvocationId!, normalized.CorrelationId!, ++sequence, setup.Snapshot.Version,
                     ProviderKey: provider!.ProviderKey, Model: model, Usage: finalUsage);
             }
@@ -301,6 +303,9 @@ public sealed class AiExecutionService(
             ErrorCode: AiErrorCodes.ProviderUnavailable, ErrorMessage: "All AI providers are unavailable.");
     }
 
+    /// <summary>
+    /// 解析当前请求所需的发布快照、业务配置、消息上下文和引用。
+    /// </summary>
     private async Task<ExecutionSetup> ResolveSetupAsync(AiBusinessRequest request, bool streaming, CancellationToken cancellationToken)
     {
         var snapshot = await configCache.GetCurrentAsync(cancellationToken);
@@ -354,6 +359,7 @@ public sealed class AiExecutionService(
             {
                 if (string.Equals(business.ContextOverflowStrategy, "Truncate", StringComparison.OrdinalIgnoreCase))
                 {
+                    // 截断只删除非 system 消息，尽量保留安全约束和系统指令。
                     messages = TruncateMessages(messages, business.MaxContextTokens);
                     contextLength = EstimateTokens(messages);
                 }
@@ -375,6 +381,9 @@ public sealed class AiExecutionService(
         }
     }
 
+    /// <summary>
+    /// 根据幂等键查找已经完成或正在记录的调用。
+    /// </summary>
     private async Task<AiInvocationLog?> FindExistingInvocationAsync(AiBusinessRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.IdempotencyKey))
@@ -385,6 +394,9 @@ public sealed class AiExecutionService(
         return await repository.GetInvocationByIdempotencyAsync(request.BusinessKey, request.ProducerKey!, request.IdempotencyKey, cancellationToken);
     }
 
+    /// <summary>
+    /// 创建调用日志。
+    /// </summary>
     private async Task<AiInvocationLog> CreateLogAsync(AiBusinessRequest request, int releaseVersion, bool streaming, int contextLength,
         CancellationToken cancellationToken)
     {
@@ -408,6 +420,9 @@ public sealed class AiExecutionService(
         }, cancellationToken);
     }
 
+    /// <summary>
+    /// 完成调用日志并写入供应商、用量、错误和响应摘要。
+    /// </summary>
     private async Task CompleteLogAsync(
         AiInvocationLog log,
         string status,
@@ -451,6 +466,9 @@ public sealed class AiExecutionService(
         await repository.UpdateInvocationLogAsync(log, cancellationToken);
     }
 
+    /// <summary>
+    /// 按业务配置发布调用完成回调。
+    /// </summary>
     private async Task PublishCallbackAsync(AiBusinessSnapshot business, AiBusinessRequest request, AiBusinessResponse response,
         CancellationToken cancellationToken)
     {
@@ -468,6 +486,9 @@ public sealed class AiExecutionService(
         await eventPublisher.PublishAsync(business.CallbackTopic, response, cancellationToken);
     }
 
+    /// <summary>
+    /// 执行供应商非流式调用并应用超时、重试和输出校验。
+    /// </summary>
     private async Task<AiProviderCallResult> InvokeWithResilienceAsync(
         IAiProviderAdapter adapter,
         AiProviderCallRequest request,
@@ -492,6 +513,7 @@ public sealed class AiExecutionService(
             catch (Exception ex) when (attempt < attempts && CanRetry(ex, cancellationToken))
             {
                 lastError = ex;
+                // 线性退避即可，供应商级熔断目前由配置和后续扩展承接。
                 await Task.Delay(TimeSpan.FromMilliseconds(150 * attempt), cancellationToken);
             }
         }
@@ -499,6 +521,9 @@ public sealed class AiExecutionService(
         throw lastError ?? new ValidationDomainException(AiErrorCodes.ProviderUnavailable);
     }
 
+    /// <summary>
+    /// 执行调用并在需要时校验 JSON 输出格式。
+    /// </summary>
     private static async Task<AiProviderCallResult> InvokeWithOutputValidationAsync(
         IAiProviderAdapter adapter,
         AiProviderCallRequest request,
@@ -529,11 +554,17 @@ public sealed class AiExecutionService(
         throw new ValidationDomainException(AiErrorCodes.InvalidRequest, errorMeta: lastError);
     }
 
+    /// <summary>
+    /// 解析供应商 API Key 明文。
+    /// </summary>
     private async Task<string?> ResolveProviderSecretAsync(AiProviderSnapshot provider, CancellationToken cancellationToken) =>
         string.IsNullOrWhiteSpace(provider.SecretRef)
             ? null
             : await secretResolver.ResolveAsync(provider.SecretRef, cancellationToken);
 
+    /// <summary>
+    /// 补齐请求追踪、生产者和幂等字段。
+    /// </summary>
     private static AiBusinessRequest NormalizeRequest(AiBusinessRequest request)
     {
         var invocationId = string.IsNullOrWhiteSpace(request.InvocationId) ? Guid.NewGuid().ToString("N") : request.InvocationId.Trim();
@@ -549,15 +580,24 @@ public sealed class AiExecutionService(
         };
     }
 
+    /// <summary>
+    /// 从已有调用日志重建幂等响应。
+    /// </summary>
     private static AiBusinessResponse FromExistingLog(AiInvocationLog log, IReadOnlyDictionary<string, string>? context) =>
         new(log.Status == "Succeeded", log.InvocationId, log.CorrelationId, log.Status, log.ReleaseVersion, ProviderKey: log.ProviderKey,
             Model: log.ActualModel, Usage: new AiUsage(log.PromptTokens, log.CompletionTokens, log.TotalTokens, log.ReasoningTokens, log.CachedTokens,
                 log.NativePromptTokens, log.NativeCompletionTokens, log.Cost), Context: context, ErrorCode: log.ErrorCode, ErrorMessage: log.ErrorMessage);
 
+    /// <summary>
+    /// 构造失败响应。
+    /// </summary>
     private static AiBusinessResponse FailedResponse(AiBusinessRequest request, int releaseVersion, string errorCode, string errorMessage) =>
         new(false, request.InvocationId!, request.CorrelationId!, "Failed", releaseVersion, Context: request.Context, ErrorCode: errorCode,
             ErrorMessage: errorMessage);
 
+    /// <summary>
+    /// 校验路由、供应商、模型和调用能力是否匹配。
+    /// </summary>
     private static RouteValidation ValidateRoute(
         AiBusinessSnapshot business,
         AiProviderSnapshot? provider,
@@ -622,6 +662,9 @@ public sealed class AiExecutionService(
         return RouteValidation.Success(configuredModel);
     }
 
+    /// <summary>
+    /// 合成输出、工具和供应商调用选项。
+    /// </summary>
     private static CallProfile BuildCallProfile(AiBusinessSnapshot business, AiBusinessRequest request, AiBusinessRouteSnapshot route)
     {
         var businessOutput = string.IsNullOrWhiteSpace(business.OutputFormat)
@@ -640,9 +683,15 @@ public sealed class AiExecutionService(
         return new CallProfile(output, toolOptions, providerOptions);
     }
 
+    /// <summary>
+    /// 按请求覆盖、路由覆盖和供应商默认顺序解析模型名。
+    /// </summary>
     private static string? ResolveModel(AiBusinessRequest request, AiBusinessRouteSnapshot route, AiProviderSnapshot? provider) =>
         FirstNotBlank(request.Model, route.ModelOverride, provider?.Models.FirstOrDefault(m => m.IsDefault)?.ModelName, provider?.Models.FirstOrDefault()?.ModelName);
 
+    /// <summary>
+    /// 按模型价格补全供应商未返回的成本。
+    /// </summary>
     private static AiUsage ApplyPricing(AiUsage usage, AiProviderModelSnapshot? model)
     {
         if (model is null || usage.Cost > 0)
@@ -657,17 +706,26 @@ public sealed class AiExecutionService(
         return usage with { Cost = inputCost + outputCost + cachedCost + reasoningCost };
     }
 
+    /// <summary>
+    /// 判断 Producer 是否允许调用当前业务。
+    /// </summary>
     private static bool ProducerAllowed(AiBusinessSnapshot business, string producerKey)
     {
         var allowed = SplitCsv(business.AllowedProducerKeys).ToList();
-        return allowed.Count == 0 || allowed.Contains(producerKey, StringComparer.Ordinal);
+        return allowed.Contains("*", StringComparer.Ordinal) || allowed.Contains(producerKey, StringComparer.Ordinal);
     }
 
+    /// <summary>
+    /// 拆分逗号分隔配置。
+    /// </summary>
     private static IReadOnlyList<string> SplitCsv(string? value) =>
         string.IsNullOrWhiteSpace(value)
             ? []
             : value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
+    /// <summary>
+    /// 删除较早的非 system 消息直到上下文长度满足限制。
+    /// </summary>
     private static List<AiMessage> TruncateMessages(IReadOnlyList<AiMessage> messages, int maxTokens)
     {
         var result = messages.ToList();
@@ -685,6 +743,9 @@ public sealed class AiExecutionService(
         return result;
     }
 
+    /// <summary>
+    /// 粗略估算消息列表 token 数。
+    /// </summary>
     private static int EstimateTokens(IReadOnlyList<AiMessage> messages)
     {
         var chars = messages.Sum(message =>
@@ -692,15 +753,24 @@ public sealed class AiExecutionService(
         return Math.Max(1, (int)Math.Ceiling(chars / 3.0));
     }
 
+    /// <summary>
+    /// 判断请求是否需要视觉或文件输入能力。
+    /// </summary>
     private static bool RequiresVision(AiBusinessRequest request) =>
         request.Attachments is { Count: > 0 } ||
         request.Messages?.SelectMany(m => m.Parts ?? []).Any(p => p.Type is "image_url" or "file_uri" or "audio" or "video") == true;
 
+    /// <summary>
+    /// 判断是否需要对输出做 JSON 解析校验。
+    /// </summary>
     private static bool RequiresJsonValidation(AiOutputOptions? options) =>
         options is { ValidateAndRetry: true } &&
         (string.Equals(options.ResponseFormat, "json_schema", StringComparison.OrdinalIgnoreCase) ||
          string.Equals(options.ResponseFormat, "json_object", StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>
+    /// 反序列化可选 JSON 配置。
+    /// </summary>
     private static T? Deserialize<T>(string? json)
     {
         if (string.IsNullOrWhiteSpace(json))
@@ -711,18 +781,30 @@ public sealed class AiExecutionService(
         return JsonSerializer.Deserialize<T>(json, JsonOptions);
     }
 
+    /// <summary>
+    /// 返回第一个非空白字符串。
+    /// </summary>
     private static string? FirstNotBlank(params string?[] values) =>
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();
 
+    /// <summary>
+    /// 判断当前异常是否可以在同一供应商内重试。
+    /// </summary>
     private static bool CanRetry(Exception ex, CancellationToken cancellationToken) =>
         ex is AiProviderException { IsRecoverable: true } ||
         ex is OperationCanceledException && !cancellationToken.IsCancellationRequested;
 
+    /// <summary>
+    /// 判断当前异常是否允许回退到下一供应商路由。
+    /// </summary>
     private static bool CanFallback(Exception ex) =>
         ex is AiProviderException { IsRecoverable: true } ||
         ex is OperationCanceledException ||
         ex is HttpRequestException;
 
+    /// <summary>
+    /// 将异常映射为对调用方暴露的错误码。
+    /// </summary>
     private static string ErrorCodeFromException(Exception ex) =>
         ex is ValidationDomainException { Message: AiErrorCodes.QuotaExceeded }
             ? AiErrorCodes.QuotaExceeded
@@ -734,6 +816,9 @@ public sealed class AiExecutionService(
                 ? $"AI_PROVIDER_{providerException.Category.ToUpperInvariant()}"
                 : AiErrorCodes.ProviderUnavailable;
 
+    /// <summary>
+    /// 将异常归类为调用日志中的错误类别。
+    /// </summary>
     private static string ClassifyError(Exception ex) =>
         ex is AiProviderException providerException ? providerException.Category :
         ex is OperationCanceledException ? "Timeout" :
@@ -742,12 +827,18 @@ public sealed class AiExecutionService(
         ex is ValidationDomainException { Message: AiErrorCodes.ProviderUnavailable } ? "ProviderUnavailable" :
         "Unknown";
 
+    /// <summary>
+    /// 清理异常消息，避免日志和响应携带过长或多行内容。
+    /// </summary>
     private static string SanitizeException(Exception ex)
     {
         var message = ex.Message.ReplaceLineEndings(" ").Trim();
         return message.Length <= 500 ? message : message[..500];
     }
 
+    /// <summary>
+    /// 计算文本 SHA-256 哈希。
+    /// </summary>
     private static string Hash(string value) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant();
 

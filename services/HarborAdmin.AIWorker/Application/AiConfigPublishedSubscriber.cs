@@ -1,6 +1,6 @@
 using DotNetCore.CAP;
-using HarborAdmin.Modules.AI.Contracts.Constants;
-using HarborAdmin.Modules.AI.Contracts.Dtos;
+using HarborAdmin.Modules.AI.Contracts.Shared.Constant;
+using HarborAdmin.Modules.AI.Contracts.Shared.Dto;
 
 namespace HarborAdmin.AIWorker.Application;
 

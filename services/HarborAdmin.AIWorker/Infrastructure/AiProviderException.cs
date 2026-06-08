@@ -39,6 +39,9 @@ public sealed class AiProviderException(HttpStatusCode statusCode, string body) 
     /// </summary>
     public bool IsRecoverable => Category is "RateLimited" or "Timeout" or "Unavailable" or "Unknown";
 
+    /// <summary>
+    /// 清理供应商错误响应，避免异常消息过长或包含多行敏感上下文。
+    /// </summary>
     private static string Sanitize(string body)
     {
         if (string.IsNullOrWhiteSpace(body))

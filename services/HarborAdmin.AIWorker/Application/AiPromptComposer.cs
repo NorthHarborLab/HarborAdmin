@@ -1,10 +1,9 @@
 using System.Text;
 using System.Text.Json;
-using HarborAdmin.BuildingBlocks.Abstractions.Api;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.Client.AI.Constants;
 using HarborAdmin.Client.AI.Invocation;
-using HarborAdmin.Modules.AI.Contracts.Snapshots;
+using HarborAdmin.Modules.AI.Contracts.Shared.Snapshot;
 
 namespace HarborAdmin.AIWorker.Application;
 
@@ -39,6 +38,7 @@ public sealed class AiPromptComposer
         ValidateVariables(prompt, variables);
         var messages = new List<AiMessage>();
         var system = new StringBuilder();
+        // 系统 Prompt、请求覆盖 Prompt 和 Knowledge 最终合并为一条 system 消息，减少供应商角色差异。
         Append(system, ApplyVariables(prompt?.SystemPromptMarkdown, variables));
         Append(system, ApplyVariables(request.PromptOverride, variables));
 
@@ -52,6 +52,7 @@ public sealed class AiPromptComposer
                 Append(knowledgeBuilder, knowledgeBase.ContentMarkdown);
                 if (knowledgeBase.AppendReferences)
                 {
+                    // 只记录允许暴露引用的知识库，避免把内部知识源全部回传给调用方。
                     localReferences.Add(new AiReference(knowledgeBase.KnowledgeKey, knowledgeBase.Name));
                 }
             }
@@ -95,6 +96,9 @@ public sealed class AiPromptComposer
         return messages;
     }
 
+    /// <summary>
+    /// 校验 Prompt 声明的必填变量。
+    /// </summary>
     private static void ValidateVariables(AiPromptSnapshot? prompt, IReadOnlyDictionary<string, string> variables)
     {
         if (string.IsNullOrWhiteSpace(prompt?.VariablesJson))
@@ -112,6 +116,9 @@ public sealed class AiPromptComposer
         }
     }
 
+    /// <summary>
+    /// 从 Prompt 变量配置中提取必填变量名。
+    /// </summary>
     private static IEnumerable<string> RequiredVariables(JsonElement root)
     {
         if (root.ValueKind == JsonValueKind.Array)
@@ -146,12 +153,18 @@ public sealed class AiPromptComposer
         }
     }
 
+    /// <summary>
+    /// 粗略估算单条消息 token 数。
+    /// </summary>
     private static int EstimateTokens(AiMessage message)
     {
         var chars = (message.Content?.Length ?? 0) + (message.Parts?.Sum(p => (p.Text?.Length ?? 0) + (p.ResultJson?.Length ?? 0)) ?? 0);
         return Math.Max(1, (int)Math.Ceiling(chars / 3.0));
     }
 
+    /// <summary>
+    /// 将模板中的 <c>{name}</c> 占位符替换为请求变量。
+    /// </summary>
     private static string? ApplyVariables(string? template, IReadOnlyDictionary<string, string> variables)
     {
         if (string.IsNullOrEmpty(template))
@@ -168,6 +181,9 @@ public sealed class AiPromptComposer
         return result;
     }
 
+    /// <summary>
+    /// 向文本块追加非空内容并自动插入空行。
+    /// </summary>
     private static void Append(StringBuilder builder, string? value)
     {
         if (string.IsNullOrWhiteSpace(value))

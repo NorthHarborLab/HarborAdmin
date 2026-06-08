@@ -17,6 +17,7 @@
         <ProjectReference Include="..\..\client\HarborAdmin.Client.ConfigCenter\HarborAdmin.Client.ConfigCenter.csproj" />
         <ProjectReference Include="..\..\client\HarborAdmin.Client.AI\HarborAdmin.Client.AI.csproj" />
         <ProjectReference Include="..\..\modules\HarborAdmin.Modules.AI\HarborAdmin.Modules.AI.csproj" />
+        <ProjectReference Include="..\..\modules\HarborAdmin.Modules.Secrets\HarborAdmin.Modules.Secrets.csproj" />
     </ItemGroup>
 
 </Project>

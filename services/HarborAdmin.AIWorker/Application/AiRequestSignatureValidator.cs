@@ -4,7 +4,6 @@ using HarborAdmin.BuildingBlocks.Abstractions.Secrets;
 using HarborAdmin.Client.AI.Clients;
 using HarborAdmin.Client.AI.Constants;
 using HarborAdmin.Client.AI.Invocation;
-using HarborAdmin.Modules.AI.Contracts.Snapshots;
 
 namespace HarborAdmin.AIWorker.Application;
 
@@ -29,12 +28,13 @@ public sealed class AiRequestSignatureValidator(AiRuntimeConfigCache configCache
         var business = snapshot?.Businesses.FirstOrDefault(b => string.Equals(b.BusinessKey, request.BusinessKey, StringComparison.Ordinal));
         if (business is null)
         {
+            // 未配置签名的未知业务交给后续业务校验返回 BusinessNotFound，避免签名层泄露业务存在性。
             return AiSignatureValidationResult.Success();
         }
 
         if (string.IsNullOrWhiteSpace(business.SigningSecretRef))
         {
-            return AiSignatureValidationResult.Success();
+            return AiSignatureValidationResult.Failed(AiErrorCodes.InvalidSignature, "AI business signing secret was not configured.");
         }
 
         var producerKey = FirstHeader(httpRequest, "X-Harbor-AI-Key");
@@ -81,9 +81,15 @@ public sealed class AiRequestSignatureValidator(AiRuntimeConfigCache configCache
             : AiSignatureValidationResult.Failed(AiErrorCodes.InvalidSignature, "AI request signature is invalid.");
     }
 
+    /// <summary>
+    /// 读取指定 Header 的第一个值。
+    /// </summary>
     private static string? FirstHeader(HttpRequest request, string name) =>
         request.Headers.TryGetValue(name, out var values) ? values.FirstOrDefault() : null;
 
+    /// <summary>
+    /// 清理超过允许时间偏差的 nonce 记录。
+    /// </summary>
     private void CleanupNonces()
     {
         var expiredBefore = DateTimeOffset.UtcNow.Subtract(MaxSkew);
@@ -96,6 +102,9 @@ public sealed class AiRequestSignatureValidator(AiRuntimeConfigCache configCache
         }
     }
 
+    /// <summary>
+    /// 用固定时间比较 Base64 签名。
+    /// </summary>
     private static bool FixedEquals(string expected, string actual)
     {
         try

@@ -13,10 +13,8 @@ namespace HarborAdmin.AIWorker.Controllers;
 /// </summary>
 [ApiController]
 [Route("internal/ai")]
-public sealed class InternalAiController(
-    AiRequestSignatureValidator signatureValidator,
-    AiExecutionService executionService,
-    IOptions<MvcJsonOptions> jsonOptions) : ControllerBase
+public sealed class InternalAiController(AiRequestSignatureValidator signatureValidator, AiExecutionService executionService, IOptions<MvcJsonOptions> jsonOptions)
+    : ControllerBase
 {
     /// <summary>
     /// 执行非流式 AI 调用。
@@ -76,6 +74,7 @@ public sealed class InternalAiController(
 
         Response.ContentType = "text/event-stream; charset=utf-8";
         Response.Headers.CacheControl = "no-cache";
+        // 禁用代理缓冲，确保 Worker 事件能即时推送给上游调用方。
         Response.Headers["X-Accel-Buffering"] = "no";
 
         await foreach (var item in executionService.StreamAsync(read.Request, cancellationToken))
@@ -88,6 +87,9 @@ public sealed class InternalAiController(
 
     private JsonSerializerOptions JsonSerializerOptions => jsonOptions.Value.JsonSerializerOptions;
 
+    /// <summary>
+    /// 读取原始请求体并反序列化为 AI 业务请求。
+    /// </summary>
     private async Task<AiRequestReadResult> ReadRequestAsync(CancellationToken cancellationToken)
     {
         using var memoryStream = new MemoryStream();
@@ -103,6 +105,9 @@ public sealed class InternalAiController(
         }
     }
 
+    /// <summary>
+    /// 构造内部 API 错误响应。
+    /// </summary>
     private static AiBusinessResponse ErrorResponse(AiBusinessRequest? request, string errorCode, string errorMessage)
     {
         var invocationId = string.IsNullOrWhiteSpace(request?.InvocationId) ? Guid.NewGuid().ToString("N") : request.InvocationId;

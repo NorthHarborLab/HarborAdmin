@@ -4,7 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using HarborAdmin.Client.AI.Invocation;
-using HarborAdmin.Modules.AI.Contracts.Constants;
+using HarborAdmin.Modules.AI.Contracts.Shared.Constant;
 
 namespace HarborAdmin.AIWorker.Infrastructure;
 
@@ -123,6 +123,9 @@ public sealed class OpenAiChatCompletionsAdapter(HttpClient httpClient) : IAiPro
         }
     }
 
+    /// <summary>
+    /// 构造 OpenAI Chat Completions 请求。
+    /// </summary>
     private static HttpRequestMessage BuildRequest(AiProviderCallRequest request, bool streaming)
     {
         var uri = new Uri(new Uri(request.Provider.BaseUrl.TrimEnd('/') + "/"), "chat/completions");
@@ -135,6 +138,7 @@ public sealed class OpenAiChatCompletionsAdapter(HttpClient httpClient) : IAiPro
         ApplyOutputOptions(body, request.OutputOptions);
         ApplyToolOptions(body, request.ToolOptions);
         ApplyProviderOptions(body, request.ProviderOptions);
+        // 后写入的 JSON 覆盖前面的默认字段，允许路由和 OpenRouter 选项做更细粒度调整。
         MergeJson(body, request.Provider.DefaultBodyJson);
         MergeJson(body, request.RouteProviderOptionsJson);
         MergeJson(body, request.OpenRouterOptionsJson);
@@ -148,6 +152,9 @@ public sealed class OpenAiChatCompletionsAdapter(HttpClient httpClient) : IAiPro
         return httpRequest;
     }
 
+    /// <summary>
+    /// 添加 Bearer API Key。
+    /// </summary>
     private static void ApplyAuthentication(HttpRequestMessage request, string? apiKey)
     {
         if (string.IsNullOrWhiteSpace(apiKey))
@@ -158,6 +165,9 @@ public sealed class OpenAiChatCompletionsAdapter(HttpClient httpClient) : IAiPro
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey.Trim());
     }
 
+    /// <summary>
+    /// 应用供应商默认请求头。
+    /// </summary>
     internal static void ApplyHeaders(HttpRequestMessage request, string? headersJson)
     {
         if (string.IsNullOrWhiteSpace(headersJson))
@@ -172,6 +182,9 @@ public sealed class OpenAiChatCompletionsAdapter(HttpClient httpClient) : IAiPro
         }
     }
 
+    /// <summary>
+    /// 将扩展 JSON 合并到请求体。
+    /// </summary>
     internal static void MergeJson(JsonObject target, string? json)
     {
         if (string.IsNullOrWhiteSpace(json))
@@ -191,6 +204,9 @@ public sealed class OpenAiChatCompletionsAdapter(HttpClient httpClient) : IAiPro
         }
     }
 
+    /// <summary>
+    /// 转换统一消息为 OpenAI Chat 消息。
+    /// </summary>
     internal static JsonObject ToOpenAiMessage(AiMessage message)
     {
         var result = new JsonObject { ["role"] = message.Role };
@@ -206,6 +222,9 @@ public sealed class OpenAiChatCompletionsAdapter(HttpClient httpClient) : IAiPro
         return result;
     }
 
+    /// <summary>
+    /// 转换统一多模态内容块为 OpenAI Chat 内容块。
+    /// </summary>
     private static JsonObject ToOpenAiContentPart(AiMessageContentPart part) =>
         part.Type switch
         {
@@ -222,6 +241,9 @@ public sealed class OpenAiChatCompletionsAdapter(HttpClient httpClient) : IAiPro
             _ => new JsonObject { ["type"] = "text", ["text"] = part.Text ?? part.ResultJson ?? string.Empty }
         };
 
+    /// <summary>
+    /// 应用结构化输出选项。
+    /// </summary>
     internal static void ApplyOutputOptions(JsonObject body, AiOutputOptions? options)
     {
         if (options is null || string.IsNullOrWhiteSpace(options.ResponseFormat))
@@ -251,6 +273,9 @@ public sealed class OpenAiChatCompletionsAdapter(HttpClient httpClient) : IAiPro
         }
     }
 
+    /// <summary>
+    /// 应用工具调用选项。
+    /// </summary>
     internal static void ApplyToolOptions(JsonObject body, AiToolOptions? options)
     {
         if (options?.Tools is not { Count: > 0 })
@@ -274,6 +299,9 @@ public sealed class OpenAiChatCompletionsAdapter(HttpClient httpClient) : IAiPro
         }
     }
 
+    /// <summary>
+    /// 应用通用供应商采样与额外请求体选项。
+    /// </summary>
     internal static void ApplyProviderOptions(JsonObject body, AiProviderOptions? options)
     {
         if (options is null)
@@ -309,6 +337,9 @@ public sealed class OpenAiChatCompletionsAdapter(HttpClient httpClient) : IAiPro
         MergeJson(body, options.ExtraBodyJson);
     }
 
+    /// <summary>
+    /// 从 OpenAI 兼容响应中解析用量。
+    /// </summary>
     internal static AiUsage ParseUsage(JsonElement root)
     {
         var usage = root.TryGetProperty("usage", out var usageElement) ? usageElement : root;
@@ -331,15 +362,27 @@ public sealed class OpenAiChatCompletionsAdapter(HttpClient httpClient) : IAiPro
             GetInt(usage, "native_tokens_prompt"), GetInt(usage, "native_tokens_completion"), GetDecimal(usage, "cost"));
     }
 
+    /// <summary>
+    /// 读取整数属性，不存在时返回 0。
+    /// </summary>
     internal static int GetInt(JsonElement element, string property) =>
         element.TryGetProperty(property, out var value) && value.TryGetInt32(out var result) ? result : 0;
 
+    /// <summary>
+    /// 读取 decimal 属性，不存在时返回 0。
+    /// </summary>
     internal static decimal GetDecimal(JsonElement element, string property) =>
         element.TryGetProperty(property, out var value) && value.TryGetDecimal(out var result) ? result : 0;
 
+    /// <summary>
+    /// 读取字符串属性。
+    /// </summary>
     internal static string? GetString(JsonElement element, string property) =>
         element.ValueKind != JsonValueKind.Undefined && element.TryGetProperty(property, out var value) ? value.GetString() : null;
 
+    /// <summary>
+    /// 读取响应头的第一个值。
+    /// </summary>
     private static string? ReadHeader(HttpResponseMessage response, string name) =>
         response.Headers.TryGetValues(name, out var values) ? values.FirstOrDefault() : null;
 }

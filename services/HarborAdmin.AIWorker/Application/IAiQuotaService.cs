@@ -1,5 +1,5 @@
 using HarborAdmin.Client.AI.Invocation;
-using HarborAdmin.Modules.AI.Contracts.Snapshots;
+using HarborAdmin.Modules.AI.Contracts.Shared.Snapshot;
 
 namespace HarborAdmin.AIWorker.Application;
 

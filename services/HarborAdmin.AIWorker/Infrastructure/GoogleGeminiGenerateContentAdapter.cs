@@ -3,7 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using HarborAdmin.Client.AI.Invocation;
-using HarborAdmin.Modules.AI.Contracts.Constants;
+using HarborAdmin.Modules.AI.Contracts.Shared.Constant;
 
 namespace HarborAdmin.AIWorker.Infrastructure;
 
@@ -66,9 +66,12 @@ public sealed class GoogleGeminiGenerateContentAdapter(HttpClient httpClient) : 
         }
 
         yield return new AiStreamEvent("done", request.InvocationId, request.CorrelationId, 0, request.ReleaseVersion,
-            ProviderKey: request.Provider.ProviderKey, Model: request.Model);
+        ProviderKey: request.Provider.ProviderKey, Model: request.Model);
     }
 
+    /// <summary>
+    /// 构造 Gemini generateContent 或 streamGenerateContent 请求。
+    /// </summary>
     private static HttpRequestMessage BuildRequest(AiProviderCallRequest request, bool streaming)
     {
         var suffix = streaming ? $"models/{request.Model}:streamGenerateContent" : $"models/{request.Model}:generateContent";
@@ -102,12 +105,21 @@ public sealed class GoogleGeminiGenerateContentAdapter(HttpClient httpClient) : 
         return httpRequest;
     }
 
+    /// <summary>
+    /// 读取整数属性，不存在时返回 0。
+    /// </summary>
     private static int GetInt(JsonElement element, string property) =>
         element.TryGetProperty(property, out var value) && value.TryGetInt32(out var result) ? result : 0;
 
+    /// <summary>
+    /// 读取字符串属性。
+    /// </summary>
     private static string? GetString(JsonElement element, string property) =>
         element.ValueKind != JsonValueKind.Undefined && element.TryGetProperty(property, out var value) ? value.GetString() : null;
 
+    /// <summary>
+    /// 从 Gemini candidate 中拼接文本内容。
+    /// </summary>
     private static string ReadGeminiText(JsonElement candidate)
     {
         if (!candidate.TryGetProperty("content", out var content) ||
@@ -122,6 +134,9 @@ public sealed class GoogleGeminiGenerateContentAdapter(HttpClient httpClient) : 
             .Select(part => part.GetProperty("text").GetString()));
     }
 
+    /// <summary>
+    /// 转换统一消息为 Gemini content。
+    /// </summary>
     private static JsonObject ToGeminiContent(AiMessage message) =>
         new()
         {
@@ -131,6 +146,9 @@ public sealed class GoogleGeminiGenerateContentAdapter(HttpClient httpClient) : 
                 : [new JsonObject { ["text"] = message.Content ?? string.Empty }]).ToArray<JsonNode?>())
         };
 
+    /// <summary>
+    /// 转换统一多模态内容块为 Gemini part。
+    /// </summary>
     private static JsonObject ToGeminiPart(AiMessageContentPart part)
     {
         if (part.Type is "file_uri" or "image_url" or "audio" or "video")
@@ -148,6 +166,9 @@ public sealed class GoogleGeminiGenerateContentAdapter(HttpClient httpClient) : 
         return new JsonObject { ["text"] = part.Text ?? part.ResultJson ?? string.Empty };
     }
 
+    /// <summary>
+    /// 应用 Gemini 结构化输出选项。
+    /// </summary>
     private static void ApplyGeminiOutputOptions(JsonObject body, AiOutputOptions? options)
     {
         if (options is null || string.IsNullOrWhiteSpace(options.ResponseFormat))
@@ -168,6 +189,9 @@ public sealed class GoogleGeminiGenerateContentAdapter(HttpClient httpClient) : 
         }
     }
 
+    /// <summary>
+    /// 应用 Gemini 工具调用选项。
+    /// </summary>
     private static void ApplyGeminiToolOptions(JsonObject body, AiToolOptions? options)
     {
         if (options?.Tools is not { Count: > 0 })
@@ -186,6 +210,9 @@ public sealed class GoogleGeminiGenerateContentAdapter(HttpClient httpClient) : 
         });
     }
 
+    /// <summary>
+    /// 应用 Gemini 采样与额外请求体选项。
+    /// </summary>
     private static void ApplyGeminiProviderOptions(JsonObject body, AiProviderOptions? options)
     {
         if (options is null)
@@ -212,6 +239,9 @@ public sealed class GoogleGeminiGenerateContentAdapter(HttpClient httpClient) : 
         OpenAiChatCompletionsAdapter.MergeJson(generationConfig, options.ExtraBodyJson);
     }
 
+    /// <summary>
+    /// 获取或创建请求体中的对象节点。
+    /// </summary>
     private static JsonObject GetOrCreateObject(JsonObject body, string key)
     {
         if (body[key] is JsonObject existing)
