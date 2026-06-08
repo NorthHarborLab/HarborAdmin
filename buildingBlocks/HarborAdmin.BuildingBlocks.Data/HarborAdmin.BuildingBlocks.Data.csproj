@@ -10,8 +10,9 @@
         <PackageReference Include="FreeSql" />
         <PackageReference Include="FreeSql.Cloud" />
         <PackageReference Include="FreeSql.Repository" />
-        <PackageReference Include="FreeSql.Provider.Sqlite" />
+        <PackageReference Include="FreeSql.Provider.MySql" />
         <PackageReference Include="FreeSql.Provider.PostgreSQL" />
+        <PackageReference Include="FreeSql.Provider.Sqlite" />
         <PackageReference Include="FreeSql.Provider.SqlServer" />
         <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
         <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
