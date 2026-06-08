@@ -1,18 +1,18 @@
 using HarborAdmin.Modules.International.Application.Services;
-using HarborAdmin.Modules.International.Contracts.Dtos;
-using HarborAdmin.Modules.International.Contracts.Requests;
 using HarborAdmin.Client.AI.Invocation;
 using Microsoft.AspNetCore.Mvc;
 using HarborAdmin.BuildingBlocks.Abstractions.Api;
+using HarborAdmin.Modules.International.Contracts.Entry.Dto;
+using HarborAdmin.Modules.International.Contracts.Entry.Request;
 
-namespace HarborAdmin.Modules.International.Controllers;
+namespace HarborAdmin.Modules.International.Controllers.Entry;
 
 /// <summary>
 /// 前端国际化条目管理 API。
 /// </summary>
 [ApiController]
 [Route("api/admin/international/pages")]
-public sealed class InternationalEntriesController(
+public sealed class EntryController(
     InternationalEntryService entryService,
     InternationalTranslationService translationService) : ControllerBase
 {
@@ -20,30 +20,24 @@ public sealed class InternationalEntriesController(
     /// 列出页面条目。
     /// </summary>
     [HttpGet("{pageId:long}/entries")]
-    public async Task<ApiResult<IReadOnlyList<InternationalEntryDto>>> ListEntries(
-        long pageId,
-        CancellationToken cancellationToken) =>
+    public async Task<ApiResult<IReadOnlyList<InternationalEntryDto>>> ListEntries(long pageId, CancellationToken cancellationToken) =>
         ApiResult.Ok(await entryService.ListEntriesAsync(pageId, cancellationToken));
 
     /// <summary>
     /// 创建页面条目。
     /// </summary>
     [HttpPost("{pageId:long}/entries")]
-    public async Task<ApiResult<InternationalEntryDto>> CreateEntry(
-        long pageId,
-        [FromBody] CreateInternationalEntryRequest request,
+    public async Task<ApiResult<InternationalEntryDto>> CreateEntry(long pageId, [FromBody] SaveInternationalEntryRequest request,
         CancellationToken cancellationToken) =>
-        ApiResult.Ok(await entryService.CreateEntryAsync(pageId, request, cancellationToken));
+        ApiResult.Ok(await entryService.SaveEntryAsync(request, pageId, null, cancellationToken));
 
     /// <summary>
     /// 更新页面条目。
     /// </summary>
     [HttpPut("entries/{entryId:long}")]
-    public async Task<ApiResult<InternationalEntryDto>> UpdateEntry(
-        long entryId,
-        [FromBody] UpdateInternationalEntryRequest request,
+    public async Task<ApiResult<InternationalEntryDto>> UpdateEntry(long entryId, [FromBody] SaveInternationalEntryRequest request,
         CancellationToken cancellationToken) =>
-        ApiResult.Ok(await entryService.UpdateEntryAsync(entryId, request, cancellationToken));
+        ApiResult.Ok(await entryService.SaveEntryAsync(request, entryId: entryId, cancellationToken: cancellationToken));
 
     /// <summary>
     /// 删除页面条目。
@@ -59,9 +53,7 @@ public sealed class InternationalEntriesController(
     /// 请求 AI 翻译条目。
     /// </summary>
     [HttpPost("entries/{entryId:long}/translate")]
-    public async Task<ApiResult<AiBusinessResponse>> TranslateEntry(
-        long entryId,
-        [FromBody] TranslateInternationalEntryRequest request,
+    public async Task<ApiResult<AiBusinessResponse>> TranslateEntry(long entryId, [FromBody] TranslateInternationalEntryRequest request,
         CancellationToken cancellationToken) =>
         ApiResult.Ok(await translationService.TranslateEntryAsync(entryId, request, cancellationToken));
 }

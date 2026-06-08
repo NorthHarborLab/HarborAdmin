@@ -8,15 +8,14 @@ namespace HarborAdmin.Modules.International.Infrastructure.Repositories;
 public sealed partial class FreeSqlInternationalRepository
 {
     /// <inheritdoc />
-    public Task<IReadOnlyList<InternationalEntry>> ListEntriesAsync(long pageId, CancellationToken cancellationToken = default) =>
-        FreeSql.Select<InternationalEntry>()
+    public async Task<IReadOnlyList<InternationalEntry>> ListEntriesAsync(long pageId, CancellationToken cancellationToken = default) =>
+        await FreeSql.Select<InternationalEntry>()
             .Where(e => e.PageId == pageId)
             .IncludeMany(e => e.Translations)
             .OrderBy(e => e.ParentId)
             .OrderBy(e => e.SortOrder)
             .OrderBy(e => e.Key)
-            .ToListAsync(cancellationToken)
-            .ContinueWith(t => (IReadOnlyList<InternationalEntry>)t.Result, cancellationToken);
+            .ToListAsync(cancellationToken);
 
     /// <inheritdoc />
     public async Task<InternationalEntry?> GetEntryAsync(long id, CancellationToken cancellationToken = default) =>

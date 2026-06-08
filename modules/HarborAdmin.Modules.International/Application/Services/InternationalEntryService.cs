@@ -1,8 +1,8 @@
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.BuildingBlocks.Mapping;
 using HarborAdmin.Modules.International.Application.Abstractions;
-using HarborAdmin.Modules.International.Contracts.Dtos;
-using HarborAdmin.Modules.International.Contracts.Requests;
+using HarborAdmin.Modules.International.Contracts.Entry.Dto;
+using HarborAdmin.Modules.International.Contracts.Entry.Request;
 using HarborAdmin.Modules.International.Domain.Entities;
 
 namespace HarborAdmin.Modules.International.Application.Services;
@@ -27,58 +27,25 @@ public sealed class InternationalEntryService(
     }
 
     /// <summary>
-    /// 创建页面条目节点。
+    /// 保存页面条目节点（创建或更新）。
     /// </summary>
-    public async Task<InternationalEntryDto> CreateEntryAsync(
-        long pageId,
-        CreateInternationalEntryRequest request,
+    public async Task<InternationalEntryDto> SaveEntryAsync(
+        SaveInternationalEntryRequest request,
+        long? pageId = null,
+        long? entryId = null,
         CancellationToken cancellationToken = default)
     {
-        var page = await pageService.RequirePageAsync(pageId, cancellationToken);
-        var parentId = await NormalizeParentIdAsync(pageId, request.ParentId, cancellationToken);
-        var key = NormalizeEntryKey(request.Key);
-        await EnsureSiblingKeyUniqueAsync(pageId, parentId, key, null, cancellationToken);
-
-        var entry = new InternationalEntry
+        if (entryId is null)
         {
-            PageId = pageId,
-            ParentId = parentId,
-            Key = key,
-            Remark = request.Remark?.Trim(),
-            SortOrder = request.SortOrder,
-            UpdatedAt = DateTimeOffset.UtcNow
-        };
+            if (pageId is null or <= 0)
+            {
+                throw new ValidationDomainException("创建条目时必须指定页面 ID。");
+            }
 
-        var translations = ToTranslations(request.Translations);
-        var created = await repository.InsertEntryAsync(entry, translations, cancellationToken);
-        created.Translations = translations.ToList();
-        await cacheCoordinator.InvalidatePageAsync(page.Id, page.PageKey, cancellationToken);
-        return MapEntryDto(created, []);
-    }
+            return await CreateEntryAsync(pageId.Value, request, cancellationToken);
+        }
 
-    /// <summary>
-    /// 更新页面条目节点。
-    /// </summary>
-    public async Task<InternationalEntryDto> UpdateEntryAsync(
-        long entryId,
-        UpdateInternationalEntryRequest request,
-        CancellationToken cancellationToken = default)
-    {
-        var entry = await RequireEntryAsync(entryId, cancellationToken);
-        var key = NormalizeEntryKey(request.Key);
-        await EnsureSiblingKeyUniqueAsync(entry.PageId, entry.ParentId, key, entry.Id, cancellationToken);
-
-        entry.Key = key;
-        entry.Remark = request.Remark?.Trim();
-        entry.SortOrder = request.SortOrder;
-        entry.UpdatedAt = DateTimeOffset.UtcNow;
-
-        var translations = ToTranslations(request.Translations);
-        await repository.UpdateEntryAsync(entry, translations, cancellationToken);
-        entry.Translations = translations.ToList();
-        var page = await pageService.RequirePageAsync(entry.PageId, cancellationToken);
-        await cacheCoordinator.InvalidatePageAsync(page.Id, page.PageKey, cancellationToken);
-        return MapEntryDto(entry, []);
+        return await UpdateEntryAsync(entryId.Value, request, cancellationToken);
     }
 
     /// <summary>
@@ -96,6 +63,64 @@ public sealed class InternationalEntryService(
         await repository.GetEntryAsync(id, cancellationToken)
         ?? throw new NotFoundDomainException($"国际化条目 '{id}' 不存在。");
 
+    /// <summary>
+    /// 创建页面条目并写入初始翻译。
+    /// </summary>
+    private async Task<InternationalEntryDto> CreateEntryAsync(
+        long pageId,
+        SaveInternationalEntryRequest request,
+        CancellationToken cancellationToken)
+    {
+        var page = await pageService.RequirePageAsync(pageId, cancellationToken);
+        var parentId = await NormalizeParentIdAsync(pageId, request.ParentId, cancellationToken);
+        var key = NormalizeEntryKey(request.Key);
+        await EnsureSiblingKeyUniqueAsync(pageId, parentId, key, null, cancellationToken);
+
+        var entry = new InternationalEntry
+        {
+            PageId = pageId,
+            ParentId = parentId,
+            Key = key,
+            Remark = request.Remark?.Trim(),
+            SortOrder = request.SortOrder
+        };
+
+        var translations = ToTranslations(request.Translations);
+        var created = await repository.InsertEntryAsync(entry, translations, cancellationToken);
+        // 仓储负责回填 EntryId，这里把翻译挂回聚合用于返回 DTO。
+        created.Translations = translations.ToList();
+        await cacheCoordinator.InvalidatePageAsync(page.Id, page.PageKey, cancellationToken);
+        return MapEntryDto(created, []);
+    }
+
+    /// <summary>
+    /// 更新条目基础信息并整体替换翻译列表。
+    /// </summary>
+    private async Task<InternationalEntryDto> UpdateEntryAsync(
+        long entryId,
+        SaveInternationalEntryRequest request,
+        CancellationToken cancellationToken)
+    {
+        var entry = await RequireEntryAsync(entryId, cancellationToken);
+        var key = NormalizeEntryKey(request.Key);
+        await EnsureSiblingKeyUniqueAsync(entry.PageId, entry.ParentId, key, entry.Id, cancellationToken);
+
+        entry.Key = key;
+        entry.Remark = request.Remark?.Trim();
+        entry.SortOrder = request.SortOrder;
+
+        var translations = ToTranslations(request.Translations);
+        await repository.UpdateEntryAsync(entry, translations, cancellationToken);
+        // 翻译列表按请求整体替换，返回值也使用替换后的内存集合。
+        entry.Translations = translations.ToList();
+        var page = await pageService.RequirePageAsync(entry.PageId, cancellationToken);
+        await cacheCoordinator.InvalidatePageAsync(page.Id, page.PageKey, cancellationToken);
+        return MapEntryDto(entry, []);
+    }
+
+    /// <summary>
+    /// 规范化父级条目并校验父子节点属于同一页面。
+    /// </summary>
     private async Task<long?> NormalizeParentIdAsync(long pageId, long? parentId, CancellationToken cancellationToken)
     {
         if (parentId is null)
@@ -112,6 +137,9 @@ public sealed class InternationalEntryService(
         return parentId;
     }
 
+    /// <summary>
+    /// 确保同一父级下条目键名唯一。
+    /// </summary>
     private async Task EnsureSiblingKeyUniqueAsync(
         long pageId,
         long? parentId,
@@ -130,6 +158,9 @@ public sealed class InternationalEntryService(
         }
     }
 
+    /// <summary>
+    /// 将扁平条目列表组装为前端展示用树。
+    /// </summary>
     private IReadOnlyList<InternationalEntryDto> BuildEntryTree(IReadOnlyList<InternationalEntry> entries)
     {
         var groups = entries
@@ -140,6 +171,9 @@ public sealed class InternationalEntryService(
         return BuildEntryDtos(groups, 0);
     }
 
+    /// <summary>
+    /// 递归构建指定父级下的条目 DTO。
+    /// </summary>
     private IReadOnlyList<InternationalEntryDto> BuildEntryDtos(
         IReadOnlyDictionary<long, List<InternationalEntry>> groups,
         long parentId)
@@ -154,6 +188,9 @@ public sealed class InternationalEntryService(
             .ToList();
     }
 
+    /// <summary>
+    /// 规范化条目键名并禁止会破坏路径语义的分隔符。
+    /// </summary>
     private static string NormalizeEntryKey(string value)
     {
         var normalized = value.Trim();
@@ -165,6 +202,9 @@ public sealed class InternationalEntryService(
         return normalized;
     }
 
+    /// <summary>
+    /// 将请求中的翻译 DTO 转换为实体，并按 locale 去重。
+    /// </summary>
     private static IReadOnlyList<InternationalEntryTranslation> ToTranslations(IReadOnlyList<InternationalEntryTranslationDto> translations) =>
         translations
             .Select(item => new InternationalEntryTranslation
@@ -177,6 +217,9 @@ public sealed class InternationalEntryService(
             .OrderBy(item => item.Locale, StringComparer.Ordinal)
             .ToList();
 
+    /// <summary>
+    /// 映射条目 DTO 并附加子节点。
+    /// </summary>
     private InternationalEntryDto MapEntryDto(InternationalEntry entry, IReadOnlyList<InternationalEntryDto> children) =>
         mapper.Map<InternationalEntryDto>(entry) with { Children = children };
 }

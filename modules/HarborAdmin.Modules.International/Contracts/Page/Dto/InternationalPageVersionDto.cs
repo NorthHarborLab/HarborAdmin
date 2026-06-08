@@ -1,4 +1,4 @@
-namespace HarborAdmin.Modules.International.Contracts.Dtos;
+namespace HarborAdmin.Modules.International.Contracts.Page.Dto;
 
 /// <summary>
 /// 国际化页面资源版本 DTO。

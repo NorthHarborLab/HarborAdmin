@@ -1,4 +1,4 @@
-namespace HarborAdmin.Modules.International.Contracts.Dtos;
+namespace HarborAdmin.Modules.International.Contracts.Resource.Dto;
 
 /// <summary>
 /// 前端国际化资源包。

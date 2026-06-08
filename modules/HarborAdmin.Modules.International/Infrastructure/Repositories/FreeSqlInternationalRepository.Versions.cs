@@ -8,15 +8,14 @@ namespace HarborAdmin.Modules.International.Infrastructure.Repositories;
 public sealed partial class FreeSqlInternationalRepository
 {
     /// <inheritdoc />
-    public Task<IReadOnlyList<InternationalPage>> ListPageVersionsAsync(CancellationToken cancellationToken = default) =>
-        FreeSql.Select<InternationalPage>()
+    public async Task<IReadOnlyList<InternationalPage>> ListPageVersionsAsync(CancellationToken cancellationToken = default) =>
+        await FreeSql.Select<InternationalPage>()
             .OrderBy(p => p.PageKey)
             .ToListAsync(p => new InternationalPage
             {
                 PageKey = p.PageKey,
                 Version = p.Version
-            }, cancellationToken)
-            .ContinueWith(t => (IReadOnlyList<InternationalPage>)t.Result, cancellationToken);
+            }, cancellationToken);
 
     /// <inheritdoc />
     public async Task<int> GetVersionAsync(CancellationToken cancellationToken = default)
@@ -56,7 +55,6 @@ public sealed partial class FreeSqlInternationalRepository
         }
 
         page.Version += 1;
-        page.UpdatedAt = DateTimeOffset.UtcNow;
         await UpdatePageAsync(page, cancellationToken);
     }
 }

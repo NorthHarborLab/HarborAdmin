@@ -1,13 +1,18 @@
 using System.ComponentModel.DataAnnotations;
-using HarborAdmin.Modules.International.Contracts.Dtos;
+using HarborAdmin.Modules.International.Contracts.Entry.Dto;
 
-namespace HarborAdmin.Modules.International.Contracts.Requests;
+namespace HarborAdmin.Modules.International.Contracts.Entry.Request;
 
 /// <summary>
-/// 更新国际化树节点请求。
+/// 保存国际化树节点请求。
 /// </summary>
-public sealed class UpdateInternationalEntryRequest
+public sealed class SaveInternationalEntryRequest
 {
+    /// <summary>
+    /// 父级条目 ID（创建时使用）。
+    /// </summary>
+    public long? ParentId { get; set; }
+
     /// <summary>
     /// 条目键名。
     /// </summary>

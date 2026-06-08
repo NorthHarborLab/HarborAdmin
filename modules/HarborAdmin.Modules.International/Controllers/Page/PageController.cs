@@ -1,17 +1,17 @@
 using HarborAdmin.Modules.International.Application.Services;
-using HarborAdmin.Modules.International.Contracts.Dtos;
-using HarborAdmin.Modules.International.Contracts.Requests;
 using Microsoft.AspNetCore.Mvc;
 using HarborAdmin.BuildingBlocks.Abstractions.Api;
+using HarborAdmin.Modules.International.Contracts.Page.Dto;
+using HarborAdmin.Modules.International.Contracts.Page.Request;
 
-namespace HarborAdmin.Modules.International.Controllers;
+namespace HarborAdmin.Modules.International.Controllers.Page;
 
 /// <summary>
 /// 前端国际化页面管理 API。
 /// </summary>
 [ApiController]
 [Route("api/admin/international/pages")]
-public sealed class InternationalPagesController(InternationalPageService pageService) : ControllerBase
+public sealed class PageController(InternationalPageService pageService) : ControllerBase
 {
     /// <summary>
     /// 列出页面。
@@ -24,20 +24,15 @@ public sealed class InternationalPagesController(InternationalPageService pageSe
     /// 创建页面。
     /// </summary>
     [HttpPost]
-    public async Task<ApiResult<InternationalPageDto>> Create(
-        [FromBody] CreateInternationalPageRequest request,
-        CancellationToken cancellationToken) =>
-        ApiResult.Ok(await pageService.CreatePageAsync(request, cancellationToken));
+    public async Task<ApiResult<InternationalPageDto>> Create([FromBody] SaveInternationalPageRequest request, CancellationToken cancellationToken) =>
+        ApiResult.Ok(await pageService.SavePageAsync(null, request, cancellationToken));
 
     /// <summary>
     /// 更新页面。
     /// </summary>
     [HttpPut("{id:long}")]
-    public async Task<ApiResult<InternationalPageDto>> Update(
-        long id,
-        [FromBody] UpdateInternationalPageRequest request,
-        CancellationToken cancellationToken) =>
-        ApiResult.Ok(await pageService.UpdatePageAsync(id, request, cancellationToken));
+    public async Task<ApiResult<InternationalPageDto>> Update(long id, [FromBody] SaveInternationalPageRequest request, CancellationToken cancellationToken) =>
+        ApiResult.Ok(await pageService.SavePageAsync(id, request, cancellationToken));
 
     /// <summary>
     /// 删除页面。

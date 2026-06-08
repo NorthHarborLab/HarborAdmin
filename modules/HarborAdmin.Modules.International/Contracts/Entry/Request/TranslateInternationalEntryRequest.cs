@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace HarborAdmin.Modules.International.Contracts.Requests;
+namespace HarborAdmin.Modules.International.Contracts.Entry.Request;
 
 /// <summary>
 /// AI 翻译国际化条目请求。

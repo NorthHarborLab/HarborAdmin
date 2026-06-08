@@ -1,8 +1,9 @@
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.BuildingBlocks.Caching.Abstractions;
 using HarborAdmin.Modules.International.Application.Abstractions;
-using HarborAdmin.Modules.International.Contracts.Dtos;
 using HarborAdmin.Modules.International.Infrastructure.Caching;
+using HarborAdmin.Modules.International.Contracts.Page.Dto;
+using HarborAdmin.Modules.International.Contracts.Resource.Dto;
 
 namespace HarborAdmin.Modules.International.Application.Services;
 

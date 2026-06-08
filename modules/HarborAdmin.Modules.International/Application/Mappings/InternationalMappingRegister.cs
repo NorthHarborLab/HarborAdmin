@@ -1,6 +1,7 @@
-using HarborAdmin.Modules.International.Contracts.Dtos;
 using HarborAdmin.Modules.International.Domain.Entities;
 using Mapster;
+using HarborAdmin.Modules.International.Contracts.Entry.Dto;
+using HarborAdmin.Modules.International.Contracts.Page.Dto;
 
 namespace HarborAdmin.Modules.International.Application.Mappings;
 

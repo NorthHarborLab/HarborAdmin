@@ -8,15 +8,14 @@ namespace HarborAdmin.Modules.International.Infrastructure.Repositories;
 public sealed partial class FreeSqlInternationalRepository
 {
     /// <inheritdoc />
-    public Task<IReadOnlyList<InternationalPage>> ListPagesAsync(CancellationToken cancellationToken = default) =>
-        FreeSql.Select<InternationalPage>()
+    public async Task<IReadOnlyList<InternationalPage>> ListPagesAsync(CancellationToken cancellationToken = default) =>
+        await FreeSql.Select<InternationalPage>()
             .OrderBy(p => p.PageKey)
-            .ToListAsync(cancellationToken)
-            .ContinueWith(t => (IReadOnlyList<InternationalPage>)t.Result, cancellationToken);
+            .ToListAsync(cancellationToken);
 
     /// <inheritdoc />
-    public Task<IReadOnlyList<InternationalPage>> ListPagesWithEntriesAsync(CancellationToken cancellationToken = default) =>
-        FreeSql.Select<InternationalPage>()
+    public async Task<IReadOnlyList<InternationalPage>> ListPagesWithEntriesAsync(CancellationToken cancellationToken = default) =>
+        await FreeSql.Select<InternationalPage>()
             // 全量资源包需要一次加载页面、条目和翻译，避免服务层逐页触发多次查询。
             .IncludeMany(p => p.Entries, then => then
                 .IncludeMany(e => e.Translations)
@@ -24,8 +23,7 @@ public sealed partial class FreeSqlInternationalRepository
                 .OrderBy(e => e.SortOrder)
                 .OrderBy(e => e.Key))
             .OrderBy(p => p.PageKey)
-            .ToListAsync(cancellationToken)
-            .ContinueWith(t => (IReadOnlyList<InternationalPage>)t.Result, cancellationToken);
+            .ToListAsync(cancellationToken);
 
     /// <inheritdoc />
     public async Task<InternationalPage?> GetPageAsync(long id, CancellationToken cancellationToken = default) =>

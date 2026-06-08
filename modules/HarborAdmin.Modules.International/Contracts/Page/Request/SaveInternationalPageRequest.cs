@@ -1,11 +1,11 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace HarborAdmin.Modules.International.Contracts.Requests;
+namespace HarborAdmin.Modules.International.Contracts.Page.Request;
 
 /// <summary>
-/// 创建国际化页面请求。
+/// 保存国际化页面请求。
 /// </summary>
-public sealed class CreateInternationalPageRequest
+public sealed class SaveInternationalPageRequest
 {
     /// <summary>
     /// 页面键名。
