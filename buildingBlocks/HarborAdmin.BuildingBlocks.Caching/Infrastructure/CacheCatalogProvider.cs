@@ -8,9 +8,9 @@ namespace HarborAdmin.BuildingBlocks.Caching.Infrastructure;
 /// <summary>
 /// 缓存模型目录提供器。
 /// </summary>
-internal sealed class CacheCatalogProvider : ICacheCatalogProvider
+internal sealed class CacheCatalogProvider(CacheKeyNormalizer keyNormalizer) : ICacheCatalogProvider
 {
-    private readonly Lazy<IReadOnlyList<CacheModelDescriptor>> _models = new(DiscoverModels, true);
+    private readonly Lazy<IReadOnlyList<CacheModelDescriptor>> _models = new(() => DiscoverModels(keyNormalizer), true);
 
     /// <inheritdoc />
     public IReadOnlyList<CacheModelDescriptor> GetModels() => _models.Value;
@@ -74,20 +74,20 @@ internal sealed class CacheCatalogProvider : ICacheCatalogProvider
         string.Equals(key, prefix, StringComparison.Ordinal) ||
         key.StartsWith(prefix + ":", StringComparison.Ordinal);
 
-    private static IReadOnlyList<CacheModelDescriptor> DiscoverModels()
+    private static IReadOnlyList<CacheModelDescriptor> DiscoverModels(CacheKeyNormalizer keyNormalizer)
     {
         return AppDomain.CurrentDomain.GetAssemblies()
             .Where(IsHarborAssembly)
             .SelectMany(GetLoadableTypes)
             .Where(type => type is { IsClass: true, IsAbstract: false } &&
                            type.GetCustomAttributes(typeof(CacheKeyAttribute), false).Length > 0)
-            .Select(CreateDescriptor)
+            .Select(type => CreateDescriptor(type, keyNormalizer))
             .OrderBy(model => model.Order)
             .ThenBy(model => model.DisplayName, StringComparer.Ordinal)
             .ToArray();
     }
 
-    private static CacheModelDescriptor CreateDescriptor(Type modelType)
+    private static CacheModelDescriptor CreateDescriptor(Type modelType, CacheKeyNormalizer keyNormalizer)
     {
         var metadata = CacheModelMetadata.For(modelType);
         var catalog = modelType.GetCustomAttribute<CacheCatalogAttribute>();
@@ -106,14 +106,16 @@ internal sealed class CacheCatalogProvider : ICacheCatalogProvider
             catalog?.Module ?? string.Empty,
             catalog?.Order ?? 0,
             catalog?.Description ?? string.Empty,
-            metadata.Prefix,
+            keyNormalizer.ApplyPrefix(metadata.Prefix),
             metadata.KeyTemplate,
             expirationSeconds,
-            tagTemplates,
+            tagTemplates.Select(keyNormalizer.ApplyPrefix).ToArray(),
             catalog?.SensitiveFields ?? [],
             supportsBulkClear)
         {
-            GroupPrefix = catalog?.GroupPrefix ?? string.Empty,
+            GroupPrefix = string.IsNullOrWhiteSpace(catalog?.GroupPrefix)
+                ? keyNormalizer.ApplyPrefix(metadata.Prefix)
+                : keyNormalizer.ApplyPrefix(catalog.GroupPrefix),
             GroupName = catalog?.GroupName ?? string.Empty
         };
     }

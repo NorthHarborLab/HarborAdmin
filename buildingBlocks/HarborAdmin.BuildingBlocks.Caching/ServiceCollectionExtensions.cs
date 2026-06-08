@@ -20,6 +20,7 @@ public static class ServiceCollectionExtensions
     {
         services.Configure<HarborCacheOptions>(configurationSection);
         services.AddMemoryCache();
+        services.AddSingleton<CacheKeyNormalizer>();
         services.AddSingleton<CacheInvalidationRuleProvider>();
         services.AddSingleton<IHarborCache, HarborCache>();
         services.AddSingleton<HarborCacheInvalidator>();

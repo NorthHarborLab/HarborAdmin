@@ -9,7 +9,7 @@ namespace HarborAdmin.BuildingBlocks.Caching.Infrastructure;
 /// Redis 强类型结构入口实现。
 /// Redis 原生结构的强类型门面，统一通过 Attribute 模型生成 Redis key。
 /// </summary>
-internal sealed class HarborRedisStructures(IHarborRedisClient redisClient) : IHarborRedisStructures
+internal sealed class HarborRedisStructures(IHarborRedisClient redisClient, CacheKeyNormalizer keyNormalizer) : IHarborRedisStructures
 {
     /// <summary>
     /// 获取 Hash 结构操作入口。
@@ -32,9 +32,12 @@ internal sealed class HarborRedisStructures(IHarborRedisClient redisClient) : IH
     /// <summary>
     /// 根据 key 模型构建 Redis 结构 key。
     /// </summary>
-    private static string BuildKey<TModel>(TModel keyModel, RedisStructureKind kind) where TModel : class =>
+    private string BuildKey<TModel>(TModel keyModel, RedisStructureKind kind) where TModel : class
+    {
         // keyModel 只用于提供模板变量，不代表写入 Redis 的 value 类型。
-        RedisStructureMetadata.For(typeof(TModel), kind).BuildKey(keyModel);
+        var key = RedisStructureMetadata.For(typeof(TModel), kind).BuildKey(keyModel);
+        return keyNormalizer.ApplyPrefix(key);
+    }
 }
 
 /// <summary>

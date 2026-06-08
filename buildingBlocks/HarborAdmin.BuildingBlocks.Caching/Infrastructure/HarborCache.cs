@@ -1,4 +1,5 @@
 using HarborAdmin.BuildingBlocks.Caching.Abstractions;
+using HarborAdmin.BuildingBlocks.Caching.Internal;
 using HarborAdmin.BuildingBlocks.Caching.Options;
 using HarborAdmin.BuildingBlocks.Caching.Serialization;
 using Microsoft.Extensions.Caching.Distributed;
@@ -15,6 +16,7 @@ namespace HarborAdmin.BuildingBlocks.Caching.Infrastructure;
 internal sealed class HarborCache(
     IMemoryCache memoryCache,
     ITagIndexStore tagIndexStore,
+    CacheKeyNormalizer keyNormalizer,
     IOptions<HarborCacheOptions> options,
     IDistributedCache? distributedCache = null) : IHarborCache
 {
@@ -23,6 +25,7 @@ internal sealed class HarborCache(
     /// </summary>
     public async ValueTask<T?> GetAsync<T>(string key, CancellationToken cancellationToken = default)
     {
+        key = keyNormalizer.ApplyPrefix(key);
         if (memoryCache.TryGetValue<T>(key, out var cached))
         {
             // 本地命中直接返回，避免每次都访问远端 Redis/Garnet。
@@ -74,6 +77,8 @@ internal sealed class HarborCache(
     public async ValueTask SetAsync<T>(string key, T value, TimeSpan? expiration = null, IReadOnlyCollection<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
+        key = keyNormalizer.ApplyPrefix(key);
+        tags = tags is { Count: > 0 } ? keyNormalizer.ApplyPrefix(tags) : tags;
         var effectiveExpiration = expiration ?? GetDefaultExpiration();
         // Memory 始终写入，即使 Provider 是 Redis/Garnet，也保留进程内热点缓存。
         memoryCache.Set(key, value, effectiveExpiration);
@@ -99,6 +104,7 @@ internal sealed class HarborCache(
     /// </summary>
     public async ValueTask RemoveAsync(string key, CancellationToken cancellationToken = default)
     {
+        key = keyNormalizer.ApplyPrefix(key);
         memoryCache.Remove(key);
         if (distributedCache is not null)
         {
@@ -114,6 +120,7 @@ internal sealed class HarborCache(
     /// </summary>
     public async ValueTask RemoveByTagAsync(string tag, CancellationToken cancellationToken = default)
     {
+        tag = keyNormalizer.ApplyPrefix(tag);
         var keys = await tagIndexStore.GetKeysAsync(tag, cancellationToken);
         foreach (var key in keys)
         {
@@ -139,6 +146,7 @@ internal sealed class HarborCache(
     /// </summary>
     public async ValueTask<CacheRawEntry?> TryGetRawEntryAsync(string key, CancellationToken cancellationToken = default)
     {
+        key = keyNormalizer.ApplyPrefix(key);
         if (memoryCache.TryGetValue(key, out object? cached) && cached is not null)
         {
             var json = HarborCacheSerializer.SerializeObjectToString(cached);

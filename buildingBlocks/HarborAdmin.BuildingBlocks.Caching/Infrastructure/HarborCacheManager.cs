@@ -1,4 +1,5 @@
 using HarborAdmin.BuildingBlocks.Caching.Abstractions;
+using HarborAdmin.BuildingBlocks.Caching.Internal;
 using HarborAdmin.BuildingBlocks.Caching.Options;
 using Microsoft.Extensions.Options;
 
@@ -12,6 +13,7 @@ internal sealed class HarborCacheManager(
     ITagIndexStore tagIndexStore,
     IHarborCache cache,
     IHarborCacheInvalidator invalidator,
+    CacheKeyNormalizer keyNormalizer,
     IOptions<HarborCacheOptions> options) : IHarborCacheManager
 {
     private const int MaxContentBytes = 256 * 1024;
@@ -30,7 +32,8 @@ internal sealed class HarborCacheManager(
     /// <inheritdoc />
     public async ValueTask<IReadOnlyList<CacheTagRuntimeInfo>> GetActiveTagsAsync(string? groupPrefix, CancellationToken cancellationToken = default)
     {
-        var tags = await tagIndexStore.ListTagsAsync(groupPrefix, cancellationToken);
+        var normalizedGroupPrefix = string.IsNullOrWhiteSpace(groupPrefix) ? groupPrefix : keyNormalizer.ApplyPrefix(groupPrefix);
+        var tags = await tagIndexStore.ListTagsAsync(normalizedGroupPrefix, cancellationToken);
         var result = new List<CacheTagRuntimeInfo>(tags.Count);
         foreach (var tag in tags)
         {
@@ -43,21 +46,22 @@ internal sealed class HarborCacheManager(
 
     /// <inheritdoc />
     public ValueTask<IReadOnlyList<string>> GetKeysByTagAsync(string tag, CancellationToken cancellationToken = default) =>
-        tagIndexStore.GetKeysAsync(tag, cancellationToken);
+        tagIndexStore.GetKeysAsync(keyNormalizer.ApplyPrefix(tag), cancellationToken);
 
     /// <inheritdoc />
     public async ValueTask<CacheEntryContent> GetEntryContentAsync(string key, CancellationToken cancellationToken = default)
     {
-        var raw = await cache.TryGetRawEntryAsync(key, cancellationToken);
+        var normalizedKey = keyNormalizer.ApplyPrefix(key);
+        var raw = await cache.TryGetRawEntryAsync(normalizedKey, cancellationToken);
         if (raw is null || !raw.Found || string.IsNullOrEmpty(raw.Json))
         {
-            return new CacheEntryContent(key, false, null, null, 0, false);
+            return new CacheEntryContent(normalizedKey, false, null, null, 0, false);
         }
 
-        var model = catalogProvider.MatchModelByKey(key);
+        var model = catalogProvider.MatchModelByKey(normalizedKey);
         var masked = CacheEntryMasker.MaskJson(raw.Json, model?.SensitiveFields ?? []);
         var (json, truncated) = CacheEntryMasker.TruncateIfNeeded(masked, MaxContentBytes);
-        return new CacheEntryContent(key, true, model?.ModelTypeName, json, raw.SizeBytes, truncated);
+        return new CacheEntryContent(normalizedKey, true, model?.ModelTypeName, json, raw.SizeBytes, truncated);
     }
 
     /// <inheritdoc />
@@ -71,8 +75,9 @@ internal sealed class HarborCacheManager(
     /// <inheritdoc />
     public async ValueTask InvalidateGroupAsync(string groupPrefix, CancellationToken cancellationToken = default)
     {
+        var normalizedGroupPrefix = keyNormalizer.ApplyPrefix(groupPrefix);
         var groups = catalogProvider.BuildGroups(new Dictionary<string, int>());
-        var group = groups.FirstOrDefault(item => string.Equals(item.GroupPrefix, groupPrefix, StringComparison.Ordinal));
+        var group = groups.FirstOrDefault(item => string.Equals(item.GroupPrefix, normalizedGroupPrefix, StringComparison.Ordinal));
         if (group is null)
         {
             return;
@@ -87,7 +92,7 @@ internal sealed class HarborCacheManager(
             }
         }
 
-        var runtimeTags = await tagIndexStore.ListTagsAsync(groupPrefix, cancellationToken);
+        var runtimeTags = await tagIndexStore.ListTagsAsync(normalizedGroupPrefix, cancellationToken);
         foreach (var tag in runtimeTags)
         {
             tagsToInvalidate.Add(tag);
