@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace HarborAdmin.Modules.Secrets.Contracts.Requests;
+namespace HarborAdmin.Modules.Secrets.Contracts.Secret.Request;
 
 /// <summary>
 /// 设置密钥启停请求。

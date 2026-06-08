@@ -1,4 +1,4 @@
-namespace HarborAdmin.Modules.Secrets.Contracts.Dtos;
+namespace HarborAdmin.Modules.Secrets.Contracts.Secret.Dto;
 
 /// <summary>
 /// 通用密钥 DTO，不包含明文。

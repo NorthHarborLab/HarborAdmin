@@ -1,17 +1,17 @@
 using HarborAdmin.Modules.Secrets.Application.Services;
-using HarborAdmin.Modules.Secrets.Contracts.Dtos;
-using HarborAdmin.Modules.Secrets.Contracts.Requests;
 using Microsoft.AspNetCore.Mvc;
 using HarborAdmin.BuildingBlocks.Abstractions.Api;
+using HarborAdmin.Modules.Secrets.Contracts.Secret.Dto;
+using HarborAdmin.Modules.Secrets.Contracts.Secret.Request;
 
-namespace HarborAdmin.Modules.Secrets.Controllers;
+namespace HarborAdmin.Modules.Secrets.Controllers.Secret;
 
 /// <summary>
 /// 通用 Secret 管理 API。
 /// </summary>
 [ApiController]
 [Route("api/admin/secrets")]
-public sealed class SecretsController(SecretService secretService) : ControllerBase
+public sealed class SecretController(SecretService secretService) : ControllerBase
 {
     /// <summary>
     /// 列出密钥。

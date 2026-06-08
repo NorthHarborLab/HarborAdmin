@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace HarborAdmin.Modules.Secrets.Contracts.Requests;
+namespace HarborAdmin.Modules.Secrets.Contracts.Secret.Request;
 
 /// <summary>
 /// 保存或轮换密钥请求。
