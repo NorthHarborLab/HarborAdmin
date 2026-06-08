@@ -1,0 +1,33 @@
+namespace HarborAdmin.Modules.AI.Contracts.Shared.Snapshot;
+
+/// <summary>
+/// 已发布业务。
+/// </summary>
+public sealed record AiBusinessSnapshot(
+    string BusinessKey,
+    string Name,
+    string? AllowedProducerKeys,
+    string? SigningSecretRef,
+    string? CallbackTopic,
+    string? PromptKey,
+    string? KnowledgeKeys,
+    bool EnableStreaming,
+    bool AllowKnowledgeTextAppend,
+    bool AllowKnowledgeTextOverride,
+    int MaxContextTokens,
+    string ContextOverflowStrategy,
+    string FailureStrategy,
+    bool AllowModelOverride,
+    bool AllowPromptOverride,
+    bool AllowKnowledgeText,
+    bool AllowProviderOptionsOverride,
+    bool AllowToolOptionsOverride,
+    string? OutputFormat,
+    string? OutputJsonSchema,
+    bool OutputStrict,
+    bool OutputValidateAndRetry,
+    int OutputMaxRetryCount,
+    string? ToolOptionsJson,
+    int MaxToolRounds,
+    string? ProviderOptionsJson,
+    IReadOnlyList<AiBusinessRouteSnapshot> Routes);

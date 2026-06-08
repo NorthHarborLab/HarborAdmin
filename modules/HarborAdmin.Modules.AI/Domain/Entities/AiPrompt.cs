@@ -7,8 +7,8 @@ namespace HarborAdmin.Modules.AI.Domain.Entities;
 /// AI Prompt。
 /// </summary>
 [DbKey("AdminDb")]
-[Index("ux_ai_prompt_key_version", "PromptKey,Version", true)]
-public class AiPrompt : EntityBase
+[Index("ux_ai_prompt_key_version", $"{nameof(PromptKey)},{nameof(Version)}", true)]
+public sealed class AiPrompt : AuditableEntity
 {
     /// <summary>
     /// Prompt Key。
@@ -47,15 +47,4 @@ public class AiPrompt : EntityBase
     /// 是否启用。
     /// </summary>
     public bool Enabled { get; set; }
-
-    /// <summary>
-    /// 创建时间。
-    /// </summary>
-    public DateTimeOffset CreatedAt { get; set; }
-
-    /// <summary>
-    /// 更新时间。
-    /// </summary>
-    public DateTimeOffset UpdatedAt { get; set; }
 }
-

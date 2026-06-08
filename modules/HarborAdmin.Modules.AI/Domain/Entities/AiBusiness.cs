@@ -7,8 +7,8 @@ namespace HarborAdmin.Modules.AI.Domain.Entities;
 /// AI 业务配置。
 /// </summary>
 [DbKey("AdminDb")]
-[Index("ux_ai_business_key", "BusinessKey", true)]
-public class AiBusiness : EntityBase
+[Index("ux_ai_business_key", nameof(BusinessKey), true)]
+public sealed class AiBusiness : AuditableEntity
 {
     /// <summary>
     /// 业务 Key。
@@ -149,19 +149,8 @@ public class AiBusiness : EntityBase
     public bool Enabled { get; set; }
 
     /// <summary>
-    /// 创建时间。
-    /// </summary>
-    public DateTimeOffset CreatedAt { get; set; }
-
-    /// <summary>
-    /// 更新时间。
-    /// </summary>
-    public DateTimeOffset UpdatedAt { get; set; }
-
-    /// <summary>
     /// 供应商路由。
     /// </summary>
     [Navigate(nameof(AiBusinessProviderRoute.BusinessId))]
     public List<AiBusinessProviderRoute> Routes { get; set; } = [];
 }
-

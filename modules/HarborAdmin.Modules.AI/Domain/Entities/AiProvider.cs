@@ -7,8 +7,8 @@ namespace HarborAdmin.Modules.AI.Domain.Entities;
 /// AI 供应商实例。
 /// </summary>
 [DbKey("AdminDb")]
-[Index("ux_ai_provider_key", "ProviderKey", true)]
-public class AiProvider : EntityBase
+[Index("ux_ai_provider_key", nameof(ProviderKey), true)]
+public sealed class AiProvider : AuditableEntity
 {
     /// <summary>
     /// 供应商实例 Key。
@@ -83,19 +83,8 @@ public class AiProvider : EntityBase
     public int CircuitBreakerBreakSeconds { get; set; } = 60;
 
     /// <summary>
-    /// 创建时间。
-    /// </summary>
-    public DateTimeOffset CreatedAt { get; set; }
-
-    /// <summary>
-    /// 更新时间。
-    /// </summary>
-    public DateTimeOffset UpdatedAt { get; set; }
-
-    /// <summary>
     /// 供应商模型。
     /// </summary>
     [Navigate(nameof(AiProviderModel.ProviderId))]
     public List<AiProviderModel> Models { get; set; } = [];
 }
-

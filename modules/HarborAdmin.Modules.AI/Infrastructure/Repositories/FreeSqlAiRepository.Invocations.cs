@@ -2,6 +2,9 @@ using HarborAdmin.Modules.AI.Domain.Entities;
 
 namespace HarborAdmin.Modules.AI.Infrastructure.Repositories;
 
+/// <summary>
+/// 基于 FreeSql 的 AI 调用仓储实现 partial。
+/// </summary>
 public sealed partial class FreeSqlAiRepository
 {
     /// <inheritdoc />

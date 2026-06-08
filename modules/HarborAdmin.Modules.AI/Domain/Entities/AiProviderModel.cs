@@ -7,8 +7,8 @@ namespace HarborAdmin.Modules.AI.Domain.Entities;
 /// AI 供应商模型。
 /// </summary>
 [DbKey("AdminDb")]
-[Index("ux_ai_provider_model", "ProviderId,ModelName", true)]
-public class AiProviderModel : EntityBase
+[Index("ux_ai_provider_model", $"{nameof(ProviderId)},{nameof(ModelName)}", true)]
+public sealed class AiProviderModel : AuditableEntity
 {
     /// <summary>
     /// 供应商主键。
@@ -111,19 +111,8 @@ public class AiProviderModel : EntityBase
     public int SortOrder { get; set; }
 
     /// <summary>
-    /// 创建时间。
-    /// </summary>
-    public DateTimeOffset CreatedAt { get; set; }
-
-    /// <summary>
-    /// 更新时间。
-    /// </summary>
-    public DateTimeOffset UpdatedAt { get; set; }
-
-    /// <summary>
     /// 所属供应商。
     /// </summary>
     [Navigate(nameof(ProviderId))]
     public AiProvider? Provider { get; set; }
 }
-

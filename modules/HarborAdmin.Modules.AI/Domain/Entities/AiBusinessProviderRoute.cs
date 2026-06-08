@@ -7,8 +7,8 @@ namespace HarborAdmin.Modules.AI.Domain.Entities;
 /// AI 业务供应商路由。
 /// </summary>
 [DbKey("AdminDb")]
-[Index("ux_ai_business_route", "BusinessId,ProviderKey,Priority", true)]
-public class AiBusinessProviderRoute : EntityBase
+[Index("ux_ai_business_route", $"{nameof(BusinessId)},{nameof(ProviderKey)},{nameof(Priority)}", true)]
+public sealed class AiBusinessProviderRoute : EntityBase
 {
     /// <summary>
     /// 业务主键。

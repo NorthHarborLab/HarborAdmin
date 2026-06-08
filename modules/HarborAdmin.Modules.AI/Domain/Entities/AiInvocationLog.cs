@@ -7,9 +7,9 @@ namespace HarborAdmin.Modules.AI.Domain.Entities;
 /// AI 调用日志。
 /// </summary>
 [DbKey("AdminDb")]
-[Index("ux_ai_invocation_id", "InvocationId", true)]
-[Index("ux_ai_invocation_idempotency", "BusinessKey,ProducerKey,IdempotencyKey", true)]
-public class AiInvocationLog : EntityBase
+[Index("ux_ai_invocation_id", nameof(InvocationId), true)]
+[Index("ux_ai_invocation_idempotency", $"{nameof(BusinessKey)},{nameof(ProducerKey)},{nameof(IdempotencyKey)}", true)]
+public sealed class AiInvocationLog : EntityBase
 {
     /// <summary>
     /// 调用 ID。

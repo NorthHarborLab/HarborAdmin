@@ -6,7 +6,7 @@ namespace HarborAdmin.Modules.AI.Domain.Entities;
 /// AI 用量台账。
 /// </summary>
 [DbKey("AdminDb")]
-public class AiUsageLedger : EntityBase
+public sealed class AiUsageLedger : EntityBase
 {
     /// <summary>
     /// 供应商 Key。

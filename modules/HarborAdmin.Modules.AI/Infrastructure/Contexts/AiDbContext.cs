@@ -18,8 +18,14 @@ public sealed class AiDbContext(HarborFreeSqlCloud cloud, DbEntityRegistry entit
         return new BindScope(this);
     }
 
+    /// <summary>
+    /// 临时绑定工作单元 ORM 的释放作用域。
+    /// </summary>
     private sealed class BindScope(AiDbContext context) : IDisposable
     {
+        /// <summary>
+        /// 释放绑定并恢复默认 FreeSqlCloud 解析。
+        /// </summary>
         public void Dispose() => context._override.Value = null;
     }
 }

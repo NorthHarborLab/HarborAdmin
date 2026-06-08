@@ -7,8 +7,8 @@ namespace HarborAdmin.Modules.AI.Domain.Entities;
 /// AI 知识库。
 /// </summary>
 [DbKey("AdminDb")]
-[Index("ux_ai_knowledge_key", "KnowledgeKey", true)]
-public class AiKnowledgeBase : EntityBase
+[Index("ux_ai_knowledge_key", nameof(KnowledgeKey), true)]
+public sealed class AiKnowledgeBase : AuditableEntity
 {
     /// <summary>
     /// 知识库 Key。
@@ -46,15 +46,4 @@ public class AiKnowledgeBase : EntityBase
     /// 是否启用。
     /// </summary>
     public bool Enabled { get; set; }
-
-    /// <summary>
-    /// 创建时间。
-    /// </summary>
-    public DateTimeOffset CreatedAt { get; set; }
-
-    /// <summary>
-    /// 更新时间。
-    /// </summary>
-    public DateTimeOffset UpdatedAt { get; set; }
 }
-

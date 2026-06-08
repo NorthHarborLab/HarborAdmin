@@ -7,8 +7,8 @@ namespace HarborAdmin.Modules.AI.Domain.Entities;
 /// AI 模型限额。
 /// </summary>
 [DbKey("AdminDb")]
-[Index("ux_ai_model_quota", "ProviderKey,ModelName,BusinessKey,ProducerKey", true)]
-public class AiModelQuota : EntityBase
+[Index("ux_ai_model_quota", $"{nameof(ProviderKey)},{nameof(ModelName)},{nameof(BusinessKey)},{nameof(ProducerKey)}", true)]
+public sealed class AiModelQuota : EntityBase
 {
     /// <summary>
     /// 供应商 Key。

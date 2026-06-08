@@ -1,7 +1,9 @@
+using HarborAdmin.Modules.AI.Contracts.Observability.Dto;
+using HarborAdmin.Modules.AI.Contracts.Shared.Snapshot;
 using Mapster;
-using HarborAdmin.Modules.AI.Contracts.Dtos;
-using HarborAdmin.Modules.AI.Contracts.Snapshots;
 using HarborAdmin.Modules.AI.Domain.Entities;
+using HarborAdmin.Modules.AI.Contracts.Business.Dto;
+using HarborAdmin.Modules.AI.Contracts.Provider.Dto;
 
 namespace HarborAdmin.Modules.AI.Application.Mappings;
 
