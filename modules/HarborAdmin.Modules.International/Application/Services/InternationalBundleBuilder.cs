@@ -26,9 +26,10 @@ internal static class InternationalBundleBuilder
 
         foreach (var locale in locales)
         {
-            // 每个 locale 都有独立根对象，页面资源挂在 pageKey 下供前端按页面合并。
+            // 每个 locale 都有独立根对象，页面资源按 FullPath 逐层挂载，保持与 views/locales 路径同构。
             var localeRoot = GetOrCreateObject(messages, locale);
-            localeRoot[page.PageKey] = BuildMessageObject(entryGroups, 0, locale);
+            var pageRoot = GetOrCreatePathObject(localeRoot, page.FullPath);
+            MergeObject(pageRoot, BuildMessageObject(entryGroups, 0, locale));
         }
     }
 
@@ -91,5 +92,35 @@ internal static class InternationalBundleBuilder
         dictionary = new Dictionary<string, object>(StringComparer.Ordinal);
         root[key] = dictionary;
         return dictionary;
+    }
+
+    /// <summary>
+    /// 按斜杠路径获取或创建对象节点。
+    /// </summary>
+    private static Dictionary<string, object> GetOrCreatePathObject(IDictionary<string, object> root, string path)
+    {
+        var current = root;
+        foreach (var segment in path.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            current = GetOrCreateObject(current, segment);
+        }
+
+        return (Dictionary<string, object>)current;
+    }
+
+    /// <summary>
+    /// 将页面内条目对象合并到路径叶子节点。
+    /// </summary>
+    private static void MergeObject(IDictionary<string, object> target, object source)
+    {
+        if (source is not IReadOnlyDictionary<string, object> sourceObject)
+        {
+            return;
+        }
+
+        foreach (var item in sourceObject)
+        {
+            target[item.Key] = item.Value;
+        }
     }
 }

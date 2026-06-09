@@ -21,6 +21,13 @@ public sealed class PageController(InternationalPageService pageService) : Contr
         ApiResult.Ok(await pageService.ListPagesAsync(cancellationToken));
 
     /// <summary>
+    /// 列出页面分组树。
+    /// </summary>
+    [HttpGet("tree")]
+    public async Task<ApiResult<IReadOnlyList<InternationalGroupNodeDto>>> ListTree(CancellationToken cancellationToken) =>
+        ApiResult.Ok(await pageService.ListPageTreeAsync(cancellationToken));
+
+    /// <summary>
     /// 创建页面。
     /// </summary>
     [HttpPost]

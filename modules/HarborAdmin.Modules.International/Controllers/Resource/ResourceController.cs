@@ -32,7 +32,14 @@ public sealed class ResourceController(InternationalResourceBundleService resour
     /// <summary>
     /// 获取带版本号的单页面资源包。
     /// </summary>
+    [HttpGet("pages/bundle")]
+    public async Task<ApiResult<InternationalPageBundleDto>> GetPageBundle([FromQuery] string path, CancellationToken cancellationToken) =>
+        ApiResult.Ok(await resourceBundleService.GetPageBundleAsync(path, cancellationToken));
+
+    /// <summary>
+    /// 获取带版本号的单页面资源包。
+    /// </summary>
     [HttpGet("pages/{pageKey}/bundle")]
-    public async Task<ApiResult<InternationalPageBundleDto>> GetPageBundle(string pageKey, CancellationToken cancellationToken) =>
+    public async Task<ApiResult<InternationalPageBundleDto>> GetLegacyPageBundle(string pageKey, CancellationToken cancellationToken) =>
         ApiResult.Ok(await resourceBundleService.GetPageBundleAsync(pageKey, cancellationToken));
 }

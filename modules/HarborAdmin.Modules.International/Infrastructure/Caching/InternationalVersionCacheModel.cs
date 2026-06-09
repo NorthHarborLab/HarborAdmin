@@ -9,7 +9,7 @@ namespace HarborAdmin.Modules.International.Infrastructure.Caching;
 /// </summary>
 [CacheCatalog("国际化版本", GroupPrefix = "harbor:international", GroupName = "国际化", Module = "International", Order = 10)]
 [CacheKey("harbor:international", Key = "{Id}", ExpirationSeconds = 600)]
-[CacheTag(InternationalCacheKeys.AllTag, typeof(InternationalPage))]
+[CacheTag(InternationalCacheKeys.AllTag, typeof(InternationalGroup), typeof(InternationalPage))]
 public sealed class InternationalVersionCacheModel
 {
     /// <summary>

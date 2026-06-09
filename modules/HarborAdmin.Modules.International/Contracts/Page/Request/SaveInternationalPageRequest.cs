@@ -8,11 +8,11 @@ namespace HarborAdmin.Modules.International.Contracts.Page.Request;
 public sealed class SaveInternationalPageRequest
 {
     /// <summary>
-    /// 页面键名。
+    /// 页面完整路径。
     /// </summary>
-    [Required(ErrorMessage = "页面键名不能为空。")]
+    [Required(ErrorMessage = "页面路径不能为空。")]
     [MaxLength(120)]
-    public string PageKey { get; set; } = string.Empty;
+    public string FullPath { get; set; } = string.Empty;
 
     /// <summary>
     /// 页面名称。

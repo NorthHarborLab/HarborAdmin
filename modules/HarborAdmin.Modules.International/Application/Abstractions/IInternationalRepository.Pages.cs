@@ -23,14 +23,14 @@ public partial interface IInternationalRepository
     Task<InternationalPage?> GetPageAsync(long id, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// 按页面 Key 获取页面。
+    /// 按页面完整路径获取页面。
     /// </summary>
-    Task<InternationalPage?> GetPageByKeyAsync(string pageKey, CancellationToken cancellationToken = default);
+    Task<InternationalPage?> GetPageByPathAsync(string path, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// 按页面 Key 获取页面并加载条目与翻译。
+    /// 按页面完整路径获取页面并加载条目与翻译。
     /// </summary>
-    Task<InternationalPage?> GetPageWithEntriesByKeyAsync(string pageKey, CancellationToken cancellationToken = default);
+    Task<InternationalPage?> GetPageWithEntriesByPathAsync(string path, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 新增页面。
@@ -41,6 +41,11 @@ public partial interface IInternationalRepository
     /// 更新页面。
     /// </summary>
     Task UpdatePageAsync(InternationalPage page, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 批量更新页面。
+    /// </summary>
+    Task UpdatePagesAsync(IReadOnlyList<InternationalPage> pages, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 删除页面及其全部条目和翻译。

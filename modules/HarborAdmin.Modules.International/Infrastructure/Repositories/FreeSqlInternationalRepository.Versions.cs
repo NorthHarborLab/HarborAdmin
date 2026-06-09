@@ -10,10 +10,11 @@ public sealed partial class FreeSqlInternationalRepository
     /// <inheritdoc />
     public async Task<IReadOnlyList<InternationalPage>> ListPageVersionsAsync(CancellationToken cancellationToken = default) =>
         await FreeSql.Select<InternationalPage>()
-            .OrderBy(p => p.PageKey)
+            .OrderBy(p => p.FullPath)
             .ToListAsync(p => new InternationalPage
             {
                 PageKey = p.PageKey,
+                FullPath = p.FullPath,
                 Version = p.Version
             }, cancellationToken);
 
@@ -21,8 +22,8 @@ public sealed partial class FreeSqlInternationalRepository
     public async Task<int> GetVersionAsync(CancellationToken cancellationToken = default)
     {
         var pages = await FreeSql.Select<InternationalPage>()
-            .OrderBy(p => p.PageKey)
-            .ToListAsync(p => new { p.PageKey, p.Version }, cancellationToken);
+            .OrderBy(p => p.FullPath)
+            .ToListAsync(p => new { p.FullPath, p.Version }, cancellationToken);
         if (pages.Count == 0)
         {
             return 0;
@@ -33,9 +34,9 @@ public sealed partial class FreeSqlInternationalRepository
         {
             unchecked
             {
-                // 使用稳定顺序下的页面版本和 PageKey 混合出总版本，允许 int 溢出但保持确定性。
+                // 使用稳定顺序下的页面版本和 FullPath 混合出总版本，允许 int 溢出但保持确定性。
                 version = (version * 397) ^ page.Version;
-                foreach (var ch in page.PageKey)
+                foreach (var ch in page.FullPath)
                 {
                     version = (version * 397) ^ ch;
                 }

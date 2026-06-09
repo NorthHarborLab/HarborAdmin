@@ -97,7 +97,7 @@ public sealed class InternationalTranslationService(
         var entry = await entryService.RequireEntryAsync(entryId, cancellationToken);
         await repository.UpsertEntryTranslationsAsync(entryId, translations, cancellationToken);
         var page = await pageService.RequirePageAsync(entry.PageId, cancellationToken);
-        await cacheCoordinator.InvalidatePageAsync(page.Id, page.PageKey, cancellationToken);
+        await cacheCoordinator.InvalidatePageAsync(page.Id, page.FullPath, cancellationToken);
     }
 
     /// <summary>

@@ -24,7 +24,7 @@ public sealed class InternationalResourceBundleService(IInternationalRepository 
                 var version = await repository.GetVersionAsync(ct);
                 var pages = await repository.ListPageVersionsAsync(ct);
                 var pageVersions = pages
-                    .Select(page => new InternationalPageVersionDto(page.PageKey, page.Version))
+                    .Select(page => new InternationalPageVersionDto(page.FullPath, page.Version))
                     .ToList();
                 return new InternationalVersionCacheModel
                 {
@@ -63,22 +63,22 @@ public sealed class InternationalResourceBundleService(IInternationalRepository 
     /// <summary>
     /// 获取前端可直接合并的单页面国际化资源包。
     /// </summary>
-    public async Task<InternationalPageBundleDto> GetPageBundleAsync(string pageKey, CancellationToken cancellationToken = default)
+    public async Task<InternationalPageBundleDto> GetPageBundleAsync(string path, CancellationToken cancellationToken = default)
     {
-        pageKey = pageKey.Trim();
+        path = path.Trim();
         var model = await cache.Get<InternationalPageBundleCacheModel>()
-            .Where(model => model.PageKey == pageKey)
+            .Where(model => model.Path == path)
             .GetOrCreateAsync(async ct =>
             {
-                var page = await repository.GetPageWithEntriesByKeyAsync(pageKey, ct)
-                           ?? throw new NotFoundDomainException($"国际化页面 '{pageKey}' 不存在。");
+                var page = await repository.GetPageWithEntriesByPathAsync(path, ct)
+                           ?? throw new NotFoundDomainException($"国际化页面 '{path}' 不存在。");
                 var messages = new Dictionary<string, object>(StringComparer.Ordinal);
                 InternationalBundleBuilder.MergePageMessages(messages, page);
                 return new InternationalPageBundleCacheModel
                 {
-                    PageKey = page.PageKey,
+                    Path = page.FullPath,
                     PageId = page.Id,
-                    Value = new InternationalPageBundleDto(page.PageKey, page.Version, messages)
+                    Value = new InternationalPageBundleDto(page.FullPath, page.Version, messages)
                 };
             }, cancellationToken);
         return model.Value;

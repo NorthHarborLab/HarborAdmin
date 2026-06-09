@@ -21,7 +21,8 @@ Entry API 修改资源。
 
 | 路由                                                           | 方法       | 说明          |
 |--------------------------------------------------------------|----------|-------------|
-| `/api/admin/international/pages`                             | `GET`    | 列出页面命名空间    |
+| `/api/admin/international/pages`                             | `GET`    | 列出页面            |
+| `/api/admin/international/pages/tree`                        | `GET`    | 列出页面分组树      |
 | `/api/admin/international/pages`                             | `POST`   | 创建页面命名空间    |
 | `/api/admin/international/pages/{id}`                        | `PUT`    | 更新页面命名空间    |
 | `/api/admin/international/pages/{id}`                        | `DELETE` | 删除页面及全部条目   |
@@ -33,7 +34,7 @@ Entry API 修改资源。
 | `/api/admin/international/pages/entries/{entryId}/translate` | `POST`   | 请求 AI 翻译条目  |
 | `/api/admin/international/resources/version`                 | `GET`    | 获取全局版本与页面版本 |
 | `/api/admin/international/resources/bundle`                  | `GET`    | 获取全量资源包     |
-| `/api/admin/international/resources/pages/{pageKey}/bundle`  | `GET`    | 获取单页面资源包    |
+| `/api/admin/international/resources/pages/bundle?path=...`   | `GET`    | 获取单页面资源包    |
 
 删除接口返回 `ApiResult.Ok(true)`，保持前端统一响应包约定。
 
@@ -41,7 +42,8 @@ Entry API 修改资源。
 
 | 实体                              | 基类                | 表达内容                        |
 |---------------------------------|-------------------|-----------------------------|
-| `InternationalPage`             | `AuditableEntity` | 前端页面命名空间，例如 `config-center` |
+| `InternationalGroup`            | `AuditableEntity` | 前端模块/子视图分组，例如 `config-center/workspace` |
+| `InternationalPage`             | `AuditableEntity` | 前端页面完整路径，例如 `config-center/workspace/items` |
 | `InternationalEntry`            | `AuditableEntity` | 页面内树形 i18n 节点               |
 | `InternationalEntryTranslation` | `EntityBase`      | 条目在指定 locale 下的文本           |
 
@@ -72,7 +74,8 @@ Entry API 修改资源。
 
 构建规则：
 
-- `PageKey` 是资源包内页面顶层命名空间。
+- `FullPath` 与前端 `views` / `locales` 路径同构，并作为资源包路径。
+- `PageKey` 是 `FullPath` 的末段，仅用于页面实体内的短键名。
 - 条目通过 `ParentId` 形成树形对象。
 - 叶子节点使用对应 locale 的翻译值。
 - 目标 locale 缺失时回退到默认语言 `zh-CN`。

@@ -10,7 +10,7 @@ public sealed partial class FreeSqlInternationalRepository
     /// <inheritdoc />
     public async Task<IReadOnlyList<InternationalPage>> ListPagesAsync(CancellationToken cancellationToken = default) =>
         await FreeSql.Select<InternationalPage>()
-            .OrderBy(p => p.PageKey)
+            .OrderBy(p => p.FullPath)
             .ToListAsync(cancellationToken);
 
     /// <inheritdoc />
@@ -22,7 +22,7 @@ public sealed partial class FreeSqlInternationalRepository
                 .OrderBy(e => e.ParentId)
                 .OrderBy(e => e.SortOrder)
                 .OrderBy(e => e.Key))
-            .OrderBy(p => p.PageKey)
+            .OrderBy(p => p.FullPath)
             .ToListAsync(cancellationToken);
 
     /// <inheritdoc />
@@ -30,19 +30,19 @@ public sealed partial class FreeSqlInternationalRepository
         await FreeSql.Select<InternationalPage>().Where(p => p.Id == id).FirstAsync(cancellationToken);
 
     /// <inheritdoc />
-    public async Task<InternationalPage?> GetPageByKeyAsync(
-        string pageKey,
+    public async Task<InternationalPage?> GetPageByPathAsync(
+        string path,
         CancellationToken cancellationToken = default) =>
         await FreeSql.Select<InternationalPage>()
-            .Where(p => p.PageKey == pageKey)
+            .Where(p => p.FullPath == path)
             .FirstAsync(cancellationToken);
 
     /// <inheritdoc />
-    public async Task<InternationalPage?> GetPageWithEntriesByKeyAsync(
-        string pageKey,
+    public async Task<InternationalPage?> GetPageWithEntriesByPathAsync(
+        string path,
         CancellationToken cancellationToken = default) =>
         await FreeSql.Select<InternationalPage>()
-            .Where(p => p.PageKey == pageKey)
+            .Where(p => p.FullPath == path)
             // 单页面资源包同样需要完整条目树与翻译集合。
             .IncludeMany(p => p.Entries, then => then
                 .IncludeMany(e => e.Translations)
@@ -63,6 +63,12 @@ public sealed partial class FreeSqlInternationalRepository
     /// <inheritdoc />
     public Task UpdatePageAsync(InternationalPage page, CancellationToken cancellationToken = default) =>
         FreeSql.Update<InternationalPage>().SetSource(page).ExecuteAffrowsAsync(cancellationToken);
+
+    /// <inheritdoc />
+    public Task UpdatePagesAsync(IReadOnlyList<InternationalPage> pages, CancellationToken cancellationToken = default) =>
+        pages.Count == 0
+            ? Task.CompletedTask
+            : FreeSql.Update<InternationalPage>().SetSource(pages).ExecuteAffrowsAsync(cancellationToken);
 
     /// <inheritdoc />
     public async Task DeletePageAsync(long id, CancellationToken cancellationToken = default)

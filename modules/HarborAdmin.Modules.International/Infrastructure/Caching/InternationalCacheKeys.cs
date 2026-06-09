@@ -23,7 +23,7 @@ public static class InternationalCacheKeys
     /// <summary>
     /// 单页面资源包 tag 模板。
     /// </summary>
-    public const string PageTagTemplate = "harbor:international:page:{PageKey}";
+    public const string PageTagTemplate = "harbor:international:page:{Path}";
 
     /// <summary>
     /// 单页面资源包按页面主键失效 tag 模板。
@@ -33,7 +33,7 @@ public static class InternationalCacheKeys
     /// <summary>
     /// 构造单页面资源包 tag。
     /// </summary>
-    public static string PageTag(string pageKey) => $"harbor:international:page:{pageKey}";
+    public static string PageTag(string path) => $"harbor:international:page:{path}";
 
     /// <summary>
     /// 构造单页面资源包按页面主键失效 tag。

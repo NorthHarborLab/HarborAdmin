@@ -4,6 +4,6 @@ namespace HarborAdmin.Modules.International.Contracts.Page.Dto;
 /// 前端单页面国际化资源包。
 /// </summary>
 public sealed record InternationalPageBundleDto(
-    string PageKey,
+    string Path,
     int Version,
     IReadOnlyDictionary<string, object> Messages);

@@ -7,7 +7,7 @@ namespace HarborAdmin.Modules.International.Domain.Entities;
 /// 页面内国际化树节点。
 /// </summary>
 [DbKey("AdminDb")]
-[Index("ux_intl_entry_page_key", $"{nameof(PageId)},{nameof(Key)}", true)]
+[Index("ux_intl_entry_page_parent_key", $"{nameof(PageId)},{nameof(ParentId)},{nameof(Key)}", true)]
 public sealed class InternationalEntry : AuditableEntity
 {
     /// <summary>

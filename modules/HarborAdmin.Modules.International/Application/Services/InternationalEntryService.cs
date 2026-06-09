@@ -56,7 +56,7 @@ public sealed class InternationalEntryService(
         var entry = await RequireEntryAsync(entryId, cancellationToken);
         await repository.DeleteEntryAsync(entryId, cancellationToken);
         var page = await pageService.RequirePageAsync(entry.PageId, cancellationToken);
-        await cacheCoordinator.InvalidatePageAsync(page.Id, page.PageKey, cancellationToken);
+        await cacheCoordinator.InvalidatePageAsync(page.Id, page.FullPath, cancellationToken);
     }
 
     internal async Task<InternationalEntry> RequireEntryAsync(long id, CancellationToken cancellationToken) =>
@@ -89,7 +89,7 @@ public sealed class InternationalEntryService(
         var created = await repository.InsertEntryAsync(entry, translations, cancellationToken);
         // 仓储负责回填 EntryId，这里把翻译挂回聚合用于返回 DTO。
         created.Translations = translations.ToList();
-        await cacheCoordinator.InvalidatePageAsync(page.Id, page.PageKey, cancellationToken);
+        await cacheCoordinator.InvalidatePageAsync(page.Id, page.FullPath, cancellationToken);
         return MapEntryDto(created, []);
     }
 
@@ -114,7 +114,7 @@ public sealed class InternationalEntryService(
         // 翻译列表按请求整体替换，返回值也使用替换后的内存集合。
         entry.Translations = translations.ToList();
         var page = await pageService.RequirePageAsync(entry.PageId, cancellationToken);
-        await cacheCoordinator.InvalidatePageAsync(page.Id, page.PageKey, cancellationToken);
+        await cacheCoordinator.InvalidatePageAsync(page.Id, page.FullPath, cancellationToken);
         return MapEntryDto(entry, []);
     }
 
