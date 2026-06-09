@@ -1,5 +1,6 @@
 using HarborAdmin.BuildingBlocks.Caching.Attributes;
 using HarborAdmin.Modules.Admin.Contracts.Access.Dto;
+using HarborAdmin.Modules.Admin.Contracts.FeatureDesign;
 using HarborAdmin.Modules.Admin.Domain.Entities;
 
 namespace HarborAdmin.Modules.Admin.Infrastructure.Caching;
@@ -18,6 +19,16 @@ public sealed record UserMenuCacheItem(
     int SortOrder,
     string Title,
     string? Icon,
+    string? ActiveIcon,
+    string? ActivePath,
+    bool AffixTab,
+    int? AffixTabOrder,
+    bool HideInTab,
+    bool KeepAlive,
+    bool HideChildrenInMenu,
+    string? Link,
+    string? IframeSrc,
+    bool OpenInNewWindow,
     string? MetaJson,
     bool Visible,
     bool Enabled);
@@ -44,6 +55,7 @@ public sealed record RoleDataScopeCacheItem(
 /// </summary>
 public sealed record FeatureApiCacheItem(
     long Id,
+    string FeatureCode,
     string ApiCode,
     string Path,
     string HttpMethod);
@@ -69,8 +81,8 @@ public sealed record FeatureFieldCacheItem(
     string? LabelFallback,
     string? PlaceholderKey,
     string? PlaceholderFallback,
-    string Component,
-    string DataType,
+    AdminFeatureFieldComponent Component,
+    AdminFeatureFieldDataType DataType,
     bool Required,
     bool Readonly,
     int SortOrder,
@@ -80,6 +92,7 @@ public sealed record FeatureFieldCacheItem(
     bool CreateVisible,
     bool UpdateVisible,
     bool Enabled,
+    string? DictCode,
     string? OptionsJson,
     string? ValidationJson);
 
@@ -89,6 +102,17 @@ public sealed record FeatureFieldCacheItem(
 public sealed record FeatureActionApiLinkCacheItem(
     string FeatureCode,
     string ActionCode);
+
+/// <summary>
+/// API 授权端点缓存项。
+/// </summary>
+public sealed record ApiAuthorizationEndpointCacheItem(
+    long ApiId,
+    string FeatureCode,
+    string ApiCode,
+    string Path,
+    string HttpMethod,
+    string[] RequiredPermissionCodes);
 
 /// <summary>
 /// 全局 sessionVersion 缓存模型。
@@ -203,6 +227,26 @@ public sealed class EnabledFeatureActionsCacheModel
 }
 
 /// <summary>
+/// API 授权图缓存模型。
+/// </summary>
+[CacheCatalog("API 授权图", GroupPrefix = "harbor:admin:access", GroupName = "Admin 访问控制", Module = "Admin", Order = 34)]
+[CacheKey("harbor:admin:access:runtime", Key = "{ItemKey}", ExpirationSeconds = 600)]
+[CacheTag(AdminAccessCacheKeys.RuntimeTag, typeof(AdminFeatureApi), typeof(AdminFeatureAction), typeof(AdminFeatureActionApi))]
+public sealed class ApiAuthorizationMapCacheModel
+{
+    /// <summary>
+    /// 固定 key 段。
+    /// </summary>
+    [CacheKeyPart]
+    public string ItemKey { get; init; } = AdminAccessCacheKeys.ApiAuthorizationMapKey;
+
+    /// <summary>
+    /// 授权端点列表。
+    /// </summary>
+    public ApiAuthorizationEndpointCacheItem[] Endpoints { get; init; } = [];
+}
+
+/// <summary>
 /// Feature Action-API 链接缓存模型。
 /// </summary>
 [CacheCatalog("Feature Action-API 链接", GroupPrefix = "harbor:admin:access", GroupName = "Admin 访问控制", Module = "Admin", Order = 32)]
@@ -239,6 +283,11 @@ public sealed class RolePermissionsCacheModel
     public long RoleId { get; init; }
 
     /// <summary>
+    /// 兼容按 AdminRole 实体主键生成的缓存标签。
+    /// </summary>
+    public long Id => RoleId;
+
+    /// <summary>
     /// 权限码列表。
     /// </summary>
     public string[] PermissionCodes { get; init; } = [];
@@ -259,6 +308,11 @@ public sealed class RoleMenuIdsCacheModel
     /// </summary>
     [CacheKeyPart]
     public long RoleId { get; init; }
+
+    /// <summary>
+    /// 兼容按 AdminRole 实体主键生成的缓存标签。
+    /// </summary>
+    public long Id => RoleId;
 
     /// <summary>
     /// 菜单 ID 列表。
@@ -283,6 +337,11 @@ public sealed class RoleDataScopesCacheModel
     public long RoleId { get; init; }
 
     /// <summary>
+    /// 兼容按 AdminRole 实体主键生成的缓存标签。
+    /// </summary>
+    public long Id => RoleId;
+
+    /// <summary>
     /// 数据范围列表。
     /// </summary>
     public RoleDataScopeCacheItem[] Scopes { get; init; } = [];
@@ -305,6 +364,11 @@ public sealed class RoleFieldPoliciesCacheModel
     public long RoleId { get; init; }
 
     /// <summary>
+    /// 兼容按 AdminRole 实体主键生成的缓存标签。
+    /// </summary>
+    public long Id => RoleId;
+
+    /// <summary>
     /// 字段策略列表。
     /// </summary>
     public FieldPolicyDto[] Policies { get; init; } = [];
@@ -315,7 +379,7 @@ public sealed class RoleFieldPoliciesCacheModel
 /// </summary>
 [CacheCatalog("Feature 运行时 Schema", GroupPrefix = "harbor:admin:access", GroupName = "Admin 访问控制", Module = "Admin", Order = 33)]
 [CacheKey("harbor:admin:access:runtime", Key = "feature-schema:{FeatureCode}", ExpirationSeconds = 600)]
-[CacheTag(AdminAccessCacheKeys.RuntimeTag, typeof(AdminFeature), typeof(AdminFeatureField), typeof(AdminFeatureAction), typeof(AdminFeatureApi))]
+[CacheTag(AdminAccessCacheKeys.RuntimeTag, typeof(AdminFeature), typeof(AdminFeatureField), typeof(AdminFeatureAction), typeof(AdminFeatureApi), typeof(AdminDictionary), typeof(AdminDictionaryItem))]
 public sealed class FeatureRuntimeSchemaCacheModel
 {
     /// <summary>
@@ -325,19 +389,14 @@ public sealed class FeatureRuntimeSchemaCacheModel
     public string FeatureCode { get; init; } = string.Empty;
 
     /// <summary>
-    /// 名称国际化 Key。
+    /// 名称。
     /// </summary>
-    public string NameKey { get; init; } = string.Empty;
-
-    /// <summary>
-    /// 名称兜底文本。
-    /// </summary>
-    public string? NameFallback { get; init; }
+    public string? Name { get; init; }
 
     /// <summary>
     /// 功能类型。
     /// </summary>
-    public string FeatureType { get; init; } = string.Empty;
+    public AdminFeatureType FeatureType { get; init; }
 
     /// <summary>
     /// 前端组件。

@@ -69,4 +69,13 @@ public sealed class AdminServiceContext(IAdminDbContext db, IHarborCache cache, 
             .Where(item => item.VersionKey == AdminAccessCacheKeys.SessionVersionId)
             .RemoveAsync(cancellationToken);
     }
+
+    /// <summary>
+    /// 失效字典相关运行时缓存并通知前端刷新会话资源。
+    /// </summary>
+    public async Task InvalidateDictionaryRuntimeAsync(CancellationToken cancellationToken)
+    {
+        await cacheInvalidator.InvalidateTagAsync(AdminAccessCacheKeys.RuntimeTag, cancellationToken);
+        await BumpSessionVersionAsync(cancellationToken);
+    }
 }

@@ -1,4 +1,5 @@
 using HarborAdmin.Modules.Admin.Domain.Entities;
+using HarborAdmin.Modules.Admin.Contracts.FeatureDesign;
 
 namespace HarborAdmin.Modules.Admin.Infrastructure.Repositories;
 
@@ -28,7 +29,9 @@ public sealed partial class FreeSqlAdminRepository
     /// <inheritdoc />
     public async Task<IReadOnlyList<AdminFeatureAction>> GetEnabledFeatureActionsAsync(CancellationToken cancellationToken = default) =>
         await FreeSql.Select<AdminFeatureAction>()
-            .Where(action => action.Enabled)
+            .Where(action => action.Enabled
+                             && action.AdminFeature.NodeType != AdminFeatureNodeType.Category
+                             && action.AdminFeature.Enabled)
             .ToListAsync(cancellationToken);
 
     /// <inheritdoc />
@@ -52,7 +55,9 @@ public sealed partial class FreeSqlAdminRepository
     /// <inheritdoc />
     public async Task<IReadOnlyList<AdminFeatureApi>> GetEnabledFeatureApisAsync(CancellationToken cancellationToken = default) =>
         await FreeSql.Select<AdminFeatureApi>()
-            .Where(api => api.Enabled)
+            .Where(api => api.Enabled
+                          && api.AdminFeature.NodeType != AdminFeatureNodeType.Category
+                          && api.AdminFeature.Enabled)
             .ToListAsync(cancellationToken);
 
     /// <inheritdoc />

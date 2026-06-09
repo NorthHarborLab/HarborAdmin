@@ -1,4 +1,6 @@
 using HarborAdmin.Modules.Admin.Application.Abstractions;
+using HarborAdmin.Modules.Admin.Application.Services.Access;
+using HarborAdmin.BuildingBlocks.Abstractions.Auth;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.Modules.Admin.Contracts.DynamicCrud.Dto;
 using HarborAdmin.Modules.Admin.Contracts.DynamicCrud.Request;
@@ -8,15 +10,17 @@ namespace HarborAdmin.Modules.Admin.Application.Services.DynamicCrud;
 /// <summary>
 /// Admin 动态 CRUD 应用服务。
 /// </summary>
-public sealed class AdminDynamicCrudService(IAdminDynamicResourceHandlerResolver handlerResolver)
+public sealed class AdminDynamicCrudService(
+    IAdminDynamicResourceHandlerResolver handlerResolver,
+    ICurrentUser currentUser,
+    AdminRuntimeAccessService accessService,
+    AdminFieldProjectionService projectionService,
+    AdminFieldInputValidator inputValidator)
 {
     /// <summary>
     /// 查询动态资源记录。
     /// </summary>
-    public async Task<DynamicQueryResultDto> QueryAsync(
-        string featureCode,
-        DynamicQueryRequest? request,
-        CancellationToken cancellationToken)
+    public async Task<DynamicQueryResultDto> QueryAsync(string featureCode, DynamicQueryRequest? request, CancellationToken cancellationToken)
     {
         if (request is null)
         {
@@ -24,28 +28,30 @@ public sealed class AdminDynamicCrudService(IAdminDynamicResourceHandlerResolver
         }
 
         var handler = await handlerResolver.ResolveAsync(NormalizeFeatureCode(featureCode), cancellationToken);
-        return await handler.QueryAsync(NormalizeQueryRequest(request), cancellationToken);
+        var result = await handler.QueryAsync(NormalizeQueryRequest(request), cancellationToken);
+        var accessSet = await GetFieldAccessAsync(featureCode, AdminFieldSurface.List, cancellationToken);
+        var items = result.Items
+            .Select(item => ProjectDictionary(item, accessSet))
+            .ToArray();
+        return new DynamicQueryResultDto(items, result.Total);
     }
 
     /// <summary>
     /// 获取动态资源记录详情。
     /// </summary>
-    public async Task<IReadOnlyDictionary<string, object?>> GetAsync(
-        string featureCode,
-        string id,
-        CancellationToken cancellationToken)
+    public async Task<IReadOnlyDictionary<string, object?>> GetAsync(string featureCode, string id, CancellationToken cancellationToken)
     {
         var handler = await handlerResolver.ResolveAsync(NormalizeFeatureCode(featureCode), cancellationToken);
-        return await handler.GetAsync(id, cancellationToken)
-               ?? throw new NotFoundDomainException($"Dynamic record '{id}' was not found.");
+        var record = await handler.GetAsync(id, cancellationToken)
+                     ?? throw new NotFoundDomainException($"Dynamic record '{id}' was not found.");
+        var accessSet = await GetFieldAccessAsync(featureCode, AdminFieldSurface.Detail, cancellationToken);
+        return ProjectDictionary(record, accessSet);
     }
 
     /// <summary>
     /// 新增动态资源记录。
     /// </summary>
-    public async Task<IReadOnlyDictionary<string, object?>> CreateAsync(
-        string featureCode,
-        IReadOnlyDictionary<string, object?>? values,
+    public async Task<IReadOnlyDictionary<string, object?>> CreateAsync(string featureCode, IReadOnlyDictionary<string, object?>? values,
         CancellationToken cancellationToken)
     {
         if (values is null)
@@ -54,16 +60,16 @@ public sealed class AdminDynamicCrudService(IAdminDynamicResourceHandlerResolver
         }
 
         var handler = await handlerResolver.ResolveAsync(NormalizeFeatureCode(featureCode), cancellationToken);
-        return await handler.CreateAsync(values, cancellationToken);
+        await inputValidator.EnsureEditableAsync(currentUser.Id, NormalizeFeatureCode(featureCode), values, AdminFieldSurface.Create, cancellationToken);
+        var result = await handler.CreateAsync(values, cancellationToken);
+        var accessSet = await GetFieldAccessAsync(featureCode, AdminFieldSurface.Detail, cancellationToken);
+        return ProjectDictionary(result, accessSet);
     }
 
     /// <summary>
     /// 更新动态资源记录。
     /// </summary>
-    public async Task<IReadOnlyDictionary<string, object?>> UpdateAsync(
-        string featureCode,
-        string id,
-        IReadOnlyDictionary<string, object?>? values,
+    public async Task<IReadOnlyDictionary<string, object?>> UpdateAsync(string featureCode, string id, IReadOnlyDictionary<string, object?>? values,
         CancellationToken cancellationToken)
     {
         if (values is null)
@@ -72,7 +78,10 @@ public sealed class AdminDynamicCrudService(IAdminDynamicResourceHandlerResolver
         }
 
         var handler = await handlerResolver.ResolveAsync(NormalizeFeatureCode(featureCode), cancellationToken);
-        return await handler.UpdateAsync(id, values, cancellationToken);
+        await inputValidator.EnsureEditableAsync(currentUser.Id, NormalizeFeatureCode(featureCode), values, AdminFieldSurface.Update, cancellationToken);
+        var result = await handler.UpdateAsync(id, values, cancellationToken);
+        var accessSet = await GetFieldAccessAsync(featureCode, AdminFieldSurface.Detail, cancellationToken);
+        return ProjectDictionary(result, accessSet);
     }
 
     /// <summary>
@@ -102,12 +111,33 @@ public sealed class AdminDynamicCrudService(IAdminDynamicResourceHandlerResolver
     {
         var page = request.Page <= 0 ? 1 : request.Page;
         var pageSize = request.PageSize <= 0 ? 20 : Math.Min(request.PageSize, 200);
-        return request with
+        return new DynamicQueryRequest(Page: page, PageSize: pageSize, Search: request.Search ?? new Dictionary<string, object?>(),
+            Sorts: request.Sorts ?? []);
+    }
+
+    /// <summary>
+    /// 获取当前用户在动态功能下的字段访问权限。
+    /// </summary>
+    private async Task<AdminFieldPermissionSet> GetFieldAccessAsync(string featureCode, AdminFieldSurface surface, CancellationToken cancellationToken)
+    {
+        if (currentUser.Id <= 0)
         {
-            Page = page,
-            PageSize = pageSize,
-            Search = request.Search ?? new Dictionary<string, object?>(),
-            Sorts = request.Sorts ?? Array.Empty<DynamicSortItem>(),
-        };
+            throw new UnauthorizedDomainException("未登录或登录已过期。");
+        }
+
+        return await accessService.GetFieldPermissionsAsync(currentUser.Id, NormalizeFeatureCode(featureCode), surface, cancellationToken);
+    }
+
+    /// <summary>
+    /// 按字段访问权限裁剪动态记录字典。
+    /// </summary>
+    private IReadOnlyDictionary<string, object?> ProjectDictionary(IReadOnlyDictionary<string, object?> record, AdminFieldPermissionSet accessSet)
+    {
+        if (accessSet.IsSuperAdmin)
+        {
+            return record;
+        }
+
+        return (IReadOnlyDictionary<string, object?>)projectionService.Project(record, accessSet)!;
     }
 }

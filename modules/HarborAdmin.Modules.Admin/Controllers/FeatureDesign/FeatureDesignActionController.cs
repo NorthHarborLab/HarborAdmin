@@ -38,6 +38,18 @@ public sealed class FeatureDesignActionController(FeatureDesignActionService act
         [FromBody] SaveAdminFeatureActionRequest request) => ApiResult.Ok(await actionService.UpdateActionAsync(featureCode, actionCode, request, RequestCancellationToken));
 
     /// <summary>
+    /// 权限点排序。
+    /// </summary>
+    [HttpPut("reorder")]
+    public async Task<ApiResult<bool>> ReorderActions(
+        [FromRoute, Required] string featureCode,
+        [FromBody] ReorderAdminFeatureActionRequest request)
+    {
+        await actionService.ReorderActionsAsync(featureCode, request, RequestCancellationToken);
+        return ApiResult.Ok(true);
+    }
+
+    /// <summary>
     /// 删除功能动作。
     /// </summary>
     [HttpDelete("{actionCode}")]

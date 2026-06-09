@@ -7,9 +7,7 @@ namespace HarborAdmin.Modules.Admin.Application.Services.Access;
 /// <summary>
 /// 基于 Admin access token 的用户解析实现。
 /// </summary>
-public sealed class AdminPrincipalResolver(
-    AdminTokenProtector tokenProtector,
-    UserService userService) : IAdminPrincipalResolver
+public sealed class AdminPrincipalResolver(AdminTokenProtector tokenProtector, UserService userService) : IAdminPrincipalResolver
 {
     /// <inheritdoc />
     public async Task<AdminPrincipalSnapshot?> ResolveAsync(string? accessToken, CancellationToken cancellationToken = default)

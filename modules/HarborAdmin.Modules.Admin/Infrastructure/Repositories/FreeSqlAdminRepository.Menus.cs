@@ -1,4 +1,5 @@
 using HarborAdmin.Modules.Admin.Domain.Entities;
+using HarborAdmin.Modules.Admin.Contracts.FeatureDesign;
 
 namespace HarborAdmin.Modules.Admin.Infrastructure.Repositories;
 
@@ -10,12 +11,15 @@ public sealed partial class FreeSqlAdminRepository
     /// <inheritdoc />
     public async Task<IReadOnlyList<AdminFeature>> ListFeaturesAsync(CancellationToken cancellationToken = default) =>
         await FreeSql.Select<AdminFeature>()
+            .Where(feature => feature.NodeType != AdminFeatureNodeType.Category)
             .ToListAsync(cancellationToken);
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<AdminFeatureAction>> ListEnabledFeatureActionsAsync(CancellationToken cancellationToken = default) =>
         await FreeSql.Select<AdminFeatureAction>()
-            .Where(action => action.Enabled)
+            .Where(action => action.Enabled
+                             && action.AdminFeature.NodeType != AdminFeatureNodeType.Category
+                             && action.AdminFeature.Enabled)
             .ToListAsync(cancellationToken);
 
     /// <inheritdoc />
@@ -39,16 +43,28 @@ public sealed partial class FreeSqlAdminRepository
         FreeSql.Select<AdminMenu>().Where(menu => menu.ParentId == parentId).CountAsync(cancellationToken);
 
     /// <inheritdoc />
-    public Task<bool> MenuNameExistsAsync(string name, long? id, CancellationToken cancellationToken = default) =>
-        FreeSql.Select<AdminMenu>()
-            .Where(menu => menu.Title == name && (!id.HasValue || menu.Id != id.Value))
-            .AnyAsync(cancellationToken);
+    public Task<bool> MenuNameExistsAsync(string name, long? id, CancellationToken cancellationToken = default)
+    {
+        var query = FreeSql.Select<AdminMenu>().Where(menu => menu.Title == name);
+        if (id.HasValue)
+        {
+            query = query.Where(menu => menu.Id != id.Value);
+        }
+
+        return query.AnyAsync(cancellationToken);
+    }
 
     /// <inheritdoc />
-    public Task<bool> MenuPathExistsAsync(string path, long? id, CancellationToken cancellationToken = default) =>
-        FreeSql.Select<AdminMenu>()
-            .Where(menu => menu.RoutePath == path && (!id.HasValue || menu.Id != id.Value))
-            .AnyAsync(cancellationToken);
+    public Task<bool> MenuPathExistsAsync(string path, long? id, CancellationToken cancellationToken = default)
+    {
+        var query = FreeSql.Select<AdminMenu>().Where(menu => menu.RoutePath == path);
+        if (id.HasValue)
+        {
+            query = query.Where(menu => menu.Id != id.Value);
+        }
+
+        return query.AnyAsync(cancellationToken);
+    }
 
     /// <inheritdoc />
     public Task UpdateMenusAsync(IReadOnlyList<AdminMenu> menus, CancellationToken cancellationToken = default) =>

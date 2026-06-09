@@ -1,6 +1,7 @@
 using HarborAdmin.Modules.Admin.Application.Abstractions;
 using HarborAdmin.Modules.Admin.Domain.Entities;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
+using HarborAdmin.Modules.Admin.Contracts.FeatureDesign;
 using HarborAdmin.Modules.Admin.Infrastructure.Contexts;
 
 namespace HarborAdmin.Modules.Admin.Infrastructure.Resolvers;
@@ -19,7 +20,9 @@ public sealed class AdminDynamicResourceHandlerResolver(
     public async Task<IAdminDynamicResourceHandler> ResolveAsync(string viewCode, CancellationToken cancellationToken)
     {
         var feature = await db.Orm.Select<AdminFeature>()
-                          .Where(item => item.FeatureCode == viewCode && item.Enabled)
+                          .Where(item => item.FeatureCode == viewCode
+                                         && item.Enabled
+                                         && item.NodeType != AdminFeatureNodeType.Category)
                           .FirstAsync(cancellationToken)
                       ?? throw new NotFoundDomainException($"Dynamic feature '{viewCode}' was not found.");
         var handlerKey = string.IsNullOrWhiteSpace(feature.HandlerKey)

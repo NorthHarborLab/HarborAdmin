@@ -1,6 +1,7 @@
 using FreeSql;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.Modules.Admin.Application.Abstractions;
+using HarborAdmin.Modules.Admin.Contracts.FeatureDesign;
 using HarborAdmin.Modules.Admin.Domain.Entities;
 using HarborAdmin.Modules.Admin.Infrastructure.Contexts;
 
@@ -122,7 +123,8 @@ public sealed class SystemServiceContext(IAdminDbContext db, IAdminRepository re
         }
 
         return await Orm.Select<AdminFeature>()
-            .Where(feature => feature.FeatureCode == featureCode.Trim())
+            .Where(feature => feature.FeatureCode == featureCode.Trim()
+                              && feature.NodeType != AdminFeatureNodeType.Category)
             .ToOneAsync(cancellationToken);
     }
 }

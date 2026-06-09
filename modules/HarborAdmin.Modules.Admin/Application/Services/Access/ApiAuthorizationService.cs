@@ -11,39 +11,44 @@ public sealed class ApiAuthorizationService(AccessCacheService accessCache)
     public async Task<bool> CanAccessApiAsync(long userId, string path, string method, CancellationToken cancellationToken)
     {
         var snapshot = await accessCache.GetUserSnapshotAsync(userId, cancellationToken);
+        var endpoints = await accessCache.GetApiAuthorizationMapAsync(cancellationToken);
+        var normalizedMethod = method.ToUpperInvariant();
+        var normalizedPath = NormalizePath(path);
+        var endpoint = endpoints
+            .Where(api => api.HttpMethod == normalizedMethod)
+            .OrderByDescending(api => ExactSegmentCount(api.Path))
+            .FirstOrDefault(api => AccessPathMatcher.Matches(NormalizePath(api.Path), normalizedPath));
+        if (endpoint is null)
+        {
+            return false;
+        }
+
         if (snapshot.IsSuperAdmin)
         {
             return true;
         }
 
-        var apis = await accessCache.GetEnabledFeatureApisAsync(cancellationToken);
-        var endpoint = apis
-            .Where(api => api.HttpMethod == method.ToUpperInvariant())
-            .FirstOrDefault(api => AccessPathMatcher.Matches(api.Path, path));
-        if (endpoint is null)
-        {
-            return true;
-        }
-
-        var actionLinks = await accessCache.GetFeatureActionApiLinksAsync(endpoint.Id, cancellationToken);
-        if (actionLinks.Count == 0)
-        {
-            return true;
-        }
-
-        var actionKeys = actionLinks
-            .Select(link => $"{link.FeatureCode}\u001F{link.ActionCode}")
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var featureCodes = actionLinks.Select(link => link.FeatureCode).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
-        var actions = (await accessCache.GetEnabledFeatureActionsAsync(cancellationToken))
-            .Where(action => featureCodes.Contains(action.FeatureCode))
-            .Where(action => actionKeys.Contains($"{action.FeatureCode}\u001F{action.ActionCode}"))
-            .ToList();
-        if (actions.Count == 0)
-        {
-            return true;
-        }
-
-        return actions.Any(action => snapshot.Permissions.Contains(action.PermissionCode));
+        return endpoint.RequiredPermissionCodes.Length > 0
+               && endpoint.RequiredPermissionCodes.Any(permission => snapshot.Permissions.Contains(permission));
     }
+
+    /// <summary>
+    /// 规范化请求路径，消除 <c>/api</c> 前缀差异。
+    /// </summary>
+    private static string NormalizePath(string path)
+    {
+        var normalized = "/" + path.Trim('/');
+        return normalized.StartsWith("/api/", StringComparison.OrdinalIgnoreCase)
+            ? normalized["/api".Length..]
+            : normalized;
+    }
+
+    /// <summary>
+    /// 计算路径模板中的固定片段数量，用于优先匹配更具体的接口。
+    /// </summary>
+    private static int ExactSegmentCount(string path) =>
+        NormalizePath(path)
+            .Trim('/')
+            .Split('/', StringSplitOptions.RemoveEmptyEntries)
+            .Count(segment => !(segment.StartsWith('{') && segment.EndsWith('}')));
 }

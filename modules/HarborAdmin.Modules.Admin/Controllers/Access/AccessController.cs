@@ -11,6 +11,7 @@ namespace HarborAdmin.Modules.Admin.Controllers.Access;
 /// 当前用户访问包接口（需 access token）。
 /// </summary>
 [ApiController]
+[AuthenticatedOnly]
 [Route("api/admin/access")]
 public sealed class AccessController(
     SessionService sessionService,

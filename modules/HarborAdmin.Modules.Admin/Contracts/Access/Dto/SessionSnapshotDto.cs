@@ -10,4 +10,5 @@ public sealed record SessionSnapshotDto(
     IReadOnlyList<BackendRouteDto> Routes,
     IReadOnlyList<FieldPolicyDto> FieldPolicies,
     IReadOnlyList<DataScopeDto> DataScopes,
+    IReadOnlyList<FeatureResourceDto> Resources,
     string HomePath);

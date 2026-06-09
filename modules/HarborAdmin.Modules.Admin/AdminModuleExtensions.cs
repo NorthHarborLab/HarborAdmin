@@ -4,6 +4,7 @@ using HarborAdmin.Modules.Admin.Application.Services.Auth;
 using HarborAdmin.Modules.Admin.Application.Services.Access;
 using HarborAdmin.Modules.Admin.Application.Services.Captcha;
 using HarborAdmin.Modules.Admin.Application.Services.Dept;
+using HarborAdmin.Modules.Admin.Application.Services.Dictionary;
 using HarborAdmin.Modules.Admin.Application.Services.DynamicCrud;
 using HarborAdmin.Modules.Admin.Application.Services.FeatureDesign;
 using HarborAdmin.Modules.Admin.Application.Services.Menu;
@@ -35,6 +36,7 @@ public static class AdminModuleExtensions
         AddAdminAuth(services);
         AddAdminAccess(services);
         AddAdminSystemManagement(services);
+        AddAdminDictionary(services);
         AddAdminFeatureDesign(services);
         AddAdminDynamicCrud(services);
         return services;
@@ -76,6 +78,9 @@ public static class AdminModuleExtensions
         services.AddScoped<SessionService>();
         services.AddScoped<ApiAuthorizationService>();
         services.AddScoped<FieldPolicyService>();
+        services.AddScoped<AdminRuntimeAccessService>();
+        services.AddScoped<AdminFieldProjectionService>();
+        services.AddScoped<AdminFieldInputValidator>();
     }
 
     /// <summary>
@@ -88,6 +93,15 @@ public static class AdminModuleExtensions
         services.AddScoped<RoleService>();
         services.AddScoped<UserService>();
         services.AddScoped<CacheManagementService>();
+    }
+
+    /// <summary>
+    /// 注册字典服务。
+    /// </summary>
+    private static void AddAdminDictionary(IServiceCollection services)
+    {
+        services.AddScoped<AdminDictionaryService>();
+        services.AddScoped<AdminFieldOptionResolver>();
     }
 
     /// <summary>
@@ -109,5 +123,6 @@ public static class AdminModuleExtensions
     private static void AddAdminDynamicCrud(IServiceCollection services)
     {
         services.AddScoped<AdminDynamicCrudService>();
+        services.AddSingleton<IAdminDynamicResourceHandler, AuthDynamicTestResourceHandler>();
     }
 }

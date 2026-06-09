@@ -14,20 +14,22 @@ namespace HarborAdmin.Modules.Admin.Controllers.Metadata;
 [Route("api/admin/features")]
 public sealed class MetadataController(
     AdminMetadataService service,
-    FieldPolicyService fieldPolicyService,
+    AdminRuntimeAccessService accessService,
     ICurrentUser currentUser) : ControllerBase
 {
     /// <summary>
     /// 获取指定动态 Feature schema。
     /// </summary>
     [HttpGet("{featureCode}/schema")]
+    [AuthenticatedOnly]
     public async Task<ApiResult<DynamicViewSchemaDto>> GetSchema(
         string featureCode,
         CancellationToken cancellationToken)
     {
-        var policies = currentUser.Id <= 0
-            ? []
-            : await fieldPolicyService.GetFieldPoliciesForUserAsync(currentUser.Id, cancellationToken);
-        return ApiResult.Ok(await service.GetSchemaAsync(featureCode, policies, cancellationToken));
+        var accessSet = currentUser.Id <= 0
+            ? new AdminFieldPermissionSet(false, new HashSet<string>(StringComparer.OrdinalIgnoreCase), new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+                new HashSet<string>(StringComparer.OrdinalIgnoreCase), new HashSet<string>(StringComparer.OrdinalIgnoreCase))
+            : await accessService.GetFieldPermissionsAsync(currentUser.Id, featureCode, AdminFieldSurface.Detail, cancellationToken);
+        return ApiResult.Ok(await service.GetSchemaAsync(featureCode, accessSet, cancellationToken));
     }
 }

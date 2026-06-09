@@ -23,8 +23,8 @@ public sealed class FeatureDesignActionService
     /// </summary>
     public async Task<IReadOnlyList<AdminFeatureActionDto>> ListActionsAsync(string featureCode, CancellationToken cancellationToken)
     {
-        var feature = await _context.LoadFeatureAggregateAsync(featureCode, cancellationToken)
-                      ?? throw new NotFoundDomainException($"Feature '{featureCode}' was not found.");
+        var feature = _context.EnsureFeatureNode(await _context.LoadFeatureAggregateAsync(featureCode, cancellationToken)
+                          ?? throw new NotFoundDomainException($"Feature '{featureCode}' was not found."));
         return feature.Actions
             .OrderBy(item => item.SortOrder)
             .Select(MapAction)
@@ -36,8 +36,8 @@ public sealed class FeatureDesignActionService
     /// </summary>
     public async Task<AdminFeatureActionDto> CreateActionAsync(string featureCode, SaveAdminFeatureActionRequest request, CancellationToken cancellationToken)
     {
-        var feature = await _context.LoadFeatureAggregateAsync(featureCode, cancellationToken)
-                      ?? throw new NotFoundDomainException($"Feature '{featureCode}' was not found.");
+        var feature = _context.EnsureFeatureNode(await _context.LoadFeatureAggregateAsync(featureCode, cancellationToken)
+                          ?? throw new NotFoundDomainException($"Feature '{featureCode}' was not found."));
         var normalized = feature.FeatureCode;
         var actionCode = request.ActionCode.Trim();
         var permissionCode = request.PermissionCode.Trim();
@@ -75,8 +75,8 @@ public sealed class FeatureDesignActionService
     /// </summary>
     public async Task<AdminFeatureActionDto> UpdateActionAsync(string featureCode, string actionCode, SaveAdminFeatureActionRequest request, CancellationToken cancellationToken)
     {
-        var feature = await _context.LoadFeatureAggregateAsync(featureCode, cancellationToken)
-                      ?? throw new NotFoundDomainException($"Feature '{featureCode}' was not found.");
+        var feature = _context.EnsureFeatureNode(await _context.LoadFeatureAggregateAsync(featureCode, cancellationToken)
+                          ?? throw new NotFoundDomainException($"Feature '{featureCode}' was not found."));
         var normalized = feature.FeatureCode;
         var normalizedAction = actionCode.Trim();
         var action = feature.Actions.FirstOrDefault(item => string.Equals(item.ActionCode, normalizedAction, StringComparison.OrdinalIgnoreCase))
@@ -112,12 +112,44 @@ public sealed class FeatureDesignActionService
     }
 
     /// <summary>
+    /// 排序权限点。
+    /// </summary>
+    public async Task ReorderActionsAsync(string featureCode, ReorderAdminFeatureActionRequest request, CancellationToken cancellationToken)
+    {
+        var feature = _context.EnsureFeatureNode(await _context.LoadFeatureAggregateAsync(featureCode, cancellationToken)
+                          ?? throw new NotFoundDomainException($"Feature '{featureCode}' was not found."));
+        var actions = feature.Actions
+            .OrderBy(item => item.SortOrder)
+            .ThenBy(item => item.ActionCode)
+            .ToArray();
+        var actionIds = actions.Select(item => item.Id).ToHashSet();
+        if (actions.Length != request.OrderedIds!.Count || request.OrderedIds.Any(id => !actionIds.Contains(id)))
+        {
+            throw new ValidationDomainException("只能在当前功能的权限点内排序。");
+        }
+
+        var orderedIndex = request.OrderedIds
+            .Select((id, index) => new { id, index })
+            .ToDictionary(item => item.id, item => item.index);
+        var now = DateTimeOffset.UtcNow;
+        foreach (var action in actions)
+        {
+            action.SortOrder = (orderedIndex[action.Id] + 1) * 10;
+            action.UpdatedAt = now;
+        }
+
+        await _context.Db.Orm.Update<AdminFeatureAction>().SetSource(actions).ExecuteAffrowsAsync(cancellationToken);
+        await _context.IncrementSchemaVersionAsync(feature.FeatureCode, cancellationToken);
+        await _context.AdminContext.BumpSessionVersionAsync(cancellationToken);
+    }
+
+    /// <summary>
     /// 删除动作。
     /// </summary>
     public async Task DeleteActionAsync(string featureCode, string actionCode, CancellationToken cancellationToken)
     {
-        var feature = await _context.LoadFeatureAggregateAsync(featureCode, cancellationToken)
-                      ?? throw new NotFoundDomainException($"Feature '{featureCode}' was not found.");
+        var feature = _context.EnsureFeatureNode(await _context.LoadFeatureAggregateAsync(featureCode, cancellationToken)
+                          ?? throw new NotFoundDomainException($"Feature '{featureCode}' was not found."));
         var normalized = feature.FeatureCode;
         var normalizedAction = actionCode.Trim();
         var action = feature.Actions.FirstOrDefault(item => string.Equals(item.ActionCode, normalizedAction, StringComparison.OrdinalIgnoreCase))
@@ -136,8 +168,8 @@ public sealed class FeatureDesignActionService
     /// </summary>
     public async Task<AdminFeatureActionDto> SaveActionApisAsync(string featureCode, string actionCode, IReadOnlyList<long> apiIds, CancellationToken cancellationToken)
     {
-        var feature = await _context.LoadFeatureAggregateAsync(featureCode, cancellationToken)
-                      ?? throw new NotFoundDomainException($"Feature '{featureCode}' was not found.");
+        var feature = _context.EnsureFeatureNode(await _context.LoadFeatureAggregateAsync(featureCode, cancellationToken)
+                          ?? throw new NotFoundDomainException($"Feature '{featureCode}' was not found."));
         var normalized = feature.FeatureCode;
         var normalizedAction = actionCode.Trim();
         var action = feature.Actions.FirstOrDefault(item => string.Equals(item.ActionCode, normalizedAction, StringComparison.OrdinalIgnoreCase))
@@ -153,8 +185,8 @@ public sealed class FeatureDesignActionService
     /// </summary>
     private async Task ReplaceActionApisAsync(string featureCode, string actionCode, IReadOnlyList<long> apiIds, CancellationToken cancellationToken)
     {
-        var feature = await _context.LoadFeatureAggregateAsync(featureCode, cancellationToken)
-                      ?? throw new NotFoundDomainException($"Feature '{featureCode}' was not found.");
+        var feature = _context.EnsureFeatureNode(await _context.LoadFeatureAggregateAsync(featureCode, cancellationToken)
+                          ?? throw new NotFoundDomainException($"Feature '{featureCode}' was not found."));
         var action = feature.Actions.FirstOrDefault(item => string.Equals(item.ActionCode, actionCode, StringComparison.OrdinalIgnoreCase))
                       ?? throw new NotFoundDomainException($"Feature action '{feature.FeatureCode}.{actionCode}' was not found.");
         var distinctApiIds = apiIds
@@ -172,10 +204,12 @@ public sealed class FeatureDesignActionService
             return;
         }
 
-        var validApis = feature.Apis.Where(item => distinctApiIds.Contains(item.Id)).ToArray();
-        if (validApis.Length != distinctApiIds.Length)
+        var validApis = await _context.Db.Orm.Select<AdminFeatureApi>()
+            .Where(item => distinctApiIds.Contains(item.Id))
+            .ToListAsync(cancellationToken);
+        if (validApis.Count != distinctApiIds.Length)
         {
-            throw new ValidationDomainException("动作只能绑定当前 Feature 下已存在的 API。");
+            throw new ValidationDomainException("动作只能绑定已存在的 API。");
         }
 
         action.ActionApis = validApis.Select(api => new AdminFeatureActionApi

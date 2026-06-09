@@ -3,7 +3,7 @@ namespace HarborAdmin.Modules.Admin.Contracts.FeatureDesign;
 /// <summary>
 /// 功能类型。
 /// </summary>
-public enum AdminFeatureType
+public enum AdminFeatureType : short
 {
     /// <summary>
     /// 静态页面。

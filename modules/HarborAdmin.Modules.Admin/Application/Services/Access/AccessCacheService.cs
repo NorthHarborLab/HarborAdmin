@@ -52,7 +52,7 @@ public sealed class AccessCacheService(IHarborCache cache, IHarborCacheInvalidat
                 return new EnabledFeatureApisCacheModel
                 {
                     ItemKey = AdminAccessCacheKeys.FeatureApisKey,
-                    Apis = apis.Select(api => new FeatureApiCacheItem(api.Id, api.ApiCode, api.Path, api.HttpMethod)).ToArray(),
+                    Apis = apis.Select(api => new FeatureApiCacheItem(api.Id, api.FeatureCode, api.ApiCode, api.Path, api.HttpMethod)).ToArray(),
                 };
             }, cancellationToken);
         return model.Apis;
@@ -85,11 +85,54 @@ public sealed class AccessCacheService(IHarborCache cache, IHarborCacheInvalidat
     }
 
     /// <summary>
+    /// 获取 API 授权图。
+    /// </summary>
+    public async Task<IReadOnlyList<ApiAuthorizationEndpointCacheItem>> GetApiAuthorizationMapAsync(CancellationToken cancellationToken)
+    {
+        var model = await cache.Get<ApiAuthorizationMapCacheModel>()
+            .Where(item => item.ItemKey == AdminAccessCacheKeys.ApiAuthorizationMapKey)
+            .GetOrCreateAsync(async ct =>
+            {
+                var apis = await GetEnabledFeatureApisAsync(ct);
+                var actions = await GetEnabledFeatureActionsAsync(ct);
+                var actionMap = actions.ToDictionary(
+                    action => $"{action.FeatureCode}\u001F{action.ActionCode}",
+                    action => action.PermissionCode,
+                    StringComparer.OrdinalIgnoreCase);
+                var endpoints = new List<ApiAuthorizationEndpointCacheItem>(apis.Count);
+
+                foreach (var api in apis)
+                {
+                    var links = await GetFeatureActionApiLinksAsync(api.Id, ct);
+                    var requiredPermissions = links
+                        .Select(link => actionMap.GetValueOrDefault($"{link.FeatureCode}\u001F{link.ActionCode}"))
+                        .Where(permission => !string.IsNullOrWhiteSpace(permission))
+                        .Select(permission => permission!)
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToArray();
+                    endpoints.Add(new ApiAuthorizationEndpointCacheItem(
+                        api.Id,
+                        api.FeatureCode,
+                        api.ApiCode,
+                        api.Path,
+                        api.HttpMethod,
+                        requiredPermissions));
+                }
+
+                return new ApiAuthorizationMapCacheModel
+                {
+                    ItemKey = AdminAccessCacheKeys.ApiAuthorizationMapKey,
+                    Endpoints = endpoints.ToArray(),
+                };
+            }, cancellationToken);
+
+        return model.Endpoints;
+    }
+
+    /// <summary>
     /// 获取指定 API 绑定的 Action 链接。
     /// </summary>
-    public async Task<IReadOnlyList<FeatureActionApiLinkCacheItem>> GetFeatureActionApiLinksAsync(
-        long featureApiId,
-        CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<FeatureActionApiLinkCacheItem>> GetFeatureActionApiLinksAsync(long featureApiId, CancellationToken cancellationToken)
     {
         var model = await cache.Get<FeatureActionApiLinksCacheModel>()
             .Where(item => item.FeatureApiId == featureApiId)
@@ -230,9 +273,7 @@ public sealed class AccessCacheService(IHarborCache cache, IHarborCacheInvalidat
     /// <summary>
     /// 获取 Feature 运行时 schema。
     /// </summary>
-    public async Task<FeatureRuntimeSchemaCacheModel> GetFeatureRuntimeSchemaAsync(
-        string featureCode,
-        CancellationToken cancellationToken)
+    public async Task<FeatureRuntimeSchemaCacheModel> GetFeatureRuntimeSchemaAsync(string featureCode, CancellationToken cancellationToken)
     {
         var normalized = featureCode.Trim();
         return await cache.Get<FeatureRuntimeSchemaCacheModel>()
@@ -244,8 +285,7 @@ public sealed class AccessCacheService(IHarborCache cache, IHarborCacheInvalidat
                 return new FeatureRuntimeSchemaCacheModel
                 {
                     FeatureCode = feature.FeatureCode,
-                    NameKey = feature.NameKey,
-                    NameFallback = feature.NameFallback,
+                    Name = feature.Name,
                     FeatureType = feature.FeatureType,
                     Component = feature.Component,
                     RoutePath = feature.RoutePath,
@@ -267,6 +307,7 @@ public sealed class AccessCacheService(IHarborCache cache, IHarborCacheInvalidat
                         field.CreateVisible,
                         field.UpdateVisible,
                         field.Enabled,
+                        field.DictCode,
                         field.OptionsJson,
                         field.ValidationJson)).ToArray(),
                     Actions = feature.Actions.Select(action => new FeatureActionCacheItem(
@@ -277,7 +318,7 @@ public sealed class AccessCacheService(IHarborCache cache, IHarborCacheInvalidat
                         action.LabelFallback,
                         action.SortOrder,
                         action.Enabled)).ToArray(),
-                    Apis = feature.Apis.Select(api => new FeatureApiCacheItem(api.Id, api.ApiCode, api.Path, api.HttpMethod)).ToArray(),
+                    Apis = feature.Apis.Select(api => new FeatureApiCacheItem(api.Id, api.FeatureCode, api.ApiCode, api.Path, api.HttpMethod)).ToArray(),
                 };
             }, cancellationToken);
     }
@@ -302,10 +343,7 @@ public sealed class AccessCacheService(IHarborCache cache, IHarborCacheInvalidat
     /// <summary>
     /// 从数据库加载用户访问快照。
     /// </summary>
-    private async ValueTask<UserAccessSnapshotCacheModel> LoadUserSnapshotAsync(
-        long userId,
-        long sessionVersion,
-        CancellationToken cancellationToken)
+    private async ValueTask<UserAccessSnapshotCacheModel> LoadUserSnapshotAsync(long userId, long sessionVersion, CancellationToken cancellationToken)
     {
         var user = await context.Orm.Select<AdminUser>().Where(item => item.Id == userId).ToOneAsync(cancellationToken);
         if (user is not { Enabled: true })
@@ -397,10 +435,7 @@ public sealed class AccessCacheService(IHarborCache cache, IHarborCacheInvalidat
     /// <summary>
     /// 根据角色数据范围计算用户可访问部门集合。
     /// </summary>
-    private async Task<long[]?> ComputeAllowedDepartmentIdsAsync(
-        AdminUser user,
-        IReadOnlyList<AdminRole> roles,
-        CancellationToken cancellationToken)
+    private async Task<long[]?> ComputeAllowedDepartmentIdsAsync(AdminUser user, IReadOnlyList<AdminRole> roles, CancellationToken cancellationToken)
     {
         if (roles.Any(role => role.DataScopeType == "All"))
         {
@@ -455,6 +490,16 @@ public sealed class AccessCacheService(IHarborCache cache, IHarborCacheInvalidat
             menu.SortOrder,
             menu.Title,
             menu.Icon,
+            menu.ActiveIcon,
+            menu.ActivePath,
+            menu.AffixTab,
+            menu.AffixTabOrder,
+            menu.HideInTab,
+            menu.KeepAlive,
+            menu.HideChildrenInMenu,
+            menu.Link,
+            menu.IframeSrc,
+            menu.OpenInNewWindow,
             menu.MetaJson,
             menu.Visible,
             menu.Enabled);
@@ -472,6 +517,16 @@ public sealed class AccessCacheService(IHarborCache cache, IHarborCacheInvalidat
             SortOrder = item.SortOrder,
             Title = item.Title,
             Icon = item.Icon,
+            ActiveIcon = item.ActiveIcon,
+            ActivePath = item.ActivePath,
+            AffixTab = item.AffixTab,
+            AffixTabOrder = item.AffixTabOrder,
+            HideInTab = item.HideInTab,
+            KeepAlive = item.KeepAlive,
+            HideChildrenInMenu = item.HideChildrenInMenu,
+            Link = item.Link,
+            IframeSrc = item.IframeSrc,
+            OpenInNewWindow = item.OpenInNewWindow,
             MetaJson = item.MetaJson,
             Visible = item.Visible,
             Enabled = item.Enabled,

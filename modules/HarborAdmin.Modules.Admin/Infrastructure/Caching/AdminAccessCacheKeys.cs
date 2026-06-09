@@ -44,4 +44,9 @@ public static class AdminAccessCacheKeys
     /// 全局 Feature Action 列表缓存 key 段。
     /// </summary>
     public const string FeatureActionsKey = "feature-actions";
+
+    /// <summary>
+    /// API 授权图缓存 key 段。
+    /// </summary>
+    public const string ApiAuthorizationMapKey = "api-authorization-map";
 }

@@ -28,15 +28,27 @@ public sealed class MenuController(MenuService menuService) : ControllerBase
     /// 菜单名称是否存在。
     /// </summary>
     [HttpGet("name-exists")]
-    public async Task<ApiResult<bool>> NameExists([FromQuery] string name, [FromQuery] long? id, CancellationToken cancellationToken) =>
-        ApiResult.Ok(await menuService.MenuNameExistsAsync(name, id, cancellationToken));
+    public async Task<ApiResult<bool>> NameExists(
+        [FromQuery] string name,
+        [FromQuery] string? id,
+        CancellationToken cancellationToken) =>
+        ApiResult.Ok(await menuService.MenuNameExistsAsync(name, ParseMenuId(id), cancellationToken));
 
     /// <summary>
     /// 菜单路径是否存在。
     /// </summary>
     [HttpGet("path-exists")]
-    public async Task<ApiResult<bool>> PathExists([FromQuery] string path, [FromQuery] long? id, CancellationToken cancellationToken) =>
-        ApiResult.Ok(await menuService.MenuPathExistsAsync(path, id, cancellationToken));
+    public async Task<ApiResult<bool>> PathExists(
+        [FromQuery] string path,
+        [FromQuery] string? id,
+        CancellationToken cancellationToken) =>
+        ApiResult.Ok(await menuService.MenuPathExistsAsync(path, ParseMenuId(id), cancellationToken));
+
+    /// <summary>
+    /// 解析菜单 ID 查询参数。
+    /// </summary>
+    private static long? ParseMenuId(string? id) =>
+        long.TryParse(id, out var menuId) ? menuId : null;
 
     /// <summary>
     /// 创建菜单。

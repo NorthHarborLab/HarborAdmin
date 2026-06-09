@@ -24,6 +24,13 @@ public sealed class FeatureDesignApiController(FeatureDesignApiService apiServic
         ApiResult.Ok(await apiService.ListApisAsync(featureCode, RequestCancellationToken));
 
     /// <summary>
+    /// 查询全部功能 API 树。
+    /// </summary>
+    [HttpGet("/api/admin/feature-design/apis/tree")]
+    public async Task<ApiResult<IReadOnlyList<AdminFeatureApiTreeDto>>> ListApiTree() =>
+        ApiResult.Ok(await apiService.ListApiTreeAsync(RequestCancellationToken));
+
+    /// <summary>
     /// 新建功能 API。
     /// </summary>
     [HttpPost]
@@ -41,6 +48,18 @@ public sealed class FeatureDesignApiController(FeatureDesignApiService apiServic
         [FromRoute, Required] string apiCode,
         [FromBody] SaveAdminFeatureApiRequest request) =>
         ApiResult.Ok(await apiService.UpdateApiAsync(featureCode, apiCode, request, RequestCancellationToken));
+
+    /// <summary>
+    /// API 排序。
+    /// </summary>
+    [HttpPut("reorder")]
+    public async Task<ApiResult<bool>> ReorderApis(
+        [FromRoute, Required] string featureCode,
+        [FromBody] ReorderAdminFeatureApiRequest request)
+    {
+        await apiService.ReorderApisAsync(featureCode, request, RequestCancellationToken);
+        return ApiResult.Ok(true);
+    }
 
     /// <summary>
     /// 删除功能 API。

@@ -39,16 +39,12 @@ public sealed class SaveAdminFeatureFieldRequest
     /// <summary>
     /// 字段组件。
     /// </summary>
-    [Required(ErrorMessage = "字段组件不能为空。")]
-    [MaxLength(120)]
-    public string Component { get; set; } = string.Empty;
+    public AdminFeatureFieldComponent Component { get; set; } = AdminFeatureFieldComponent.Input;
 
     /// <summary>
     /// 字段数据类型。
     /// </summary>
-    [Required(ErrorMessage = "字段数据类型不能为空。")]
-    [MaxLength(80)]
-    public string DataType { get; set; } = string.Empty;
+    public AdminFeatureFieldDataType DataType { get; set; } = AdminFeatureFieldDataType.String;
 
     /// <summary>
     /// 列表是否可见。
@@ -89,6 +85,12 @@ public sealed class SaveAdminFeatureFieldRequest
     /// 字段宽度。
     /// </summary>
     public int? Width { get; set; }
+
+    /// <summary>
+    /// 关联字典编码。
+    /// </summary>
+    [MaxLength(120)]
+    public string? DictCode { get; set; }
 
     /// <summary>
     /// 选项 JSON。

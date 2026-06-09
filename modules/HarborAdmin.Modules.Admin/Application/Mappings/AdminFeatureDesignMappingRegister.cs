@@ -12,7 +12,8 @@ public sealed class AdminFeatureDesignMappingRegister : IRegister
     /// <inheritdoc />
     public void Register(TypeAdapterConfig config)
     {
-        config.NewConfig<AdminFeature, AdminFeatureDto>();
+        config.NewConfig<AdminFeature, AdminFeatureDto>()
+            .Ignore(destination => destination.Children);
         config.NewConfig<AdminFeatureField, AdminFeatureFieldDto>();
         config.NewConfig<AdminFeatureApi, AdminFeatureApiDto>();
         config.NewConfig<AdminFeatureActionMappingSource, AdminFeatureActionDto>()

@@ -8,6 +8,11 @@ namespace HarborAdmin.Modules.Admin.Contracts.FeatureDesign.Request;
 public sealed class SaveAdminFeatureRequest
 {
     /// <summary>
+    /// 父级分类 ID。
+    /// </summary>
+    public long? ParentId { get; set; }
+
+    /// <summary>
     /// 功能编码。
     /// </summary>
     [Required(ErrorMessage = "功能编码不能为空。")]
@@ -15,27 +20,23 @@ public sealed class SaveAdminFeatureRequest
     public string FeatureCode { get; set; } = string.Empty;
 
     /// <summary>
-    /// 功能名称 I18n Key。
+    /// 功能名称。
     /// </summary>
-    [Required(ErrorMessage = "功能名称 Key 不能为空。")]
-    [MaxLength(120)]
-    public string NameKey { get; set; } = string.Empty;
+    public string? Name { get; set; }
 
     /// <summary>
-    /// 功能名称默认文案。
+    /// 节点类型。
     /// </summary>
-    public string? NameFallback { get; set; }
+    public AdminFeatureNodeType NodeType { get; set; } = AdminFeatureNodeType.Feature;
 
     /// <summary>
     /// 功能类型。
     /// </summary>
-    [Required(ErrorMessage = "功能类型不能为空。")]
-    public string FeatureType { get; set; } = "Static";
+    public AdminFeatureType FeatureType { get; set; } = AdminFeatureType.Static;
 
     /// <summary>
     /// 组件标识。
     /// </summary>
-    [Required(ErrorMessage = "功能组件不能为空。")]
     [MaxLength(120)]
     public string Component { get; set; } = string.Empty;
 
@@ -43,11 +44,6 @@ public sealed class SaveAdminFeatureRequest
     /// 动态组件处理器。
     /// </summary>
     public string? HandlerKey { get; set; }
-
-    /// <summary>
-    /// 模块名称。
-    /// </summary>
-    public string? ModuleName { get; set; }
 
     /// <summary>
     /// 路由路径。
@@ -58,4 +54,9 @@ public sealed class SaveAdminFeatureRequest
     /// 是否启用。
     /// </summary>
     public bool Enabled { get; set; }
+
+    /// <summary>
+    /// 排序。
+    /// </summary>
+    public int SortOrder { get; set; }
 }

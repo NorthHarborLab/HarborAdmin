@@ -1,7 +1,6 @@
-using System.Text.Json;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.Modules.Admin.Application.Services.Access;
-using HarborAdmin.Modules.Admin.Contracts.Access.Dto;
+using HarborAdmin.Modules.Admin.Application.Services.Dictionary;
 using HarborAdmin.Modules.Admin.Contracts.DynamicCrud.Dto;
 using HarborAdmin.Modules.Admin.Infrastructure.Caching;
 
@@ -10,32 +9,24 @@ namespace HarborAdmin.Modules.Admin.Application.Services.Metadata;
 /// <summary>
 /// Admin 动态 Feature schema 服务。
 /// </summary>
-public sealed class AdminMetadataService(AccessCacheService accessCache)
+public sealed class AdminMetadataService(AccessCacheService accessCache, AdminFieldOptionResolver optionResolver)
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-
     /// <summary>
     /// 获取指定动态 Feature schema。
     /// </summary>
-    public async Task<DynamicViewSchemaDto> GetSchemaAsync(
-        string featureCode,
-        IReadOnlyList<FieldPolicyDto> fieldPolicies,
-        CancellationToken cancellationToken)
+    public async Task<DynamicViewSchemaDto> GetSchemaAsync(string featureCode, AdminFieldPermissionSet accessSet, CancellationToken cancellationToken)
     {
         var normalized = NormalizeFeatureCode(featureCode);
         var schema = await accessCache.GetFeatureRuntimeSchemaAsync(normalized, cancellationToken);
-        if (!schema.FeatureType.Equals("Dynamic", StringComparison.OrdinalIgnoreCase))
+        if (schema.FeatureType != Contracts.FeatureDesign.AdminFeatureType.Dynamic)
         {
             throw new ValidationDomainException($"Feature '{normalized}' is not dynamic.");
         }
 
-        var policies = fieldPolicies
-            .Where(policy => policy.FeatureCode == normalized)
-            .ToDictionary(policy => policy.FieldName, StringComparer.OrdinalIgnoreCase);
         var fields = schema.Fields
             .Where(field => field.Enabled)
             .OrderBy(field => field.SortOrder)
-            .Where(field => !policies.TryGetValue(field.FieldCode, out var policy) || policy.Visible)
+            .Where(field => accessSet.IsSuperAdmin || accessSet.VisibleFields.Contains(field.FieldCode))
             .ToArray();
         var actions = schema.Actions
             .Where(action => action.Enabled)
@@ -45,23 +36,36 @@ public sealed class AdminMetadataService(AccessCacheService accessCache)
 
         return new DynamicViewSchemaDto(
             schema.FeatureCode,
-            schema.NameKey,
-            schema.NameFallback,
+            schema.Name,
             schema.FeatureType,
             schema.Component ?? string.Empty,
             schema.RoutePath,
             schema.SchemaVersion,
-            fields.Where(field => field.ListVisible).Select(ToFieldSchema).ToList(),
-            fields.Where(field => field.SearchVisible).Select(ToFieldSchema).ToList(),
-            fields.Where(field => field.CreateVisible || field.UpdateVisible).Select(ToFieldSchema).ToList(),
+            await ToFieldSchemasAsync(fields.Where(field => field.ListVisible), cancellationToken),
+            await ToFieldSchemasAsync(fields.Where(field => field.SearchVisible), cancellationToken),
+            await ToFieldSchemasAsync(fields.Where(field => field.CreateVisible || field.UpdateVisible), cancellationToken),
             actions.Select(ToActionSchema).ToList(),
             ToEndpointSchema(apis));
     }
 
     /// <summary>
+    /// 批量转换字段运行时 schema。
+    /// </summary>
+    private async Task<IReadOnlyList<DynamicFieldSchemaDto>> ToFieldSchemasAsync(IEnumerable<FeatureFieldCacheItem> fields, CancellationToken cancellationToken)
+    {
+        var result = new List<DynamicFieldSchemaDto>();
+        foreach (var field in fields)
+        {
+            result.Add(await ToFieldSchemaAsync(field, cancellationToken));
+        }
+
+        return result;
+    }
+
+    /// <summary>
     /// 转换字段运行时 schema。
     /// </summary>
-    private static DynamicFieldSchemaDto ToFieldSchema(FeatureFieldCacheItem field) =>
+    private async Task<DynamicFieldSchemaDto> ToFieldSchemaAsync(FeatureFieldCacheItem field, CancellationToken cancellationToken) =>
         new(
             field.FieldCode,
             field.LabelKey,
@@ -74,7 +78,8 @@ public sealed class AdminMetadataService(AccessCacheService accessCache)
             field.Readonly,
             field.SortOrder,
             field.Width,
-            ParseOptions(field.OptionsJson),
+            field.DictCode,
+            await optionResolver.ResolveDynamicOptionsAsync(field, cancellationToken),
             ParseValidation(field.ValidationJson));
 
     /// <summary>
@@ -108,29 +113,18 @@ public sealed class AdminMetadataService(AccessCacheService accessCache)
     }
 
     /// <summary>
-    /// 解析字段选项 JSON。
-    /// </summary>
-    private static IReadOnlyList<DynamicFieldOptionDto>? ParseOptions(string? optionsJson)
-    {
-        if (string.IsNullOrWhiteSpace(optionsJson))
-        {
-            return null;
-        }
-
-        return JsonSerializer.Deserialize<IReadOnlyList<DynamicFieldOptionDto>>(optionsJson, JsonOptions);
-    }
-
-    /// <summary>
     /// 解析字段校验 JSON。
     /// </summary>
-    private static JsonElement? ParseValidation(string? validationJson)
+    private static global::System.Text.Json.JsonElement? ParseValidation(string? validationJson)
     {
         if (string.IsNullOrWhiteSpace(validationJson))
         {
             return null;
         }
 
-        return JsonSerializer.Deserialize<JsonElement>(validationJson, JsonOptions);
+        return global::System.Text.Json.JsonSerializer.Deserialize<global::System.Text.Json.JsonElement>(
+            validationJson,
+            new global::System.Text.Json.JsonSerializerOptions(global::System.Text.Json.JsonSerializerDefaults.Web));
     }
 
     /// <summary>

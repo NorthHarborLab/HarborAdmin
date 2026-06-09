@@ -22,8 +22,8 @@ public sealed class FeatureDesignFieldService
     /// </summary>
     public async Task<IReadOnlyList<AdminFeatureFieldDto>> ListFieldsAsync(string featureCode, CancellationToken cancellationToken)
     {
-        var feature = await _context.LoadFeatureAggregateAsync(featureCode, cancellationToken)
-                      ?? throw new NotFoundDomainException($"Feature '{featureCode}' was not found.");
+        var feature = _context.EnsureFeatureNode(await _context.LoadFeatureAggregateAsync(featureCode, cancellationToken)
+                          ?? throw new NotFoundDomainException($"Feature '{featureCode}' was not found."));
         var fields = feature.Fields
             .OrderBy(item => item.SortOrder)
             .ToArray();
@@ -35,8 +35,8 @@ public sealed class FeatureDesignFieldService
     /// </summary>
     public async Task<AdminFeatureFieldDto> CreateFieldAsync(string featureCode, SaveAdminFeatureFieldRequest request, CancellationToken cancellationToken)
     {
-        var feature = await _context.LoadFeatureAggregateAsync(featureCode, cancellationToken)
-                      ?? throw new NotFoundDomainException($"Feature '{featureCode}' was not found.");
+        var feature = _context.EnsureFeatureNode(await _context.LoadFeatureAggregateAsync(featureCode, cancellationToken)
+                          ?? throw new NotFoundDomainException($"Feature '{featureCode}' was not found."));
         var normalized = feature.FeatureCode;
         var fieldCode = request.FieldCode.Trim();
         if (feature.Fields.Any(item => string.Equals(item.FieldCode, fieldCode, StringComparison.OrdinalIgnoreCase)))
@@ -65,8 +65,8 @@ public sealed class FeatureDesignFieldService
     /// </summary>
     public async Task<AdminFeatureFieldDto> UpdateFieldAsync(string featureCode, string fieldCode, SaveAdminFeatureFieldRequest request, CancellationToken cancellationToken)
     {
-        var feature = await _context.LoadFeatureAggregateAsync(featureCode, cancellationToken)
-                      ?? throw new NotFoundDomainException($"Feature '{featureCode}' was not found.");
+        var feature = _context.EnsureFeatureNode(await _context.LoadFeatureAggregateAsync(featureCode, cancellationToken)
+                          ?? throw new NotFoundDomainException($"Feature '{featureCode}' was not found."));
         var normalized = feature.FeatureCode;
         var normalizedField = fieldCode.Trim();
         var field = feature.Fields.FirstOrDefault(item => string.Equals(item.FieldCode, normalizedField, StringComparison.OrdinalIgnoreCase))
@@ -80,12 +80,44 @@ public sealed class FeatureDesignFieldService
     }
 
     /// <summary>
+    /// 排序字段。
+    /// </summary>
+    public async Task ReorderFieldsAsync(string featureCode, ReorderAdminFeatureFieldRequest request, CancellationToken cancellationToken)
+    {
+        var feature = _context.EnsureFeatureNode(await _context.LoadFeatureAggregateAsync(featureCode, cancellationToken)
+                          ?? throw new NotFoundDomainException($"Feature '{featureCode}' was not found."));
+        var fields = feature.Fields
+            .OrderBy(item => item.SortOrder)
+            .ThenBy(item => item.FieldCode)
+            .ToArray();
+        var fieldIds = fields.Select(item => item.Id).ToHashSet();
+        if (fields.Length != request.OrderedIds!.Count || request.OrderedIds.Any(id => !fieldIds.Contains(id)))
+        {
+            throw new ValidationDomainException("只能在当前功能的字段内排序。");
+        }
+
+        var orderedIndex = request.OrderedIds
+            .Select((id, index) => new { id, index })
+            .ToDictionary(item => item.id, item => item.index);
+        var now = DateTimeOffset.UtcNow;
+        foreach (var field in fields)
+        {
+            field.SortOrder = (orderedIndex[field.Id] + 1) * 10;
+            field.UpdatedAt = now;
+        }
+
+        await _context.Db.Orm.Update<AdminFeatureField>().SetSource(fields).ExecuteAffrowsAsync(cancellationToken);
+        await _context.IncrementSchemaVersionAsync(feature.FeatureCode, cancellationToken);
+        await _context.AdminContext.BumpSessionVersionAsync(cancellationToken);
+    }
+
+    /// <summary>
     /// 删除字段。
     /// </summary>
     public async Task DeleteFieldAsync(string featureCode, string fieldCode, CancellationToken cancellationToken)
     {
-        var feature = await _context.LoadFeatureAggregateAsync(featureCode, cancellationToken)
-                      ?? throw new NotFoundDomainException($"Feature '{featureCode}' was not found.");
+        var feature = _context.EnsureFeatureNode(await _context.LoadFeatureAggregateAsync(featureCode, cancellationToken)
+                          ?? throw new NotFoundDomainException($"Feature '{featureCode}' was not found."));
         var normalized = feature.FeatureCode;
         var normalizedField = fieldCode.Trim();
         var field = feature.Fields.FirstOrDefault(item => string.Equals(item.FieldCode, normalizedField, StringComparison.OrdinalIgnoreCase))
@@ -110,8 +142,8 @@ public sealed class FeatureDesignFieldService
         field.LabelFallback = string.IsNullOrWhiteSpace(request.LabelFallback) ? null : request.LabelFallback.Trim();
         field.PlaceholderKey = string.IsNullOrWhiteSpace(request.PlaceholderKey) ? null : request.PlaceholderKey.Trim();
         field.PlaceholderFallback = string.IsNullOrWhiteSpace(request.PlaceholderFallback) ? null : request.PlaceholderFallback.Trim();
-        field.Component = request.Component.Trim();
-        field.DataType = request.DataType.Trim();
+        field.Component = request.Component;
+        field.DataType = request.DataType;
         field.ListVisible = request.ListVisible;
         field.SearchVisible = request.SearchVisible;
         field.CreateVisible = request.CreateVisible;
@@ -121,7 +153,10 @@ public sealed class FeatureDesignFieldService
         field.SortOrder = request.SortOrder;
         // FreeSql/前端 schema 均用 null 表示未指定宽度，避免把非法宽度持久化为 0。
         field.Width = request.Width is <= 0 ? null : request.Width;
-        field.OptionsJson = string.IsNullOrWhiteSpace(request.OptionsJson) ? null : request.OptionsJson;
+        field.DictCode = string.IsNullOrWhiteSpace(request.DictCode) ? null : request.DictCode.Trim();
+        field.OptionsJson = string.IsNullOrWhiteSpace(field.DictCode) && !string.IsNullOrWhiteSpace(request.OptionsJson)
+            ? request.OptionsJson
+            : null;
         field.ValidationJson = string.IsNullOrWhiteSpace(request.ValidationJson) ? null : request.ValidationJson;
         field.Enabled = request.Enabled;
         field.UpdatedAt = now;

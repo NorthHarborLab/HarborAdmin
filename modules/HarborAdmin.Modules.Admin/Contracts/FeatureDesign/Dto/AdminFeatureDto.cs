@@ -5,15 +5,23 @@ namespace HarborAdmin.Modules.Admin.Contracts.FeatureDesign.Dto;
 /// </summary>
 public sealed record AdminFeatureDto(
     long Id,
+    long? ParentId,
     string FeatureCode,
-    string NameKey,
-    string? NameFallback,
-    string FeatureType,
+    string? Name,
+    AdminFeatureType FeatureType,
+    AdminFeatureNodeType NodeType,
     string Component,
     string? HandlerKey,
-    string? ModuleName,
     string? RoutePath,
     int SchemaVersion,
     bool Enabled,
+    int SortOrder,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset? UpdatedAt,
+    bool IsVirtual = false)
+{
+    /// <summary>
+    /// 子节点。
+    /// </summary>
+    public IReadOnlyList<AdminFeatureDto> Children { get; init; } = [];
+}

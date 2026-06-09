@@ -1,4 +1,5 @@
 using HarborAdmin.Modules.Admin.Contracts.FeatureDesign.Dto;
+using HarborAdmin.Modules.Admin.Contracts.FeatureDesign;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.Modules.Admin.Contracts.FeatureDesign.Request;
 using HarborAdmin.Modules.Admin.Domain.Entities;
@@ -22,8 +23,8 @@ public sealed class FeatureDesignApiService
     /// </summary>
     public async Task<IReadOnlyList<AdminFeatureApiDto>> ListApisAsync(string featureCode, CancellationToken cancellationToken)
     {
-        var feature = await _context.LoadFeatureAggregateAsync(featureCode, cancellationToken)
-                      ?? throw new NotFoundDomainException($"Feature '{featureCode}' was not found.");
+        var feature = _context.EnsureFeatureNode(await _context.LoadFeatureAggregateAsync(featureCode, cancellationToken)
+                          ?? throw new NotFoundDomainException($"Feature '{featureCode}' was not found."));
         var apis = feature.Apis
             .OrderBy(item => item.SortOrder)
             .ToArray();
@@ -31,12 +32,43 @@ public sealed class FeatureDesignApiService
     }
 
     /// <summary>
+    /// 查询全部功能 API 树。
+    /// </summary>
+    public async Task<IReadOnlyList<AdminFeatureApiTreeDto>> ListApiTreeAsync(CancellationToken cancellationToken)
+    {
+        var features = await _context.Db.Orm.Select<AdminFeature>()
+            .Where(item => item.NodeType == AdminFeatureNodeType.Feature)
+            .IncludeMany(item => item.Apis)
+            .OrderBy(item => item.SortOrder)
+            .OrderBy(item => item.FeatureCode)
+            .ToListAsync(cancellationToken);
+
+        return features
+            .Select(feature => new AdminFeatureApiTreeDto(
+                feature.FeatureCode,
+                string.IsNullOrWhiteSpace(feature.Name) ? feature.FeatureCode : feature.Name,
+                feature.Apis
+                    .OrderBy(api => api.SortOrder)
+                    .ThenBy(api => api.ApiCode)
+                    .Select(api => new AdminFeatureApiTreeItemDto(
+                        api.Id,
+                        api.FeatureCode,
+                        api.ApiCode,
+                        string.IsNullOrWhiteSpace(api.NameFallback) ? $"{api.HttpMethod} {api.Path}" : $"{api.NameFallback}（{api.HttpMethod} {api.Path}）",
+                        api.Path,
+                        api.HttpMethod))
+                    .ToArray()))
+            .Where(group => group.Apis.Count > 0)
+            .ToArray();
+    }
+
+    /// <summary>
     /// 新建 API。
     /// </summary>
     public async Task<AdminFeatureApiDto> CreateApiAsync(string featureCode, SaveAdminFeatureApiRequest request, CancellationToken cancellationToken)
     {
-        var feature = await _context.LoadFeatureAggregateAsync(featureCode, cancellationToken)
-                      ?? throw new NotFoundDomainException($"Feature '{featureCode}' was not found.");
+        var feature = _context.EnsureFeatureNode(await _context.LoadFeatureAggregateAsync(featureCode, cancellationToken)
+                          ?? throw new NotFoundDomainException($"Feature '{featureCode}' was not found."));
         var normalized = feature.FeatureCode;
         var apiCode = request.ApiCode.Trim();
         if (feature.Apis.Any(item => string.Equals(item.ApiCode, apiCode, StringComparison.OrdinalIgnoreCase)))
@@ -64,8 +96,8 @@ public sealed class FeatureDesignApiService
     /// </summary>
     public async Task<AdminFeatureApiDto> UpdateApiAsync(string featureCode, string apiCode, SaveAdminFeatureApiRequest request, CancellationToken cancellationToken)
     {
-        var feature = await _context.LoadFeatureAggregateAsync(featureCode, cancellationToken)
-                      ?? throw new NotFoundDomainException($"Feature '{featureCode}' was not found.");
+        var feature = _context.EnsureFeatureNode(await _context.LoadFeatureAggregateAsync(featureCode, cancellationToken)
+                          ?? throw new NotFoundDomainException($"Feature '{featureCode}' was not found."));
         var normalized = feature.FeatureCode;
         var normalizedApi = apiCode.Trim();
         var api = feature.Apis.FirstOrDefault(item => string.Equals(item.ApiCode, normalizedApi, StringComparison.OrdinalIgnoreCase))
@@ -78,12 +110,43 @@ public sealed class FeatureDesignApiService
     }
 
     /// <summary>
+    /// 排序 API。
+    /// </summary>
+    public async Task ReorderApisAsync(string featureCode, ReorderAdminFeatureApiRequest request, CancellationToken cancellationToken)
+    {
+        var feature = _context.EnsureFeatureNode(await _context.LoadFeatureAggregateAsync(featureCode, cancellationToken)
+                          ?? throw new NotFoundDomainException($"Feature '{featureCode}' was not found."));
+        var apis = feature.Apis
+            .OrderBy(item => item.SortOrder)
+            .ThenBy(item => item.ApiCode)
+            .ToArray();
+        var apiIds = apis.Select(item => item.Id).ToHashSet();
+        if (apis.Length != request.OrderedIds!.Count || request.OrderedIds.Any(id => !apiIds.Contains(id)))
+        {
+            throw new ValidationDomainException("只能在当前功能的 API 内排序。");
+        }
+
+        var orderedIndex = request.OrderedIds
+            .Select((id, index) => new { id, index })
+            .ToDictionary(item => item.id, item => item.index);
+        var now = DateTimeOffset.UtcNow;
+        foreach (var api in apis)
+        {
+            api.SortOrder = (orderedIndex[api.Id] + 1) * 10;
+            api.UpdatedAt = now;
+        }
+
+        await _context.Db.Orm.Update<AdminFeatureApi>().SetSource(apis).ExecuteAffrowsAsync(cancellationToken);
+        await _context.AdminContext.BumpSessionVersionAsync(cancellationToken);
+    }
+
+    /// <summary>
     /// 删除 API。
     /// </summary>
     public async Task DeleteApiAsync(string featureCode, string apiCode, CancellationToken cancellationToken)
     {
-        var feature = await _context.LoadFeatureAggregateAsync(featureCode, cancellationToken)
-                      ?? throw new NotFoundDomainException($"Feature '{featureCode}' was not found.");
+        var feature = _context.EnsureFeatureNode(await _context.LoadFeatureAggregateAsync(featureCode, cancellationToken)
+                          ?? throw new NotFoundDomainException($"Feature '{featureCode}' was not found."));
         var normalized = feature.FeatureCode;
         var normalizedApi = apiCode.Trim();
         var api = feature.Apis.FirstOrDefault(item => string.Equals(item.ApiCode, normalizedApi, StringComparison.OrdinalIgnoreCase))
@@ -106,8 +169,8 @@ public sealed class FeatureDesignApiService
     /// </summary>
     public async Task<IReadOnlyList<AdminFeatureApiDto>> GenerateCrudApisAsync(string featureCode, GenerateCrudApisRequest request, CancellationToken cancellationToken)
     {
-        var feature = await _context.LoadFeatureAggregateAsync(featureCode, cancellationToken)
-                      ?? throw new NotFoundDomainException($"Feature '{featureCode}' was not found.");
+        var feature = _context.EnsureFeatureNode(await _context.LoadFeatureAggregateAsync(featureCode, cancellationToken)
+                          ?? throw new NotFoundDomainException($"Feature '{featureCode}' was not found."));
         var normalized = feature.FeatureCode;
         var baseUrl = request.BaseUrl.Trim().TrimEnd('/');
         var seeds = new[]

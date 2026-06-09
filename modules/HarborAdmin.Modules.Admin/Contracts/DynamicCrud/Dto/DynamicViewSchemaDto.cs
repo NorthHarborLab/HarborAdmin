@@ -1,4 +1,5 @@
 using System.Text.Json;
+using HarborAdmin.Modules.Admin.Contracts.FeatureDesign;
 
 namespace HarborAdmin.Modules.Admin.Contracts.DynamicCrud.Dto;
 
@@ -7,9 +8,8 @@ namespace HarborAdmin.Modules.Admin.Contracts.DynamicCrud.Dto;
 /// </summary>
 public sealed record DynamicViewSchemaDto(
     string FeatureCode,
-    string TitleKey,
-    string? TitleFallback,
-    string FeatureType,
+    string? Name,
+    AdminFeatureType FeatureType,
     string Component,
     string? RoutePath,
     int SchemaVersion,
@@ -28,12 +28,13 @@ public sealed record DynamicFieldSchemaDto(
     string? LabelFallback,
     string? PlaceholderKey,
     string? PlaceholderFallback,
-    string Component,
-    string DataType,
+    AdminFeatureFieldComponent Component,
+    AdminFeatureFieldDataType DataType,
     bool Required,
     bool Readonly,
     int Order,
     int? Width,
+    string? DictCode,
     IReadOnlyList<DynamicFieldOptionDto>? Options,
     JsonElement? Validation);
 
@@ -42,7 +43,9 @@ public sealed record DynamicFieldSchemaDto(
 /// </summary>
 public sealed record DynamicFieldOptionDto(
     string Label,
-    JsonElement Value);
+    JsonElement Value,
+    string? Color,
+    bool Disabled);
 
 /// <summary>
 /// 动态动作 schema。

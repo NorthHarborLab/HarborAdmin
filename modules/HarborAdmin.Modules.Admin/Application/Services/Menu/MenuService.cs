@@ -1,4 +1,3 @@
-using System.Text.Json;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.Modules.Admin.Application.Abstractions;
 using HarborAdmin.Modules.Admin.Contracts.System.Dto;
@@ -64,11 +63,21 @@ public sealed class MenuService(SystemServiceContext systemContext, AdminService
         menu.RouteName = MenuMapper.ToRouteName(routePath);
         menu.Title = meta.Title ?? request.Name;
         menu.Icon = meta.Icon;
+        menu.ActiveIcon = meta.ActiveIcon;
+        menu.ActivePath = meta.ActivePath;
         menu.MenuType = menuType;
         menu.SortOrder = meta.Order ?? 0;
         menu.Visible = meta.HideInMenu != true;
+        menu.AffixTab = meta.AffixTab == true;
+        menu.AffixTabOrder = meta.AffixTabOrder;
+        menu.HideInTab = meta.HideInTab == true;
+        menu.KeepAlive = meta.KeepAlive == true;
+        menu.HideChildrenInMenu = meta.HideChildrenInMenu == true;
+        menu.Link = meta.Link;
+        menu.IframeSrc = meta.IframeSrc;
+        menu.OpenInNewWindow = meta.OpenInNewWindow == true;
         menu.Enabled = request.Status == 1;
-        menu.MetaJson = JsonSerializer.Serialize(meta, MenuMapper.JsonOptions);
+        menu.MetaJson = menuType == "button" ? null : MenuMapper.BuildExtensionMetaJson(meta);
         menu.UpdatedAt = now;
 
         var menuRepository = systemContext.GetMenuRepository();
@@ -114,14 +123,9 @@ public sealed class MenuService(SystemServiceContext systemContext, AdminService
         {
             var menu = menuMap[orderedIds[index]];
             var order = (index + 1) * 10;
-            var meta = MenuMapper.ParseMenuMeta(menu);
-            var nextMeta = meta with { Order = order };
-            var nextMetaJson = JsonSerializer.Serialize(nextMeta, MenuMapper.JsonOptions);
-            if (menu.SortOrder != order || menu.MetaJson != nextMetaJson)
+            if (menu.SortOrder != order)
             {
-                // 菜单排序同时写实体字段和 meta.order，保持后端路由与前端 Vben 菜单元数据一致。
                 menu.SortOrder = order;
-                menu.MetaJson = nextMetaJson;
                 menu.UpdatedAt = now;
                 changed = true;
             }

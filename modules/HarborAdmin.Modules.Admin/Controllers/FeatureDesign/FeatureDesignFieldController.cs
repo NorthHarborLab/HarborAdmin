@@ -43,6 +43,18 @@ public sealed class FeatureDesignFieldController(FeatureDesignFieldService field
         ApiResult.Ok(await fieldService.UpdateFieldAsync(featureCode, fieldCode, request, RequestCancellationToken));
 
     /// <summary>
+    /// 字段排序。
+    /// </summary>
+    [HttpPut("reorder")]
+    public async Task<ApiResult<bool>> ReorderFields(
+        [FromRoute, Required] string featureCode,
+        [FromBody] ReorderAdminFeatureFieldRequest request)
+    {
+        await fieldService.ReorderFieldsAsync(featureCode, request, RequestCancellationToken);
+        return ApiResult.Ok(true);
+    }
+
+    /// <summary>
     /// 删除功能字段。
     /// </summary>
     [HttpDelete("{fieldCode}")]
