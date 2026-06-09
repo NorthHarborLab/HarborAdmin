@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using HarborAdmin.BuildingBlocks.Abstractions.Api;
 using HarborAdmin.Modules.International.Contracts.Resource.Dto;
 using HarborAdmin.Modules.International.Contracts.Page.Dto;
+using Microsoft.AspNetCore.Authorization;
 
 namespace HarborAdmin.Modules.International.Controllers.Resource;
 
@@ -10,6 +11,7 @@ namespace HarborAdmin.Modules.International.Controllers.Resource;
 /// 前端运行时国际化资源 API。
 /// </summary>
 [ApiController]
+[AllowAnonymous]
 [Route("api/admin/international/resources")]
 public sealed class ResourceController(InternationalResourceBundleService resourceBundleService) : ControllerBase
 {
