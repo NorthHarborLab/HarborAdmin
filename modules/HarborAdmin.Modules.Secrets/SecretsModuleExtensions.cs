@@ -24,7 +24,7 @@ public static class SecretsModuleExtensions
     public static IServiceCollection AddSecretsModule(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddSingleton<ISecretsDbContext, SecretsDbContext>();
-        services.AddSingleton<ISecretsRepository, FreeSqlSecretsRepository>();
+        services.AddScoped<ISecretsRepository, FreeSqlSecretsRepository>();
         services.TryAddScoped<SecretStore>();
         services.TryAddScoped<ISecretStore>(sp => sp.GetRequiredService<SecretStore>());
         services.TryAddScoped<ISecretResolver>(sp => sp.GetRequiredService<SecretStore>());
