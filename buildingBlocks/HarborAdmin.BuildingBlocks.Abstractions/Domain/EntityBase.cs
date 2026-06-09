@@ -1,3 +1,5 @@
+using HarborAdmin.BuildingBlocks.Abstractions.Auth;
+
 namespace HarborAdmin.BuildingBlocks.Abstractions.Domain;
 
 /// <summary>
@@ -5,6 +7,9 @@ namespace HarborAdmin.BuildingBlocks.Abstractions.Domain;
 /// </summary>
 public abstract class EntityBase : IEntity<long>
 {
-    /// <inheritdoc />
+    /// <summary>
+    /// 实体主键；字段权限裁剪时必须保留。
+    /// </summary>
+    [FieldPermissionIgnore]
     public long Id { get; set; }
 }
