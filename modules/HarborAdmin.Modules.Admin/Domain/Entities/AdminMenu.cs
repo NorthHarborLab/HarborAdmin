@@ -76,6 +76,16 @@ public sealed class AdminMenu : AuditableEntity
     public string? Icon { get; set; }
 
     /// <summary>
+    /// 激活菜单图标。
+    /// </summary>
+    public string? ActiveIcon { get; set; }
+
+    /// <summary>
+    /// 激活菜单路径。
+    /// </summary>
+    public string? ActivePath { get; set; }
+
+    /// <summary>
     /// 菜单类型。
     /// </summary>
     public string MenuType { get; set; } = "menu";
@@ -89,6 +99,46 @@ public sealed class AdminMenu : AuditableEntity
     /// 是否可见。
     /// </summary>
     public bool Visible { get; set; } = true;
+
+    /// <summary>
+    /// 是否固定标签页。
+    /// </summary>
+    public bool AffixTab { get; set; }
+
+    /// <summary>
+    /// 固定标签页排序。
+    /// </summary>
+    public int? AffixTabOrder { get; set; }
+
+    /// <summary>
+    /// 是否在标签页中隐藏。
+    /// </summary>
+    public bool HideInTab { get; set; }
+
+    /// <summary>
+    /// 是否缓存页面。
+    /// </summary>
+    public bool KeepAlive { get; set; }
+
+    /// <summary>
+    /// 是否在菜单中隐藏子级。
+    /// </summary>
+    public bool HideChildrenInMenu { get; set; }
+
+    /// <summary>
+    /// 外链地址。
+    /// </summary>
+    public string? Link { get; set; }
+
+    /// <summary>
+    /// iframe 地址。
+    /// </summary>
+    public string? IframeSrc { get; set; }
+
+    /// <summary>
+    /// 是否新窗口打开。
+    /// </summary>
+    public bool OpenInNewWindow { get; set; }
 
     /// <summary>
     /// 是否启用。

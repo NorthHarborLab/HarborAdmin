@@ -1,5 +1,6 @@
 using FreeSql.DataAnnotations;
 using HarborAdmin.BuildingBlocks.Abstractions.Domain;
+using HarborAdmin.Modules.Admin.Contracts.FeatureDesign;
 
 namespace HarborAdmin.Modules.Admin.Domain.Entities;
 
@@ -55,12 +56,14 @@ public sealed class AdminFeatureField : AuditableEntity
     /// <summary>
     /// 前端表单组件名称。
     /// </summary>
-    public string Component { get; set; } = "Input";
+    [Column(MapType = typeof(short))]
+    public AdminFeatureFieldComponent Component { get; set; } = AdminFeatureFieldComponent.Input;
 
     /// <summary>
     /// 字段数据类型。
     /// </summary>
-    public string DataType { get; set; } = "string";
+    [Column(MapType = typeof(short))]
+    public AdminFeatureFieldDataType DataType { get; set; } = AdminFeatureFieldDataType.String;
 
     /// <summary>
     /// 是否在列表中展示。
@@ -101,6 +104,11 @@ public sealed class AdminFeatureField : AuditableEntity
     /// 列表宽度。
     /// </summary>
     public int? Width { get; set; }
+
+    /// <summary>
+    /// 关联字典编码。
+    /// </summary>
+    public string? DictCode { get; set; }
 
     /// <summary>
     /// 选项 JSON。
