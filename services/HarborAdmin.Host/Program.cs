@@ -11,6 +11,7 @@ using HarborAdmin.Modules.Secrets.Domain.Entities;
 using HarborAdmin.Client.AI;
 using HarborAdmin.Client.ConfigCenter;
 using HarborAdmin.Host.Infrastructure;
+using HarborAdmin.Host.Filter;
 using HarborAdmin.Modules.ConfigCenter;
 using HarborAdmin.Modules.ConfigCenter.Application.Abstractions;
 using HarborAdmin.Modules.ConfigCenter.Infrastructure.Clients;
@@ -30,6 +31,7 @@ var mvcBuilder = builder.Services.AddControllers(options =>
 {
     options.Filters.Add<ApiExceptionFilter>();
     options.Filters.Add<ApiValidationFilter>();
+    options.Filters.Add<FieldPermissionResultFilter>();
 });
 
 mvcBuilder.ConfigureApiBehaviorOptions(options =>
@@ -49,7 +51,6 @@ builder.Services.AddCors(options =>
             .AllowCredentials();
     });
 });
-
 builder.Services.AddHarborCaching(builder.Configuration.GetSection(HarborCacheOptions.SectionName));
 builder.Services.AddHarborMapping(moduleAssemblies.ToArray());
 
@@ -85,6 +86,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors();
+app.UseRouting();
 app.UseAdminAuthentication();
 app.UseAuthorization();
 app.UseAdminApiAuthorization();
