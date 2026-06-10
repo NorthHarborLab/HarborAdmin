@@ -1,5 +1,5 @@
 using System.Collections.ObjectModel;
-using HarborAdmin.BuildingBlocks.Abstractions.Api;
+using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 
 namespace HarborAdmin.BuildingBlocks.Abstractions.Exception;
 

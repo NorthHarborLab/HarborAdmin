@@ -1,4 +1,4 @@
-namespace HarborAdmin.BuildingBlocks.Abstractions.Auth;
+namespace HarborAdmin.BuildingBlocks.Abstractions.Attributes;
 
 /// <summary>
 /// 标记字段权限裁剪时必须保留的系统字段。

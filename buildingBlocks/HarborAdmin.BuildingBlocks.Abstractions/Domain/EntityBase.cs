@@ -1,3 +1,4 @@
+using HarborAdmin.BuildingBlocks.Abstractions.Attributes;
 using HarborAdmin.BuildingBlocks.Abstractions.Auth;
 
 namespace HarborAdmin.BuildingBlocks.Abstractions.Domain;

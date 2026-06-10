@@ -1,4 +1,4 @@
-namespace HarborAdmin.BuildingBlocks.Abstractions.Auth;
+namespace HarborAdmin.BuildingBlocks.Abstractions.Attributes;
 
 /// <summary>
 /// 标记接口只需要登录，不需要权限点绑定。

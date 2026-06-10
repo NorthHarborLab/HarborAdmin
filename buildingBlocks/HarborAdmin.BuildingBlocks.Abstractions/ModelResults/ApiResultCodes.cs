@@ -1,4 +1,4 @@
-namespace HarborAdmin.BuildingBlocks.Abstractions.Api;
+namespace HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 
 /// <summary>
 /// 消息编码

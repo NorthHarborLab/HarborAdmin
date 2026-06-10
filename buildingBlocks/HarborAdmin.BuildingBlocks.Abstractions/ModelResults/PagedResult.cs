@@ -1,4 +1,4 @@
-namespace HarborAdmin.BuildingBlocks.Abstractions.Api;
+namespace HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 
 /// <summary>
 /// 分页查询结果
