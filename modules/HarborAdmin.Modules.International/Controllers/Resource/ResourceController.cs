@@ -19,27 +19,27 @@ public sealed class ResourceController(InternationalResourceBundleService resour
     /// 获取当前资源版本。
     /// </summary>
     [HttpGet("version")]
-    public async Task<ApiResult<InternationalVersionDto>> GetVersion(CancellationToken cancellationToken) =>
-        ApiResult.Ok(await resourceBundleService.GetVersionAsync(cancellationToken));
+    public async Task<ApiResult<InternationalVersionDto>> GetVersion() =>
+        ApiResult.Ok(await resourceBundleService.GetVersionAsync(HttpContext.RequestAborted));
 
     /// <summary>
     /// 获取带版本号的资源包。
     /// </summary>
     [HttpGet("bundle")]
-    public async Task<ApiResult<InternationalBundleDto>> GetBundle(CancellationToken cancellationToken) =>
-        ApiResult.Ok(await resourceBundleService.GetBundleAsync(cancellationToken));
+    public async Task<ApiResult<InternationalBundleDto>> GetBundle() =>
+        ApiResult.Ok(await resourceBundleService.GetBundleAsync(HttpContext.RequestAborted));
 
     /// <summary>
     /// 获取带版本号的单页面资源包。
     /// </summary>
     [HttpGet("pages/bundle")]
-    public async Task<ApiResult<InternationalPageBundleDto>> GetPageBundle([FromQuery] string path, CancellationToken cancellationToken) =>
-        ApiResult.Ok(await resourceBundleService.GetPageBundleAsync(path, cancellationToken));
+    public async Task<ApiResult<InternationalPageBundleDto>> GetPageBundle([FromQuery] string path) =>
+        ApiResult.Ok(await resourceBundleService.GetPageBundleAsync(path, HttpContext.RequestAborted));
 
     /// <summary>
     /// 获取带版本号的单页面资源包。
     /// </summary>
     [HttpGet("pages/{pageKey}/bundle")]
-    public async Task<ApiResult<InternationalPageBundleDto>> GetLegacyPageBundle(string pageKey, CancellationToken cancellationToken) =>
-        ApiResult.Ok(await resourceBundleService.GetPageBundleAsync(pageKey, cancellationToken));
+    public async Task<ApiResult<InternationalPageBundleDto>> GetLegacyPageBundle(string pageKey) =>
+        ApiResult.Ok(await resourceBundleService.GetPageBundleAsync(pageKey, HttpContext.RequestAborted));
 }

@@ -17,13 +17,13 @@ public sealed class GroupController(InternationalPageService pageService) : Cont
     /// 创建资源分组。
     /// </summary>
     [HttpPost]
-    public async Task<ApiResult<InternationalGroupNodeDto>> Create([FromBody] SaveInternationalGroupRequest request, CancellationToken cancellationToken) =>
-        ApiResult.Ok(await pageService.SaveGroupAsync(null, request, cancellationToken));
+    public async Task<ApiResult<InternationalGroupNodeDto>> Create([FromBody] SaveInternationalGroupRequest request) =>
+        ApiResult.Ok(await pageService.SaveGroupAsync(null, request, HttpContext.RequestAborted));
 
     /// <summary>
     /// 更新资源分组。
     /// </summary>
     [HttpPut("{id:long}")]
-    public async Task<ApiResult<InternationalGroupNodeDto>> Update(long id, [FromBody] SaveInternationalGroupRequest request, CancellationToken cancellationToken) =>
-        ApiResult.Ok(await pageService.SaveGroupAsync(id, request, cancellationToken));
+    public async Task<ApiResult<InternationalGroupNodeDto>> Update(long id, [FromBody] SaveInternationalGroupRequest request) =>
+        ApiResult.Ok(await pageService.SaveGroupAsync(id, request, HttpContext.RequestAborted));
 }

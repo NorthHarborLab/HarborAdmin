@@ -174,9 +174,7 @@ public sealed class InternationalEntryService(
     /// <summary>
     /// 递归构建指定父级下的条目 DTO。
     /// </summary>
-    private IReadOnlyList<InternationalEntryDto> BuildEntryDtos(
-        IReadOnlyDictionary<long, List<InternationalEntry>> groups,
-        long parentId)
+    private IReadOnlyList<InternationalEntryDto> BuildEntryDtos(IReadOnlyDictionary<long, List<InternationalEntry>> groups, long parentId)
     {
         if (!groups.TryGetValue(parentId, out var entries))
         {

@@ -21,7 +21,7 @@ public sealed class InternationalPageService(
     public async Task<IReadOnlyList<InternationalPageDto>> ListPagesAsync(CancellationToken cancellationToken = default)
     {
         var pages = await repository.ListPagesAsync(cancellationToken);
-        return pages.Select(page => mapper.Map<InternationalPageDto>(page)).ToList();
+        return pages.Select(mapper.Map<InternationalPageDto>).ToList();
     }
 
     /// <summary>
@@ -250,7 +250,7 @@ public sealed class InternationalPageService(
                 group.Name,
                 group.SortOrder,
                 pageLookup.TryGetValue(group.Id, out var pages)
-                    ? pages.Select(page => mapper.Map<InternationalPageDto>(page)).ToList()
+                    ? pages.Select(mapper.Map<InternationalPageDto>).ToList()
                     : [],
                 BuildGroupNodes(groupLookup, pageLookup, group.Id)))
             .ToList();
