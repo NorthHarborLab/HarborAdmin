@@ -1,6 +1,8 @@
 using System.Reflection;
+using HarborAdmin.BuildingBlocks.Abstractions.Attributes;
 using HarborAdmin.BuildingBlocks.Abstractions.Auth;
 using HarborAdmin.BuildingBlocks.Abstractions.Domain;
+using HarborAdmin.BuildingBlocks.Abstractions.Modules;
 using HarborAdmin.BuildingBlocks.Data.Auth;
 using HarborAdmin.BuildingBlocks.Data.Configs;
 using Microsoft.Extensions.Configuration;
@@ -32,13 +34,17 @@ public static class ServiceCollectionExtensions
         ValidateDatabases(databases);
         var databaseMap = databases.ToDictionary(db => db.Key, StringComparer.OrdinalIgnoreCase);
 
-        // 扫描模块实体并建立“实体类型 -> 数据库 Key”映射，后续仓储和 UoW 都依赖这份注册表定位数据库。
-        var entityMappings = DiscoverEntityMappings(options, databases);
+        // 扫描模块元数据和实体并建立数据库映射，后续仓储和 UoW 都依赖这份注册表定位数据库。
+        var moduleDescriptors = DiscoverModules(options).ToArray();
+        var moduleMappings = DiscoverModuleMappings(moduleDescriptors, databases);
+        var entityMappings = DiscoverEntityMappings(moduleDescriptors, moduleMappings, databases);
         var entityRegistry = DbEntityRegistry.Create(entityMappings);
+        var moduleRegistry = DbModuleRegistry.Create(moduleMappings);
         var defaultDbKey = databases[0].Key;
 
         services.TryAddSingleton<ICurrentUser, NullCurrentUser>();
         services.AddSingleton(entityRegistry);
+        services.AddSingleton(moduleRegistry);
         services.AddSingleton<HarborFreeSqlCloud>(sp =>
         {
             var currentUser = sp.GetService<ICurrentUser>();
@@ -108,74 +114,81 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>
-    /// 发现实体并读取每个实体所属的数据库 Key。
+    /// 发现模块与数据库 Key 的映射。
     /// </summary>
-    private static IReadOnlyList<EntityDbMapping> DiscoverEntityMappings(HarborFreeSqlOptions options, IReadOnlyList<DbConnectionConfig> databases)
+    private static IReadOnlyList<ModuleDbMapping> DiscoverModuleMappings(IReadOnlyList<ModuleDescriptor> modules, IReadOnlyList<DbConnectionConfig> databases)
     {
-        var entityTypes = DiscoverEntityTypes(options).ToArray();
-        if (entityTypes.Length == 0)
-        {
-            return [];
-        }
-
         if (databases.Count == 1)
         {
-            // 单库模式没有归属歧义，所有模块实体统一映射到唯一数据库。
-            return entityTypes
-                .Select(entityType => new EntityDbMapping(entityType, databases[0].Key))
+            // 单库模式没有归属歧义，所有模块统一映射到唯一数据库，兼容 ConfigCenter/Worker 等单库进程。
+            return modules
+                .Select(module => new ModuleDbMapping(module.MetadataType, databases[0].Key))
                 .ToArray();
         }
 
         var dbKeys = databases.Select(db => db.Key).ToArray();
-        return entityTypes
-            // 多库模式必须在实体上显式声明 [DbKey]，避免模块名推导规则对新人不透明。
-            .Select(entityType => new EntityDbMapping(entityType, GetRequiredDbKey(entityType, dbKeys)))
+        return modules
+            .Select(module => new ModuleDbMapping(module.MetadataType, GetRequiredDbKey(module, dbKeys)))
             .ToArray();
     }
 
     /// <summary>
-    /// 从候选程序集里筛选所有继承 <see cref="EntityBase"/> 的实体类型。
+    /// 发现实体并读取每个实体所属的数据库 Key。
     /// </summary>
-    private static IEnumerable<Type> DiscoverEntityTypes(HarborFreeSqlOptions options)
+    private static IReadOnlyList<EntityDbMapping> DiscoverEntityMappings(
+        IReadOnlyList<ModuleDescriptor> modules,
+        IReadOnlyList<ModuleDbMapping> moduleMappings,
+        IReadOnlyList<DbConnectionConfig> databases)
     {
-        return DiscoverEntityAssemblies(options)
-            .SelectMany(GetLoadableTypes)
-            .Where(type => type is { IsClass: true, IsAbstract: false } && typeof(EntityBase).IsAssignableFrom(type))
-            .Distinct();
+        var moduleDbKeys = moduleMappings.ToDictionary(mapping => mapping.MetadataType, mapping => mapping.DbKey);
+        if (databases.Count == 1)
+        {
+            // 单库模式没有归属歧义，实体级覆盖不参与映射，避免单库进程加载多模块时被覆盖声明卡住。
+            return modules
+                .SelectMany(module => module.EntityTypes.Select(entityType => new EntityDbMapping(entityType, moduleDbKeys[module.MetadataType])))
+                .ToArray();
+        }
+
+        var dbKeys = databases.Select(db => db.Key).ToArray();
+        return modules
+            .SelectMany(module => module.EntityTypes.Select(entityType =>
+                new EntityDbMapping(entityType, ResolveEntityDbKey(entityType, moduleDbKeys[module.MetadataType], dbKeys))))
+            .ToArray();
     }
 
     /// <summary>
-    /// 获取需要扫描实体的程序集：用户显式追加的程序集优先，再补充入口程序集引用的 HarborAdmin 模块程序集。
+    /// 发现模块元数据与模块实体。
     /// </summary>
-    private static IEnumerable<Assembly> DiscoverEntityAssemblies(HarborFreeSqlOptions options)
+    private static IEnumerable<ModuleDescriptor> DiscoverModules(HarborFreeSqlOptions options)
     {
-        foreach (var assembly in options.EntityAssemblies)
+        foreach (var assembly in HarborModuleAssemblyDiscovery.Discover(options.ModuleAssemblies))
         {
-            yield return assembly;
-        }
+            var types = GetLoadableTypes(assembly);
+            var metadataTypes = types
+                .Where(type => type is { IsClass: true, IsAbstract: false } && typeof(IHarborModuleMetadata).IsAssignableFrom(type))
+                .ToArray();
 
-        var loadedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies().Where(IsModuleAssembly))
-        {
-            loadedNames.Add(assembly.GetName().Name!);
-            yield return assembly;
-        }
-
-        var entryAssembly = Assembly.GetEntryAssembly();
-        if (entryAssembly is null)
-        {
-            yield break;
-        }
-
-        foreach (var reference in entryAssembly.GetReferencedAssemblies().Where(IsModuleAssemblyName))
-        {
-            if (!loadedNames.Add(reference.Name!))
+            if (metadataTypes.Length == 0)
             {
-                continue;
+                throw new InvalidOperationException(
+                    $"Module assembly '{assembly.GetName().Name}' must declare exactly one IHarborModuleMetadata implementation.");
             }
 
-            // 引用程序集可能尚未被 CLR 加载，这里主动加载以便后续反射扫描实体。
-            yield return Assembly.Load(reference);
+            if (metadataTypes.Length > 1)
+            {
+                throw new InvalidOperationException(
+                    $"Module assembly '{assembly.GetName().Name}' declares multiple IHarborModuleMetadata implementations: {string.Join(", ", metadataTypes.Select(type => type.FullName))}.");
+            }
+
+            var metadata = Activator.CreateInstance(metadataTypes[0]) as IHarborModuleMetadata
+                           ?? throw new InvalidOperationException(
+                               $"Module metadata '{metadataTypes[0].FullName}' must provide a public parameterless constructor.");
+            var entityTypes = types
+                .Where(type => type is { IsClass: true, IsAbstract: false } && typeof(EntityBase).IsAssignableFrom(type))
+                .Distinct()
+                .ToArray();
+
+            yield return new ModuleDescriptor(assembly, metadataTypes[0], metadata, entityTypes);
         }
     }
 
@@ -195,37 +208,55 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>
-    /// 读取实体上的 <see cref="DbKeyAttribute"/>，并校验配置中是否存在对应数据库。
+    /// 读取模块元数据上的数据库 Key，并校验配置中是否存在对应数据库。
     /// </summary>
-    private static string GetRequiredDbKey(Type entityType, IReadOnlyList<string> dbKeys)
+    private static string GetRequiredDbKey(ModuleDescriptor module, IReadOnlyList<string> dbKeys)
     {
-        var attribute = entityType.GetCustomAttribute<DbKeyAttribute>();
-        if (attribute is null || string.IsNullOrWhiteSpace(attribute.Key))
+        var declaredDbKey = module.Metadata.GetDbKey();
+        if (string.IsNullOrWhiteSpace(declaredDbKey))
         {
             throw new InvalidOperationException(
-                $"Entity '{entityType.FullName}' must declare [DbKey(\"...\")] when Harbor:DbConfig contains multiple databases.");
+                $"Module metadata '{module.MetadataType.FullName}' must return a non-empty database key.");
         }
 
         // 保留配置文件中的原始大小写，避免后续 cloud.Use(dbKey) 与注册 key 表示不一致。
-        var dbKey = dbKeys.FirstOrDefault(key => string.Equals(key, attribute.Key, StringComparison.OrdinalIgnoreCase));
+        var dbKey = dbKeys.FirstOrDefault(key => string.Equals(key, declaredDbKey, StringComparison.OrdinalIgnoreCase));
         if (dbKey is not null)
         {
             return dbKey;
         }
 
         throw new InvalidOperationException(
-            $"Entity '{entityType.FullName}' declares database key '{attribute.Key}', but Harbor:DbConfig:Databases does not contain it.");
+            $"Module metadata '{module.MetadataType.FullName}' declares database key '{declaredDbKey}', but Harbor:DbConfig:Databases does not contain it.");
     }
 
     /// <summary>
-    /// 判断已加载程序集是否为 HarborAdmin 业务模块程序集。
+    /// 解析实体最终数据库 Key；实体覆盖优先，未覆盖时使用模块默认 Key。
     /// </summary>
-    private static bool IsModuleAssembly(Assembly assembly) =>
-        IsModuleAssemblyName(assembly.GetName());
+    private static string ResolveEntityDbKey(Type entityType, string moduleDbKey, IReadOnlyList<string> dbKeys)
+    {
+        var overrideAttribute = entityType.GetCustomAttribute<OverrideDbKeyAttribute>();
+        if (overrideAttribute is null)
+        {
+            return moduleDbKey;
+        }
 
-    /// <summary>
-    /// 判断程序集名称是否符合 HarborAdmin 业务模块命名约定。
-    /// </summary>
-    private static bool IsModuleAssemblyName(AssemblyName assemblyName) =>
-        assemblyName.Name?.StartsWith("HarborAdmin.Modules.", StringComparison.OrdinalIgnoreCase) == true;
+        if (string.IsNullOrWhiteSpace(overrideAttribute.Key))
+        {
+            throw new InvalidOperationException(
+                $"Entity '{entityType.FullName}' declares [OverrideDbKey] with an empty database key.");
+        }
+
+        // 保留配置文件中的原始大小写，避免后续 cloud.Use(dbKey) 与注册 key 表示不一致。
+        var dbKey = dbKeys.FirstOrDefault(key => string.Equals(key, overrideAttribute.Key, StringComparison.OrdinalIgnoreCase));
+        if (dbKey is not null)
+        {
+            return dbKey;
+        }
+
+        throw new InvalidOperationException(
+            $"Entity '{entityType.FullName}' declares override database key '{overrideAttribute.Key}', but Harbor:DbConfig:Databases does not contain it.");
+    }
+
+    private sealed record ModuleDescriptor(Assembly Assembly, Type MetadataType, IHarborModuleMetadata Metadata, IReadOnlyList<Type> EntityTypes);
 }

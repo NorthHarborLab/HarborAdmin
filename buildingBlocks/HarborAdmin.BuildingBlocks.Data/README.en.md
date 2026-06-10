@@ -6,9 +6,9 @@ HarborAdmin FreeSql data access infrastructure: multi-database registration, mod
 
 - Registers `HarborFreeSqlCloud` with support for single-database, multi-database, and read/write splitting.
 - Uses `Harbor:DbConfig:Databases` as the single database configuration entry point.
-- Scans entity types from `HarborAdmin.Modules.*` assemblies.
-- In multi-database mode, maps entities to database keys via `[DbKey("...")]`.
-- Registers `DbEntityRegistry` so repositories or business code can resolve the database key by entity type.
+- Scans module metadata and entity types from `HarborAdmin.Modules.*` assemblies.
+- In multi-database mode, maps entities to the module default database via `{Module}ModuleMetadata.GetDbKey()`; special entities can override it with `[OverrideDbKey("...")]`.
+- Registers `DbModuleRegistry` and `DbEntityRegistry` so module DbContexts and infrastructure can resolve database keys.
 - Registers the default `IFreeSql` pointing to the first database in the `Databases` array.
 - Registers `UnitOfWorkManagerCloud` to start FreeSql unit-of-work by database key.
 - Registers `HarborFreeSqlInitializerHostedService` to trigger `HarborFreeSqlCloud` resolution and structure sync on Host startup.
@@ -17,6 +17,7 @@ HarborAdmin FreeSql data access infrastructure: multi-database registration, mod
 - Registers PostgreSQL `DateTimeOffset` mapping.
 - Provides `IHarborFreeSqlPreSyncHook` to run migrations or preprocessing before CodeFirst structure sync.
 - Provides a FreeSql `CurdAfter` side-channel extension point so the composition root can plug in cache invalidation, audit logging, domain events, and similar capabilities.
+- Provides `AddHarborModuleData(...)` to register module DbContext, repository, and optional ServiceContext consistently.
 
 ## Non-goals / Boundaries
 
@@ -41,7 +42,11 @@ HarborAdmin.BuildingBlocks.Data/
   FilterNames.cs                           Global filter names
   HarborFreeSqlCloud.cs                    Multi-database FreeSqlCloud<string>
   HarborFreeSqlInitializerHostedService.cs Triggers FreeSqlCloud initialization at startup
-  HarborFreeSqlOptions.cs                  Registration options, DbEntityRegistry
+  HarborFreeSqlOptions.cs                  Registration options, DbModuleRegistry, DbEntityRegistry
+  HarborModuleDbContext.cs                 Module DbContext base class
+  HarborModuleServiceCollectionExtensions.cs Common module DI registration extensions
+  FreeSqlEntityRepository.cs               Entity CRUD repository base with hidden database/table routing
+  FreeSqlModuleRepository.cs               Module repository base class
   IHarborFreeSqlPreSyncHook.cs             Pre-CodeFirst sync hook
   ServiceCollectionExtensions.cs
   UnitOfWorkManagerCloud.cs                Multi-database unit-of-work manager
@@ -55,7 +60,7 @@ Register in Host or another composition root:
 builder.Services.AddHarborFreeSql(builder.Configuration.GetSection(DbConfig.SectionName), options =>
 {
     options.SnowflakeWorkerId = configuration.GetValue<ushort?>("Harbor:YitterWorkId") ?? 1;
-    options.AddEntityAssembly(typeof(SomeEntity).Assembly);
+    options.AddModuleAssembly(typeof(SomeModuleMetadata).Assembly);
     options.AddCurdAfterHandler(CacheInvalidationAopBridge.Dispatch);
 });
 ```
@@ -64,6 +69,7 @@ After registration you can inject:
 
 - `HarborFreeSqlCloud`
 - `IFreeSql`
+- `DbModuleRegistry`
 - `DbEntityRegistry`
 - `UnitOfWorkManagerCloud`
 - `ICurrentUser`
@@ -74,9 +80,24 @@ After registration you can inject:
 
 `IFreeSql` always points to the **first element** in `Harbor:DbConfig:Databases`. It is not necessarily the business primary database.
 
-In the current Host configuration, the first entry is `ConfigCenterDb`, so the default `IFreeSql` points to the config center database. To access the Admin business database, use `cloud.Use("AdminDb")` or `registry.GetDbKey<TEntity>()`. Do not assume `IFreeSql` is the Admin database.
+In the current Host configuration, the first entry is `ConfigCenterDb`, so the default `IFreeSql` points to the config center database. To access a module business database, prefer `IHarborModuleDbContext.DbKey` / `Orm`. Do not assume `IFreeSql` is the Admin database.
 
 In multi-database scenarios, prefer resolving databases explicitly by `DbKey` instead of relying on array order.
+
+### Module data registration
+
+Module extensions should prefer `AddHarborModuleData(...)` to register module DbContext and repository without repeating lifecycle boilerplate:
+
+```csharp
+services.AddHarborModuleData<IAdminDbContext, AdminDbContext, IAdminRepository, FreeSqlAdminRepository, AdminServiceContext>();
+```
+
+The default lifetimes are Singleton for DbContext and repository, and Scoped for ServiceContext. If a module needs a scoped repository, specify it explicitly:
+
+```csharp
+services.AddHarborModuleData<ISecretsDbContext, SecretsDbContext, ISecretsRepository, FreeSqlSecretsRepository>(
+    repositoryLifetime: ServiceLifetime.Scoped);
+```
 
 ## Database configuration
 
@@ -161,7 +182,7 @@ Read/write splitting:
 
 | Field | Description |
 |-------|-------------|
-| `Key` | FreeSqlCloud registration key; in multi-database mode it matches `[DbKey]` |
+| `Key` | FreeSqlCloud registration key; in multi-database mode it matches module metadata `GetDbKey()` |
 | `DataType` | Database type; see supported list below |
 | `ConnectionString` | Primary database connection string |
 | `SyncStructure` | Whether to run CodeFirst sync for entities mapped to this database at startup |
@@ -183,37 +204,52 @@ Read/write splitting:
 
 These Provider packages are already referenced in `HarborAdmin.BuildingBlocks.Data.csproj`. When adding a new database type, update `ParseDataType`, package references, and this document together.
 
-## Entity scanning and DbKey
+## Module scanning and DbKey
 
-Entity scanning rules:
+Module scanning rules:
 
-- By default, scans `HarborAdmin.Modules.*` assemblies already loaded in the current AppDomain.
+- By default, uses `HarborModuleAssemblyDiscovery` to scan `HarborAdmin.Modules.*` assemblies already loaded in the current AppDomain.
 - Also scans `HarborAdmin.Modules.*` assemblies referenced by the entry assembly, calling `Assembly.Load` when needed.
-- Additional assemblies can be added via `HarborFreeSqlOptions.AddEntityAssembly(...)`.
+- Additional assemblies can be added via `HarborFreeSqlOptions.AddModuleAssembly(...)`.
+- Each module assembly must declare exactly one `IHarborModuleMetadata` implementation.
 - Only non-abstract classes inheriting `EntityBase` are scanned.
 
 Single-database mode:
 
 - All entities map to the sole database.
-- Entities do not need `[DbKey]`.
+- Module metadata must exist, but the declared DbKey is not matched against configuration in single-database mode.
 
 Multi-database mode:
 
-- Every entity must explicitly declare `[DbKey("...")]`.
-- The `[DbKey]` value must exist in `Harbor:DbConfig:Databases`.
+- Every module metadata must return a non-empty DbKey.
+- The metadata DbKey value must exist in `Harbor:DbConfig:Databases`.
+- Ordinary entities use the module default DbKey; only entities that must override the module default database should declare `[OverrideDbKey("...")]`.
+- The `[OverrideDbKey]` value must exist in `Harbor:DbConfig:Databases`.
 - Registration preserves the original casing from configuration to keep `cloud.Use(dbKey)` consistent.
 
-`[DbKey]` is defined in `HarborAdmin.BuildingBlocks.Abstractions.Domain`.
-
-Example (from `HarborAdmin.Modules.International`):
+Example:
 
 ```csharp
-[DbKey("AdminDb")]
-public sealed class InternationalEntry : AuditableEntity
+public sealed class InternationalModuleMetadata : HarborModuleMetadataBase
 {
-    public long PageId { get; set; }
+    public override string ModuleName => "International";
+
+    public override string GetDbKey() => "AdminDb";
 }
 ```
+
+Ordinary entities do not declare database keys; database ownership is supplied by the metadata of the entity's module assembly. A special entity can override the module default database:
+
+```csharp
+[OverrideDbKey("AuditDb")]
+public sealed class AdminAuditLog : EntityBase
+{
+}
+```
+
+## DbModuleRegistry
+
+`DbModuleRegistry` stores the module-metadata-type-to-runtime-database-key mapping and is registered as a Singleton. The module DbContext base class uses it to resolve the effective DbKey.
 
 ## DbEntityRegistry
 
@@ -226,6 +262,29 @@ var fsql = cloud.Use(dbKey);
 
 - `GetDbKey` / `GetDbKey<T>`: throws `KeyNotFoundException` when unmapped.
 - `TryGetDbKey(Type, out string)`: use when you need a non-throwing lookup.
+
+The module DbContext `DbKey` represents the module default database. When opening a transaction for an entity that declares `[OverrideDbKey]`, use `DbEntityRegistry.GetDbKey<TEntity>()` to resolve the entity's effective DbKey.
+
+## Entity CRUD repositories
+
+Ordinary entity CRUD repositories can inherit `FreeSqlEntityRepository<TEntity, TDbContext>`. The base class resolves the entity's effective database through `DbEntityRegistry.GetDbKey<TEntity>()`:
+
+```csharp
+public sealed class AiProviderRepository(IAiDbContext db, DbEntityRegistry entityRegistry, UnitOfWorkManagerCloud unitOfWorkManager)
+    : FreeSqlEntityRepository<AiProvider, IAiDbContext>(db, entityRegistry), IAiProviderRepository
+{
+}
+```
+
+Database routing is not part of service or controller method signatures:
+
+- Ordinary entities use their module metadata default DbKey.
+- Entities marked with `[OverrideDbKey("...")]` use the override DbKey.
+- Repositories resolve the entity's effective DbKey per operation and do not keep a long-lived `IBaseRepository<TEntity>` field.
+
+Table sharding is also hidden inside the entity repository. Override protected hooks such as `ResolveListTableNameAsync(...)`, `ResolveGetTableNameAsync(...)`, and `ResolveInsertTableNameAsync(...)` to return a physical table name; the default is no table sharding. Services do not pass DbKey, TableName, or route objects.
+
+Complex aggregate saves can override `InsertAsync` / `UpdateAsync` and save the root entity plus child collections inside one `UnitOfWorkManagerCloud.Begin(DbKey)`.
 
 ## FreeSql registration behavior
 

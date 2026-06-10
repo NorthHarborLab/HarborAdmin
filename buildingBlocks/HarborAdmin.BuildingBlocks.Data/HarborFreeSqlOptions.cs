@@ -1,4 +1,5 @@
 using System.Reflection;
+using HarborAdmin.BuildingBlocks.Abstractions.Modules;
 
 namespace HarborAdmin.BuildingBlocks.Data;
 
@@ -7,7 +8,7 @@ namespace HarborAdmin.BuildingBlocks.Data;
 /// </summary>
 public sealed class HarborFreeSqlOptions
 {
-    private readonly List<Assembly> _entityAssemblies = [];
+    private readonly List<Assembly> _moduleAssemblies = [];
     private readonly List<Action<IServiceProvider, object>> _curdAfterHandlers = [];
 
     /// <summary>
@@ -16,11 +17,11 @@ public sealed class HarborFreeSqlOptions
     public ushort SnowflakeWorkerId { get; set; } = 1;
 
     /// <summary>
-    /// 追加需要扫描实体的程序集。默认会扫描当前应用引用的 <c>HarborAdmin.Modules.*</c> 程序集。
+    /// 追加需要扫描实体与模块元数据的程序集。默认会扫描当前应用引用的 <c>HarborAdmin.Modules.*</c> 程序集。
     /// </summary>
-    public HarborFreeSqlOptions AddEntityAssembly(Assembly assembly)
+    public HarborFreeSqlOptions AddModuleAssembly(Assembly assembly)
     {
-        _entityAssemblies.Add(assembly);
+        _moduleAssemblies.Add(assembly);
         return this;
     }
 
@@ -36,9 +37,57 @@ public sealed class HarborFreeSqlOptions
         return this;
     }
 
-    internal IReadOnlyList<Assembly> EntityAssemblies => _entityAssemblies;
+    internal IReadOnlyList<Assembly> ModuleAssemblies => _moduleAssemblies;
 
     internal IReadOnlyList<Action<IServiceProvider, object>> CurdAfterHandlers => _curdAfterHandlers;
+}
+
+/// <summary>
+/// 模块类型到数据库键的注册表。
+/// </summary>
+public sealed class DbModuleRegistry
+{
+    private readonly IReadOnlyDictionary<Type, string> _moduleDbKeys;
+
+    private DbModuleRegistry(IReadOnlyDictionary<Type, string> moduleDbKeys)
+    {
+        _moduleDbKeys = moduleDbKeys;
+    }
+
+    /// <summary>
+    /// 根据模块映射创建注册表。
+    /// </summary>
+    internal static DbModuleRegistry Create(IEnumerable<ModuleDbMapping> mappings)
+    {
+        var map = new Dictionary<Type, string>();
+        foreach (var mapping in mappings)
+        {
+            if (map.TryGetValue(mapping.MetadataType, out var existingDbKey))
+            {
+                throw new InvalidOperationException(
+                    $"Module metadata '{mapping.MetadataType.FullName}' is already mapped to database '{existingDbKey}' and cannot be mapped to '{mapping.DbKey}'.");
+            }
+
+            map[mapping.MetadataType] = mapping.DbKey;
+        }
+
+        return new DbModuleRegistry(map);
+    }
+
+    /// <summary>
+    /// 获取模块元数据类型对应的数据库键。
+    /// </summary>
+    public string GetDbKey<TMetadata>()
+        where TMetadata : IHarborModuleMetadata =>
+        GetDbKey(typeof(TMetadata));
+
+    /// <summary>
+    /// 获取模块元数据类型对应的数据库键。
+    /// </summary>
+    public string GetDbKey(Type metadataType) =>
+        _moduleDbKeys.TryGetValue(metadataType, out var dbKey)
+            ? dbKey
+            : throw new KeyNotFoundException($"Module metadata '{metadataType.FullName}' is not mapped to any database.");
 }
 
 /// <summary>
@@ -94,3 +143,5 @@ public sealed class DbEntityRegistry
 }
 
 internal sealed record EntityDbMapping(Type EntityType, string DbKey);
+
+internal sealed record ModuleDbMapping(Type MetadataType, string DbKey);
