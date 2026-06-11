@@ -9,8 +9,7 @@ namespace HarborAdmin.Modules.Admin.Infrastructure.Repositories;
 /// <summary>
 /// Admin 访问控制 FreeSql 仓储。
 /// </summary>
-public sealed class AdminAccessRepository(IAdminDbContext db)
-    : FreeSqlModuleRepository<IAdminDbContext>(db), IAdminAccessRepository
+public sealed class AdminAccessRepository(IAdminDbContext db) : FreeSqlModuleRepository<IAdminDbContext>(db), IAdminAccessRepository
 {
     /// <inheritdoc />
     public async Task<IReadOnlyList<AdminUserRole>> GetUserRoleLinksAsync(long userId, CancellationToken cancellationToken = default) =>

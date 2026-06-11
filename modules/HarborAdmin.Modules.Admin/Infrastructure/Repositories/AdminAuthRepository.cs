@@ -8,8 +8,7 @@ namespace HarborAdmin.Modules.Admin.Infrastructure.Repositories;
 /// <summary>
 /// Admin 匿名认证 FreeSql 仓储。
 /// </summary>
-public sealed class AdminAuthRepository(IAdminDbContext db)
-    : FreeSqlModuleRepository<IAdminDbContext>(db), IAdminAuthRepository
+public sealed class AdminAuthRepository(IAdminDbContext db) : FreeSqlModuleRepository<IAdminDbContext>(db), IAdminAuthRepository
 {
     /// <inheritdoc />
     public async Task<AdminUser?> GetUserByUserNameAsync(string userName, CancellationToken cancellationToken = default) =>

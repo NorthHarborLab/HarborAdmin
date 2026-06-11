@@ -10,8 +10,7 @@ namespace HarborAdmin.Modules.Admin.Infrastructure.Repositories;
 /// <summary>
 /// Admin 功能设计 FreeSql 仓储。
 /// </summary>
-public sealed class AdminFeatureDesignRepository(IAdminDbContext db)
-    : FreeSqlModuleRepository<IAdminDbContext>(db), IAdminFeatureDesignRepository
+public sealed class AdminFeatureDesignRepository(IAdminDbContext db) : FreeSqlModuleRepository<IAdminDbContext>(db), IAdminFeatureDesignRepository
 {
     /// <inheritdoc />
     public async Task<IReadOnlyList<AdminFeature>> ListFeatureTreeNodesAsync(CancellationToken cancellationToken = default) =>

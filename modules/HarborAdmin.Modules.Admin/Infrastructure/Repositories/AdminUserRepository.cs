@@ -8,8 +8,7 @@ namespace HarborAdmin.Modules.Admin.Infrastructure.Repositories;
 /// <summary>
 /// Admin 用户聚合 FreeSql 仓储。
 /// </summary>
-public sealed class AdminUserRepository(IAdminDbContext db)
-    : FreeSqlModuleRepository<IAdminDbContext>(db), IAdminUserRepository
+public sealed class AdminUserRepository(IAdminDbContext db) : FreeSqlModuleRepository<IAdminDbContext>(db), IAdminUserRepository
 {
     /// <inheritdoc />
     public async Task<AdminUser?> GetUserAggregateAsync(long userId, CancellationToken cancellationToken = default) =>

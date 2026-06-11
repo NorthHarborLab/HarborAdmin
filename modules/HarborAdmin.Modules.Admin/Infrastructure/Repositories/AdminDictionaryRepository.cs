@@ -8,8 +8,7 @@ namespace HarborAdmin.Modules.Admin.Infrastructure.Repositories;
 /// <summary>
 /// Admin 字典 FreeSql 仓储。
 /// </summary>
-public sealed class AdminDictionaryRepository(IAdminDbContext db)
-    : FreeSqlModuleRepository<IAdminDbContext>(db), IAdminDictionaryRepository
+public sealed class AdminDictionaryRepository(IAdminDbContext db) : FreeSqlModuleRepository<IAdminDbContext>(db), IAdminDictionaryRepository
 {
     /// <inheritdoc />
     public async Task<IReadOnlyList<AdminDictionary>> ListDictionariesAsync(string? keyword, CancellationToken cancellationToken = default)
