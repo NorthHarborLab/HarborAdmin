@@ -45,9 +45,7 @@ public sealed class FeatureDesignActionService
         {
             throw new ConflictDomainException($"Feature action '{normalized}.{actionCode}' already exists.");
         }
-        if (await _context.Db.Orm.Select<AdminFeatureAction>()
-                .Where(item => item.PermissionCode == permissionCode)
-                .AnyAsync(cancellationToken))
+        if (await _context.Repository.PermissionCodeExistsAsync(permissionCode, cancellationToken: cancellationToken))
         {
             throw new ConflictDomainException("权限编码已存在，请使用不同的权限码。");
         }
@@ -85,10 +83,7 @@ public sealed class FeatureDesignActionService
         var requestedPermissionCode = request.PermissionCode.Trim();
 
         if (!string.Equals(oldPermissionCode, requestedPermissionCode, StringComparison.OrdinalIgnoreCase)
-            && await _context.Db.Orm.Select<AdminFeatureAction>()
-                .Where(item => item.PermissionCode == requestedPermissionCode)
-                .Where(item => item.Id != action.Id)
-                .AnyAsync(cancellationToken))
+            && await _context.Repository.PermissionCodeExistsAsync(requestedPermissionCode, action.Id, cancellationToken))
         {
             throw new ConflictDomainException("权限编码已存在，请使用不同的权限码。");
         }
@@ -98,10 +93,7 @@ public sealed class FeatureDesignActionService
         _context.SaveFeatureChildren(feature, nameof(AdminFeature.Actions));
         if (!string.Equals(oldPermissionCode, action.PermissionCode, StringComparison.OrdinalIgnoreCase))
         {
-            await _context.Db.Orm.Update<AdminRolePermission>()
-                .Set(item => item.PermissionCode, action.PermissionCode)
-                .Where(item => item.AdminFeatureActionId == action.Id)
-                .ExecuteAffrowsAsync(cancellationToken);
+            await _context.Repository.UpdateRolePermissionCodeAsync(action.Id, action.PermissionCode, cancellationToken);
         }
 
         await ReplaceActionApisAsync(normalized, action.ActionCode, request.ApiIds ?? [], cancellationToken);
@@ -138,7 +130,7 @@ public sealed class FeatureDesignActionService
             action.UpdatedAt = now;
         }
 
-        await _context.Db.Orm.Update<AdminFeatureAction>().SetSource(actions).ExecuteAffrowsAsync(cancellationToken);
+        await _context.Repository.UpdateFeatureActionsAsync(actions, cancellationToken);
         await _context.IncrementSchemaVersionAsync(feature.FeatureCode, cancellationToken);
         await _context.AdminContext.BumpSessionVersionAsync(cancellationToken);
     }
@@ -156,7 +148,7 @@ public sealed class FeatureDesignActionService
                      ?? throw new NotFoundDomainException($"Feature action '{normalized}.{normalizedAction}' was not found.");
         action.ActionApis.Clear();
         _context.SaveActionChildren(action, nameof(AdminFeatureAction.ActionApis));
-        await _context.Db.Orm.Delete<AdminRolePermission>().Where(item => item.AdminFeatureActionId == action.Id).ExecuteAffrowsAsync(cancellationToken);
+        await _context.Repository.DeleteRolePermissionLinksByActionIdAsync(action.Id, cancellationToken);
         feature.Actions.Remove(action);
         _context.SaveFeatureChildren(feature, nameof(AdminFeature.Actions));
         await _context.IncrementSchemaVersionAsync(normalized, cancellationToken);
@@ -195,18 +187,14 @@ public sealed class FeatureDesignActionService
             .ToArray();
 
         // 绑定列表按请求整体替换，先删旧关系再插入新关系。
-        await _context.Db.Orm.Delete<AdminFeatureActionApi>()
-            .Where(item => item.AdminFeatureActionId == action.Id)
-            .ExecuteAffrowsAsync(cancellationToken);
+        await _context.Repository.DeleteActionApiLinksAsync(action.Id, cancellationToken);
 
         if (distinctApiIds.Length == 0)
         {
             return;
         }
 
-        var validApis = await _context.Db.Orm.Select<AdminFeatureApi>()
-            .Where(item => distinctApiIds.Contains(item.Id))
-            .ToListAsync(cancellationToken);
+        var validApis = await _context.Repository.GetFeatureApisByIdsAsync(distinctApiIds, cancellationToken);
         if (validApis.Count != distinctApiIds.Length)
         {
             throw new ValidationDomainException("动作只能绑定已存在的 API。");
@@ -221,7 +209,7 @@ public sealed class FeatureDesignActionService
             ActionCode = action.ActionCode,
         }).ToList();
 
-        await _context.Db.Orm.Insert(action.ActionApis).ExecuteAffrowsAsync(cancellationToken);
+        await _context.Repository.InsertActionApiLinksAsync(action.ActionApis, cancellationToken);
     }
 
     /// <summary>

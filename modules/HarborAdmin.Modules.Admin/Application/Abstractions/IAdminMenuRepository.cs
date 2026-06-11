@@ -3,9 +3,9 @@ using HarborAdmin.Modules.Admin.Domain.Entities;
 namespace HarborAdmin.Modules.Admin.Application.Abstractions;
 
 /// <summary>
-/// Admin 菜单扩展仓储。
+/// Admin 菜单仓储。
 /// </summary>
-public partial interface IAdminRepository
+public interface IAdminMenuRepository
 {
     /// <summary>
     /// 加载全部功能资源。
@@ -13,9 +13,19 @@ public partial interface IAdminRepository
     Task<IReadOnlyList<AdminFeature>> ListFeaturesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// 加载已启用的功能动作。
+    /// 加载全部已启用功能资源。
     /// </summary>
-    Task<IReadOnlyList<AdminFeatureAction>> ListEnabledFeatureActionsAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<AdminFeature>> ListEnabledFeaturesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 加载指定菜单（含绑定功能）。
+    /// </summary>
+    Task<AdminMenu?> GetMenuWithFeatureAsync(long menuId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 加载全部菜单（含绑定功能）。
+    /// </summary>
+    Task<IReadOnlyList<AdminMenu>> ListMenusWithFeaturesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 加载同级菜单。
@@ -26,6 +36,21 @@ public partial interface IAdminRepository
     /// 按 ID 批量加载菜单。
     /// </summary>
     Task<IReadOnlyList<AdminMenu>> GetMenusByIdsAsync(IReadOnlyList<long> menuIds, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 按功能编码解析功能。
+    /// </summary>
+    Task<AdminFeature?> ResolveFeatureByCodeAsync(string? featureCode, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 保存菜单。
+    /// </summary>
+    Task SaveMenuAsync(AdminMenu menu, bool isUpdate, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 级联删除菜单。
+    /// </summary>
+    Task DeleteMenuCascadeAsync(long menuId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 统计子菜单数量。

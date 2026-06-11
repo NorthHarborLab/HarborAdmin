@@ -1,5 +1,7 @@
 namespace HarborAdmin.Modules.Admin.Application.Services.Access;
 
+using Infrastructure.Caching;
+
 /// <summary>
 /// API 访问鉴权服务。
 /// </summary>
@@ -11,16 +13,21 @@ public sealed class ApiAuthorizationService(AccessCacheService accessCache)
     public async Task<bool> CanAccessApiAsync(long userId, string path, string method, CancellationToken cancellationToken)
     {
         var snapshot = await accessCache.GetUserSnapshotAsync(userId, cancellationToken);
-        var endpoints = await accessCache.GetApiAuthorizationMapAsync(cancellationToken);
         var normalizedMethod = method.ToUpperInvariant();
         var normalizedPath = NormalizePath(path);
-        var endpoint = endpoints
-            .Where(api => api.HttpMethod == normalizedMethod)
-            .OrderByDescending(api => ExactSegmentCount(api.Path))
-            .FirstOrDefault(api => AccessPathMatcher.Matches(NormalizePath(api.Path), normalizedPath));
+        var endpoints = await accessCache.GetApiAuthorizationMapAsync(cancellationToken);
+        var endpoint = ResolveEndpoint(endpoints, normalizedMethod, normalizedPath);
         if (endpoint is null)
         {
-            return false;
+            // 直接执行 SQL 种子不会走 BumpSessionVersionAsync，此处刷新一次运行时授权图。
+            await accessCache.InvalidateRuntimeAccessAsync(cancellationToken);
+            endpoints = await accessCache.GetApiAuthorizationMapAsync(cancellationToken);
+            endpoint = ResolveEndpoint(endpoints, normalizedMethod, normalizedPath);
+        }
+
+        if (endpoint is null)
+        {
+            return snapshot.IsSuperAdmin;
         }
 
         if (snapshot.IsSuperAdmin)
@@ -31,6 +38,18 @@ public sealed class ApiAuthorizationService(AccessCacheService accessCache)
         return endpoint.RequiredPermissionCodes.Length > 0
                && endpoint.RequiredPermissionCodes.Any(permission => snapshot.Permissions.Contains(permission));
     }
+
+    /// <summary>
+    /// 在授权端点列表中解析与请求匹配的 API。
+    /// </summary>
+    private static ApiAuthorizationEndpointCacheItem? ResolveEndpoint(
+        IReadOnlyList<ApiAuthorizationEndpointCacheItem> endpoints,
+        string normalizedMethod,
+        string normalizedPath) =>
+        endpoints
+            .Where(api => api.HttpMethod == normalizedMethod)
+            .OrderByDescending(api => ExactSegmentCount(api.Path))
+            .FirstOrDefault(api => AccessPathMatcher.Matches(NormalizePath(api.Path), normalizedPath));
 
     /// <summary>
     /// 规范化请求路径，消除 <c>/api</c> 前缀差异。

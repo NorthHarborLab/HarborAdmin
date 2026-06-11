@@ -3,7 +3,7 @@ using HarborAdmin.Modules.Admin.Application.Services.FeatureDesign;
 using HarborAdmin.Modules.Admin.Contracts.FeatureDesign.Dto;
 using HarborAdmin.Modules.Admin.Contracts.FeatureDesign.Request;
 using Microsoft.AspNetCore.Mvc;
-using HarborAdmin.BuildingBlocks.Abstractions.Api;
+using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 
 namespace HarborAdmin.Modules.Admin.Controllers.FeatureDesign;
 

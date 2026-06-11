@@ -1,10 +1,12 @@
+using HarborAdmin.BuildingBlocks.Abstractions.Application;
+using HarborAdmin.BuildingBlocks.Abstractions.Enums;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.BuildingBlocks.Mapping;
 using HarborAdmin.Modules.Admin.Application.Abstractions;
+using HarborAdmin.Modules.Admin.Application.Services.Shared;
 using HarborAdmin.Modules.Admin.Contracts.System.Dto;
 using HarborAdmin.Modules.Admin.Contracts.System.Request;
 using HarborAdmin.Modules.Admin.Domain.Entities;
-using HarborAdmin.Modules.Admin.Application.Services.Shared;
 
 namespace HarborAdmin.Modules.Admin.Application.Services.Role;
 
@@ -12,53 +14,29 @@ namespace HarborAdmin.Modules.Admin.Application.Services.Role;
 /// 角色管理服务。
 /// </summary>
 public sealed class RoleService(
-    SystemServiceContext systemContext,
     AdminServiceContext context,
-    IAdminRepository repository,
+    IAdminRoleRepository roleRepository,
+    IAdminMenuRepository menuRepository,
     IHarborMapper mapper)
+    : HarborApplicationRepositoryService<AdminRole, SystemRoleDto, SaveSystemRoleRequest, IAdminRoleRepository>(roleRepository)
 {
-    /// <summary>
-    /// 获取角色列表及其权限配置。
-    /// </summary>
-    public async Task<IReadOnlyList<SystemRoleDto>> ListRolesAsync(CancellationToken cancellationToken)
-    {
-        var roles = await repository.ListRolesWithGrantsAsync(cancellationToken);
-        return roles.Select(role => mapper.Map<SystemRoleDto>(role)).ToArray();
-    }
+    /// <inheritdoc />
+    protected override SystemRoleDto MapToDto(AdminRole entity) => mapper.Map<SystemRoleDto>(entity);
+
+    /// <inheritdoc />
+    protected override AdminRole CreateEntity(SaveSystemRoleRequest request) => new() { CreatedAt = UtcNow };
 
     /// <summary>
-    /// 新增或更新角色，并同步菜单、权限码、字段策略与数据范围。
+    /// 将保存请求应用到角色聚合。
     /// </summary>
-    public async Task<SystemRoleDto> SaveRoleAsync(long? id, SaveSystemRoleRequest request, CancellationToken cancellationToken)
+    protected override async Task ApplySaveAsync(AdminRole role, SaveSystemRoleRequest request, CancellationToken cancellationToken)
     {
-        var now = DateTimeOffset.UtcNow;
-        AdminRole role;
-        if (id.HasValue)
-        {
-            role = await systemContext.LoadRoleAggregateAsync(id.Value, cancellationToken);
-        }
-        else
-        {
-            role = new AdminRole { CreatedAt = now };
-        }
-
         role.Name = request.Name;
         role.RoleCode = string.IsNullOrWhiteSpace(request.RoleCode) ? AdminIdHelper.BuildCode(request.Name) : request.RoleCode;
         role.DataScopeType = string.IsNullOrWhiteSpace(request.DataScopeType) ? "Self" : request.DataScopeType;
         role.Remark = request.Remark;
         role.Enabled = request.Status == 1;
-        role.UpdatedAt = now;
-
-        var roleRepository = systemContext.GetRoleRepository();
-        if (id.HasValue)
-        {
-            await roleRepository.UpdateAsync(role, cancellationToken);
-        }
-        else
-        {
-            await roleRepository.InsertAsync(role, cancellationToken);
-        }
-
+        role.UpdatedAt = UtcNow;
         var menuIds = (request.MenuIds ?? ExtractMenuIds(request.Permissions ?? []))
             .Select(AdminIdHelper.ParseId)
             .Distinct()
@@ -67,7 +45,6 @@ public sealed class RoleService(
         role.RoleMenus = menuIds
             .Select(menuId => new AdminRoleMenu { RoleId = role.Id, MenuId = menuId })
             .ToList();
-        systemContext.SaveRoleChildren(role, nameof(AdminRole.RoleMenus));
 
         var permissionCodes = (request.PermissionCodes ?? ExtractPermissionCodes(request.Permissions ?? []))
             .Where(value => !string.IsNullOrWhiteSpace(value))
@@ -76,7 +53,7 @@ public sealed class RoleService(
         var rolePermissions = new List<AdminRolePermission>(permissionCodes.Length);
         foreach (var permissionCode in permissionCodes)
         {
-            var action = await systemContext.ResolveFeatureActionByPermissionCodeAsync(permissionCode, cancellationToken);
+            var action = await Repository.GetFeatureActionByPermissionCodeAsync(permissionCode, cancellationToken);
             rolePermissions.Add(new AdminRolePermission
             {
                 RoleId = role.Id,
@@ -86,11 +63,7 @@ public sealed class RoleService(
         }
 
         role.RolePermissions = rolePermissions;
-        systemContext.SaveRoleChildren(role, nameof(AdminRole.RolePermissions));
-
         role.FieldPermissions = await BuildFieldPermissionsAsync(role.Id, request.FieldPolicies ?? [], cancellationToken);
-        systemContext.SaveRoleChildren(role, nameof(AdminRole.FieldPermissions));
-
         role.DataScopes =
         [
             new AdminRoleDataScope
@@ -99,22 +72,18 @@ public sealed class RoleService(
                 ScopeType = role.DataScopeType,
             },
         ];
-        systemContext.SaveRoleChildren(role, nameof(AdminRole.DataScopes));
-
-        await context.BumpSessionVersionAsync(cancellationToken);
-        role = await systemContext.LoadRoleAggregateAsync(role.Id, cancellationToken);
-        return mapper.Map<SystemRoleDto>(role);
     }
 
-    /// <summary>
-    /// 删除角色及其关联授权数据。
-    /// </summary>
-    public async Task DeleteRoleAsync(long id, CancellationToken cancellationToken)
-    {
-        _ = await systemContext.LoadRoleAggregateAsync(id, cancellationToken);
-        await systemContext.GetRoleRepository().DeleteCascadeByDatabaseAsync(role => role.Id == id, cancellationToken);
+    /// <inheritdoc />
+    protected override async Task AfterSaveAsync(AdminRole entity, SaveSystemRoleRequest request, CancellationToken cancellationToken) =>
         await context.BumpSessionVersionAsync(cancellationToken);
-    }
+
+    /// <inheritdoc />
+    protected override async Task AfterDeleteAsync(AdminRole entity, CrudDeleteDecision decision, CancellationToken cancellationToken) =>
+        await context.BumpSessionVersionAsync(cancellationToken);
+
+    /// <inheritdoc />
+    protected override string GetNotFoundMessage(long id) => "角色不存在。";
 
     /// <summary>
     /// 根据请求字段策略构建角色字段权限实体。
@@ -133,7 +102,7 @@ public sealed class RoleService(
         var result = new List<AdminRoleFieldPermission>(normalized.Length);
         foreach (var policy in normalized)
         {
-            var field = await systemContext.ResolveFeatureFieldAsync(policy.FeatureCode, policy.FieldName, cancellationToken);
+            var field = await Repository.GetFeatureFieldAsync(policy.FeatureCode, policy.FieldName, cancellationToken);
             result.Add(new AdminRoleFieldPermission
             {
                 RoleId = roleId,
@@ -177,7 +146,7 @@ public sealed class RoleService(
             return;
         }
 
-        var menus = await repository.GetMenusByIdsAsync(menuIds, cancellationToken);
+        var menus = await menuRepository.GetMenusByIdsAsync(menuIds, cancellationToken);
         var existingIds = menus.Select(menu => menu.Id).ToHashSet();
         var missingIds = menuIds.Where(menuId => !existingIds.Contains(menuId)).ToArray();
         if (missingIds.Length > 0)

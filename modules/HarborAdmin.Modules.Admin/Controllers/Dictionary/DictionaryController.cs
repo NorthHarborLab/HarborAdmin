@@ -1,5 +1,5 @@
-using HarborAdmin.BuildingBlocks.Abstractions.Api;
-using HarborAdmin.BuildingBlocks.Abstractions.Auth;
+using HarborAdmin.BuildingBlocks.Abstractions.Attributes;
+using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using HarborAdmin.Modules.Admin.Application.Services.Dictionary;
 using HarborAdmin.Modules.Admin.Contracts.Dictionary.Dto;
 using HarborAdmin.Modules.Admin.Contracts.Dictionary.Request;

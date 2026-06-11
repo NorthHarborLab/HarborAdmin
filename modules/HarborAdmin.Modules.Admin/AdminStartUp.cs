@@ -1,3 +1,5 @@
+using HarborAdmin.BuildingBlocks.Abstractions.Modules;
+using HarborAdmin.BuildingBlocks.Data;
 using HarborAdmin.Modules.Admin.Application.Abstractions;
 using HarborAdmin.Modules.Admin.Application.Captcha;
 using HarborAdmin.Modules.Admin.Application.Services.Auth;
@@ -23,14 +25,22 @@ using Microsoft.Extensions.DependencyInjection;
 namespace HarborAdmin.Modules.Admin;
 
 /// <summary>
-/// Admin 模块依赖注入扩展
+/// Admin 模块启动入口。
 /// </summary>
-public static class AdminModuleExtensions
+public sealed class AdminStartUp : HarborModuleMetadataBase, IHarborModuleStartup
 {
+    /// <inheritdoc />
+    public override string ModuleName => "Admin";
+
+    /// <inheritdoc />
+    public override string GetDbKey() => "AdminDb";
+
     /// <summary>
-    /// 注册 Admin 模块服务
+    /// 注册 Admin 模块服务。
     /// </summary>
-    public static IServiceCollection AddAdminModule(this IServiceCollection services)
+    /// <param name="services">服务集合。</param>
+    /// <param name="context">模块注册上下文。</param>
+    public void AddModule(IServiceCollection services, HarborModuleRegistrationContext context)
     {
         AddAdminInfrastructure(services);
         AddAdminAuth(services);
@@ -39,7 +49,6 @@ public static class AdminModuleExtensions
         AddAdminDictionary(services);
         AddAdminFeatureDesign(services);
         AddAdminDynamicCrud(services);
-        return services;
     }
 
     /// <summary>
@@ -49,11 +58,19 @@ public static class AdminModuleExtensions
     {
         services.AddOptions<AdminAuthOptions>().BindConfiguration(AdminAuthOptions.SectionName);
         services.AddSingleton<IAdminDbContext, AdminDbContext>();
-        services.AddSingleton<IAdminRepository, FreeSqlAdminRepository>();
+        services.AddScoped<AdminServiceContext>();
+        services.AddScoped<IAdminRuntimeStateRepository, AdminRuntimeStateRepository>();
+        services.AddScoped<IAdminAuthRepository, AdminAuthRepository>();
+        services.AddScoped<IAdminDictionaryRepository, AdminDictionaryRepository>();
+        services.AddScoped<IAdminUserRepository, AdminUserRepository>();
+        services.AddScoped<IAdminMenuRepository, AdminMenuRepository>();
+        services.AddScoped<IAdminAccessRepository, AdminAccessRepository>();
+        services.AddScoped<IAdminFeatureDesignRepository, AdminFeatureDesignRepository>();
+        services.AddScoped<IAdminDepartmentRepository, AdminDepartmentRepository>();
+        services.AddScoped<IAdminRoleRepository, AdminRoleRepository>();
         services.AddSingleton<AdminTokenProtector>();
         services.AddSingleton<CaptchaImagePool>();
         services.AddSingleton<CaptchaChallengeService>();
-        services.AddScoped<AdminServiceContext>();
         services.AddScoped<SystemServiceContext>();
         services.AddScoped<IAdminDynamicResourceHandlerResolver, AdminDynamicResourceHandlerResolver>();
     }

@@ -2,13 +2,13 @@ using System.Security.Cryptography;
 using System.Text;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.BuildingBlocks.Caching.Abstractions;
+using HarborAdmin.Modules.Admin.Application.Abstractions;
 using HarborAdmin.Modules.Admin.Application.Services.Captcha;
 using HarborAdmin.Modules.Admin.Contracts.Auth.Dto;
 using HarborAdmin.Modules.Admin.Contracts.Auth.Request;
 using HarborAdmin.Modules.Admin.Contracts.Captcha.Dto;
 using HarborAdmin.Modules.Admin.Domain.Entities;
 using HarborAdmin.Modules.Admin.Infrastructure.Caching;
-using HarborAdmin.Modules.Admin.Infrastructure.Contexts;
 using HarborAdmin.Modules.Admin.Infrastructure.Options;
 using HarborAdmin.Modules.Admin.Infrastructure.Security;
 using Microsoft.AspNetCore.Hosting;
@@ -23,7 +23,7 @@ namespace HarborAdmin.Modules.Admin.Application.Services.Auth;
 /// Admin 匿名认证服务：加密挑战、验证码、登录与令牌刷新。
 /// </summary>
 public sealed class AuthService(
-    IAdminDbContext db,
+    IAdminAuthRepository repository,
     AdminTokenProtector tokenProtector,
     IOptions<AdminAuthOptions> authOptions,
     IWebHostEnvironment environment,
@@ -44,11 +44,6 @@ public sealed class AuthService(
     /// 用户密码哈希器。
     /// </summary>
     private readonly PasswordHasher<AdminUser> _passwordHasher = new();
-
-    /// <summary>
-    /// Admin 模块 ORM 实例。
-    /// </summary>
-    private IFreeSql Orm => db.Orm;
 
     /// <summary>
     /// 创建一次性 RSA 加密挑战，供前端加密登录密码使用。
@@ -105,9 +100,7 @@ public sealed class AuthService(
         await captchaChallengeService.ConsumeCaptchaTokenAsync(request.CaptchaToken, cancellationToken);
         var userName = request.Username;
         var password = await ResolvePasswordAsync(request, cancellationToken);
-        var user = await Orm.Select<AdminUser>()
-            .Where(item => item.UserName == userName)
-            .ToOneAsync(cancellationToken);
+        var user = await repository.GetUserByUserNameAsync(userName, cancellationToken);
 
         if (user is null || !user.Enabled)
         {
@@ -124,7 +117,7 @@ public sealed class AuthService(
         {
             user.PasswordHash = _passwordHasher.HashPassword(user, password);
             user.UpdatedAt = DateTimeOffset.UtcNow;
-            await Orm.Update<AdminUser>().SetSource(user).ExecuteAffrowsAsync(cancellationToken);
+            await repository.UpdateUserPasswordHashAsync(user, cancellationToken);
         }
 
         var accessToken = tokenProtector.CreateAccessToken(
@@ -150,9 +143,7 @@ public sealed class AuthService(
         }
 
         var tokenHash = tokenProtector.HashRefreshToken(refreshToken);
-        var token = await Orm.Select<AdminRefreshToken>()
-            .Where(item => item.TokenHash == tokenHash)
-            .ToOneAsync(cancellationToken);
+        var token = await repository.GetRefreshTokenByHashAsync(tokenHash, cancellationToken);
         if (token is null || IsRefreshTokenRevoked(token) || token.ExpiresAt < DateTimeOffset.UtcNow)
         {
             throw new UnauthorizedDomainException("刷新令牌无效。");
@@ -165,7 +156,7 @@ public sealed class AuthService(
         }
 
         token.RevokedAt = DateTimeOffset.UtcNow;
-        await Orm.Update<AdminRefreshToken>().SetSource(token).ExecuteAffrowsAsync(cancellationToken);
+        await repository.UpdateRefreshTokenAsync(token, cancellationToken);
         await IssueRefreshTokenAsync(user.Id, response, cancellationToken);
         var accessToken = tokenProtector.CreateAccessToken(
             user.Id,
@@ -185,13 +176,11 @@ public sealed class AuthService(
         if (request.Cookies.TryGetValue(RefreshCookieName, out var refreshToken))
         {
             var tokenHash = tokenProtector.HashRefreshToken(refreshToken);
-            var token = await Orm.Select<AdminRefreshToken>()
-                .Where(item => item.TokenHash == tokenHash)
-                .ToOneAsync(cancellationToken);
+            var token = await repository.GetRefreshTokenByHashAsync(tokenHash, cancellationToken);
             if (token is not null && !IsRefreshTokenRevoked(token))
             {
                 token.RevokedAt = DateTimeOffset.UtcNow;
-                await Orm.Update<AdminRefreshToken>().SetSource(token).ExecuteAffrowsAsync(cancellationToken);
+                await repository.UpdateRefreshTokenAsync(token, cancellationToken);
             }
         }
 
@@ -204,8 +193,8 @@ public sealed class AuthService(
     /// <param name="userId">用户 ID。</param>
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>用户实体；不存在时返回 <see langword="null"/>。</returns>
-    private async Task<AdminUser?> GetUserAsync(long userId, CancellationToken cancellationToken) =>
-        await Orm.Select<AdminUser>().Where(user => user.Id == userId).ToOneAsync(cancellationToken);
+    private Task<AdminUser?> GetUserAsync(long userId, CancellationToken cancellationToken) =>
+        repository.GetUserByIdAsync(userId, cancellationToken);
 
     /// <summary>
     /// 解析登录密码：优先 RSA 密文，开发环境允许明文回退。
@@ -253,13 +242,13 @@ public sealed class AuthService(
     private async Task IssueRefreshTokenAsync(long userId, HttpResponse response, CancellationToken cancellationToken)
     {
         var refreshToken = tokenProtector.CreateRefreshToken();
-        await Orm.Insert(new AdminRefreshToken
+        await repository.InsertRefreshTokenAsync(new AdminRefreshToken
         {
             UserId = userId,
             TokenHash = tokenProtector.HashRefreshToken(refreshToken),
             ExpiresAt = DateTimeOffset.UtcNow.AddDays(authOptions.Value.RefreshTokenDays),
             CreatedAt = DateTimeOffset.UtcNow,
-        }).ExecuteAffrowsAsync(cancellationToken);
+        }, cancellationToken);
 
         response.Cookies.Append(RefreshCookieName, refreshToken, new CookieOptions
         {

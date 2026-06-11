@@ -6,7 +6,6 @@ namespace HarborAdmin.Modules.Admin.Domain.Entities;
 /// <summary>
 /// Admin 角色权限关系。
 /// </summary>
-[DbKey("AdminDb")]
 [Index("ux_admin_role_permission", $"{nameof(RoleId)},{nameof(AdminFeatureActionId)}", true)]
 [Index("idx_admin_role_permission_action_id", nameof(AdminFeatureActionId), false)]
 public sealed class AdminRolePermission : EntityBase

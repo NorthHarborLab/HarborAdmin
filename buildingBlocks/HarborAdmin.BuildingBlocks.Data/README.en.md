@@ -89,15 +89,18 @@ In multi-database scenarios, prefer resolving databases explicitly by `DbKey` in
 Module extensions should prefer `AddHarborModuleData(...)` to register module DbContext and repository without repeating lifecycle boilerplate:
 
 ```csharp
-services.AddHarborModuleData<IAdminDbContext, AdminDbContext, IAdminRepository, FreeSqlAdminRepository, AdminServiceContext>();
+services.AddHarborModuleData<IAiDbContext, AiDbContext, IAiRepository, FreeSqlAiRepository>();
+services.AddScoped<IAiProviderRepository, AiProviderRepository>();
 ```
 
-The default lifetimes are Singleton for DbContext and repository, and Scoped for ServiceContext. If a module needs a scoped repository, specify it explicitly:
+The default lifetimes are Singleton for DbContext and the module-level repository, and Scoped for ServiceContext. If a module needs a scoped repository, specify it explicitly:
 
 ```csharp
 services.AddHarborModuleData<ISecretsDbContext, SecretsDbContext, ISecretsRepository, FreeSqlSecretsRepository>(
     repositoryLifetime: ServiceLifetime.Scoped);
 ```
+
+If a module is split into multiple narrow repositories, such as Admin's `IAdminUserRepository`, `IAdminAccessRepository`, and `IAdminFeatureDesignRepository`, do not create a module-wide repository just to call `AddHarborModuleData(...)`; register the module DbContext and each narrow repository directly.
 
 ## Database configuration
 

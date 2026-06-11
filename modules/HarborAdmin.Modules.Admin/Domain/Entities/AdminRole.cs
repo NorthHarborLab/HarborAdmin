@@ -6,7 +6,6 @@ namespace HarborAdmin.Modules.Admin.Domain.Entities;
 /// <summary>
 /// Admin 角色。
 /// </summary>
-[DbKey("AdminDb")]
 [Index("ux_admin_role_code", nameof(RoleCode), true)]
 public sealed class AdminRole : AuditableEntity
 {

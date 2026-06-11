@@ -3,8 +3,8 @@ using System.Text.Json;
 using HarborAdmin.Modules.Admin.Application.Services.Dictionary;
 using HarborAdmin.Modules.Admin.Contracts.Access.Dto;
 using HarborAdmin.Modules.Admin.Application.Services.Menu;
-using HarborAdmin.Modules.Admin.Application.Services.Shared;
 using HarborAdmin.Modules.Admin.Application.Services.User;
+using HarborAdmin.Modules.Admin.Application.Abstractions;
 using HarborAdmin.Modules.Admin.Domain.Entities;
 using HarborAdmin.Modules.Admin.Infrastructure.Caching;
 
@@ -14,11 +14,11 @@ namespace HarborAdmin.Modules.Admin.Application.Services.Access;
 /// 用户会话快照服务。
 /// </summary>
 public sealed class SessionService(
-    AdminServiceContext context,
     AccessCacheService accessCache,
     AccessQueryService accessQuery,
     FieldPolicyService fieldPolicyService,
     AdminFieldOptionResolver optionResolver,
+    IAdminMenuRepository menuRepository,
     UserService userService)
 {
     /// <summary>
@@ -41,7 +41,8 @@ public sealed class SessionService(
         var roles = await accessQuery.GetEnabledUserRolesAsync(userId, cancellationToken);
         var permissions = await accessQuery.GetUserPermissionsAsync(userId, cancellationToken);
         var menus = await accessQuery.GetUserMenusAsync(userId, cancellationToken);
-        var routes = await MenuMapper.BuildRoutesAsync(context.Orm, menus, permissions, cancellationToken);
+        var routeFeatures = await menuRepository.ListEnabledFeaturesAsync(cancellationToken);
+        var routes = MenuMapper.BuildRoutes(routeFeatures, menus, permissions);
         var fieldPolicies = await fieldPolicyService.GetFieldPoliciesForUserAsync(userId, cancellationToken);
         var dataScopes = await accessQuery.GetDataScopesAsync(roles, cancellationToken);
         var sessionVersion = await accessCache.GetSessionVersionAsync(cancellationToken);

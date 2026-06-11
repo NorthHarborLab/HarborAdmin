@@ -2,7 +2,8 @@ using HarborAdmin.Modules.Admin.Application.Services.Dept;
 using HarborAdmin.Modules.Admin.Contracts.System.Dto;
 using HarborAdmin.Modules.Admin.Contracts.System.Request;
 using Microsoft.AspNetCore.Mvc;
-using HarborAdmin.BuildingBlocks.Abstractions.Api;
+using HarborAdmin.BuildingBlocks.Abstractions.Controllers;
+using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 
 namespace HarborAdmin.Modules.Admin.Controllers.System;
 
@@ -11,36 +12,33 @@ namespace HarborAdmin.Modules.Admin.Controllers.System;
 /// </summary>
 [ApiController]
 [Route("api/admin/system/dept")]
-public sealed class DeptController(DeptService deptService) : ControllerBase
+public sealed class DeptController(DeptService deptService) : CrudControllerBase<SystemDeptDto, SaveSystemDeptRequest>
 {
     /// <summary>
     /// 查询部门树。
     /// </summary>
     [HttpGet("list")]
     public async Task<ApiResult<IReadOnlyList<SystemDeptDto>>> List(CancellationToken cancellationToken) =>
-        ApiResult.Ok(await deptService.ListDepartmentsAsync(cancellationToken));
+        await ListResultAsync(deptService, cancellationToken);
 
     /// <summary>
     /// 创建部门。
     /// </summary>
     [HttpPost]
     public async Task<ApiResult<SystemDeptDto>> Create([FromBody] SaveSystemDeptRequest request, CancellationToken cancellationToken) =>
-        ApiResult.Ok(await deptService.SaveDepartmentAsync(null, request, cancellationToken));
+        await CreateResultAsync(request, deptService, cancellationToken);
 
     /// <summary>
     /// 更新部门。
     /// </summary>
     [HttpPut("{id:long}")]
     public async Task<ApiResult<SystemDeptDto>> Update(long id, [FromBody] SaveSystemDeptRequest request, CancellationToken cancellationToken) =>
-        ApiResult.Ok(await deptService.SaveDepartmentAsync(id, request, cancellationToken));
+        await UpdateResultAsync(id, request, deptService, cancellationToken);
 
     /// <summary>
     /// 删除部门。
     /// </summary>
     [HttpDelete("{id:long}")]
-    public async Task<ApiResult<bool>> Delete(long id, CancellationToken cancellationToken)
-    {
-        await deptService.DeleteDepartmentAsync(id, cancellationToken);
-        return ApiResult.Ok(true);
-    }
+    public async Task<ApiResult<bool>> Delete(long id, CancellationToken cancellationToken) =>
+        await DeleteResultAsync(id, deptService, cancellationToken);
 }

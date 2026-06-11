@@ -6,7 +6,6 @@ namespace HarborAdmin.Modules.Admin.Domain.Entities;
 /// <summary>
 /// Admin 角色数据范围。
 /// </summary>
-[DbKey("AdminDb")]
 [Index("ix_admin_role_data_scope", $"{nameof(RoleId)},{nameof(ScopeType)},{nameof(ScopeValueType)},{nameof(ScopeValueId)}", false)]
 public sealed class AdminRoleDataScope : EntityBase
 {

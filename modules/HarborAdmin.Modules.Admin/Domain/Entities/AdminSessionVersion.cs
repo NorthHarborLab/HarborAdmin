@@ -6,7 +6,6 @@ namespace HarborAdmin.Modules.Admin.Domain.Entities;
 /// <summary>
 /// Admin 会话访问包版本。
 /// </summary>
-[DbKey("AdminDb")]
 [Index("ux_admin_session_version_key", nameof(VersionKey), true)]
 public sealed class AdminSessionVersion : EntityBase
 {

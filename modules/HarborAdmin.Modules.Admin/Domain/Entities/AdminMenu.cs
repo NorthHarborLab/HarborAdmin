@@ -6,7 +6,6 @@ namespace HarborAdmin.Modules.Admin.Domain.Entities;
 /// <summary>
 /// Admin 菜单和路由入口。
 /// </summary>
-[DbKey("AdminDb")]
 [Index("ux_admin_menu_code", nameof(MenuCode), true)]
 [Index("ux_admin_menu_route_path", nameof(RoutePath), true)]
 [Index("idx_admin_menu_feature_id", nameof(AdminFeatureId), false)]

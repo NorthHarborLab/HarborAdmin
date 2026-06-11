@@ -1,12 +1,16 @@
-using HarborAdmin.Modules.Admin.Domain.Entities;
+using HarborAdmin.BuildingBlocks.Data;
+using HarborAdmin.Modules.Admin.Application.Abstractions;
 using HarborAdmin.Modules.Admin.Contracts.FeatureDesign;
+using HarborAdmin.Modules.Admin.Domain.Entities;
+using HarborAdmin.Modules.Admin.Infrastructure.Contexts;
 
 namespace HarborAdmin.Modules.Admin.Infrastructure.Repositories;
 
 /// <summary>
-/// Admin 访问控制链接表 FreeSql 实现。
+/// Admin 访问控制 FreeSql 仓储。
 /// </summary>
-public sealed partial class FreeSqlAdminRepository
+public sealed class AdminAccessRepository(IAdminDbContext db)
+    : FreeSqlModuleRepository<IAdminDbContext>(db), IAdminAccessRepository
 {
     /// <inheritdoc />
     public async Task<IReadOnlyList<AdminUserRole>> GetUserRoleLinksAsync(long userId, CancellationToken cancellationToken = default) =>
@@ -65,4 +69,35 @@ public sealed partial class FreeSqlAdminRepository
         await FreeSql.Select<AdminFeatureActionApi>()
             .Where(link => link.AdminFeatureApiId == featureApiId)
             .ToListAsync(cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<AdminRoleFieldPermission>> GetRoleFieldPoliciesAsync(long roleId, CancellationToken cancellationToken = default) =>
+        await FreeSql.Select<AdminRoleFieldPermission>()
+            .Where(policy => policy.RoleId == roleId)
+            .Include(policy => policy.AdminFeatureField)
+            .ToListAsync(cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<AdminUser?> GetUserByIdAsync(long userId, CancellationToken cancellationToken = default) =>
+        await FreeSql.Select<AdminUser>()
+            .Where(item => item.Id == userId)
+            .ToOneAsync(cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<AdminMenu>> ListEnabledMenusAsync(CancellationToken cancellationToken = default) =>
+        await FreeSql.Select<AdminMenu>()
+            .Where(menu => menu.Enabled && menu.MenuType != "button")
+            .OrderBy(menu => menu.SortOrder)
+            .ToListAsync(cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<AdminMenu>> ListEnabledMenusByIdsAsync(IReadOnlyList<long> menuIds, CancellationToken cancellationToken = default) =>
+        await FreeSql.Select<AdminMenu>()
+            .Where(menu => menuIds.Contains(menu.Id) && menu.Enabled && menu.MenuType != "button")
+            .OrderBy(menu => menu.SortOrder)
+            .ToListAsync(cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<AdminDepartment>> ListDepartmentsAsync(CancellationToken cancellationToken = default) =>
+        await FreeSql.Select<AdminDepartment>().ToListAsync(cancellationToken);
 }

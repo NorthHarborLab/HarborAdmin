@@ -24,11 +24,7 @@ public sealed class FeatureDesignFeatureService
     /// </summary>
     public async Task<IReadOnlyList<AdminFeatureDto>> ListFeaturesAsync(CancellationToken cancellationToken)
     {
-        var features = await _context.Db.Orm.Select<AdminFeature>()
-            .OrderBy(item => item.ParentId)
-            .OrderBy(item => item.SortOrder)
-            .OrderBy(item => item.FeatureCode)
-            .ToListAsync(cancellationToken);
+        var features = await _context.Repository.ListFeatureTreeNodesAsync(cancellationToken);
         return BuildFeatureTree(features);
     }
 
@@ -43,7 +39,7 @@ public sealed class FeatureDesignFeatureService
             throw new ValidationDomainException("功能编码不能使用系统保留值。");
         }
 
-        if (await _context.Db.Orm.Select<AdminFeature>().Where(item => item.FeatureCode == featureCode).AnyAsync(cancellationToken))
+        if (await _context.Repository.FeatureCodeExistsAsync(featureCode, cancellationToken: cancellationToken))
         {
             throw new ConflictDomainException($"Feature '{featureCode}' already exists.");
         }
@@ -55,9 +51,7 @@ public sealed class FeatureDesignFeatureService
             CreatedAt = now,
         };
         await ApplyFeatureAsync(feature, request, now, isNew: true, cancellationToken);
-        var repository = _context.GetFeatureRepository();
-        repository.DbContextOptions.EnableCascadeSave = true;
-        await repository.InsertAsync(feature, cancellationToken);
+        await _context.Repository.SaveFeatureAsync(feature, isUpdate: false, cancellationToken);
         await _context.AdminContext.BumpSessionVersionAsync(cancellationToken);
         return MapFeature(feature);
     }
@@ -74,16 +68,16 @@ public sealed class FeatureDesignFeatureService
             throw new ValidationDomainException("功能编码不能使用系统保留值。");
         }
 
-        var feature = await _context.Db.Orm.Select<AdminFeature>().Where(item => item.FeatureCode == normalized).ToOneAsync(cancellationToken)
+        var feature = await _context.Repository.GetFeatureByCodeAsync(normalized, cancellationToken)
                       ?? throw new NotFoundDomainException($"Feature '{normalized}' was not found.");
         if (!nextFeatureCode.Equals(normalized, StringComparison.OrdinalIgnoreCase)
-            && await _context.Db.Orm.Select<AdminFeature>().Where(item => item.FeatureCode == nextFeatureCode).AnyAsync(cancellationToken))
+            && await _context.Repository.FeatureCodeExistsAsync(nextFeatureCode, feature.Id, cancellationToken))
         {
             throw new ConflictDomainException($"Feature '{nextFeatureCode}' already exists.");
         }
 
         await ApplyFeatureAsync(feature, request, DateTimeOffset.UtcNow, isNew: false, cancellationToken);
-        await _context.GetFeatureRepository().UpdateAsync(feature, cancellationToken);
+        await _context.Repository.SaveFeatureAsync(feature, isUpdate: true, cancellationToken);
         await _context.AdminContext.BumpSessionVersionAsync(cancellationToken);
         return MapFeature(feature);
     }
@@ -110,7 +104,7 @@ public sealed class FeatureDesignFeatureService
             sibling.UpdatedAt = now;
         }
 
-        await _context.Db.Orm.Update<AdminFeature>().SetSource(siblings).ExecuteAffrowsAsync(cancellationToken);
+        await _context.Repository.UpdateFeaturesAsync(siblings, cancellationToken);
         await _context.AdminContext.BumpSessionVersionAsync(cancellationToken);
     }
 
@@ -124,18 +118,14 @@ public sealed class FeatureDesignFeatureService
                       ?? throw new NotFoundDomainException($"Feature '{normalized}' was not found.");
         if (IsCategoryNode(feature))
         {
-            var childCount = await _context.Db.Orm.Select<AdminFeature>()
-                .Where(item => item.ParentId == feature.Id)
-                .CountAsync(cancellationToken);
+            var childCount = await _context.Repository.CountFeatureChildrenAsync(feature.Id, cancellationToken);
             if (childCount > 0)
             {
                 throw new ConflictDomainException("分类下存在子节点，不能删除。");
             }
         }
 
-        var usedByMenu = await _context.Db.Orm.Select<AdminMenu>()
-            .Where(menu => menu.AdminFeatureId == feature.Id || menu.FeatureCode == normalized)
-            .AnyAsync(cancellationToken);
+        var usedByMenu = await _context.Repository.IsFeatureUsedByMenuAsync(feature.Id, normalized, cancellationToken);
         if (usedByMenu)
         {
             throw new ConflictDomainException("功能已被菜单引用，不能删除。");
@@ -144,16 +134,16 @@ public sealed class FeatureDesignFeatureService
         var actionIds = feature.Actions.Select(item => item.Id).ToArray();
         if (actionIds.Length > 0)
         {
-            await _context.Db.Orm.Delete<AdminRolePermission>().Where(item => actionIds.Contains(item.AdminFeatureActionId)).ExecuteAffrowsAsync(cancellationToken);
+            await _context.Repository.DeleteRolePermissionLinksByActionIdsAsync(actionIds, cancellationToken);
         }
 
         var fieldIds = feature.Fields.Select(item => item.Id).ToArray();
         if (fieldIds.Length > 0)
         {
-            await _context.Db.Orm.Delete<AdminRoleFieldPermission>().Where(item => fieldIds.Contains(item.AdminFeatureFieldId)).ExecuteAffrowsAsync(cancellationToken);
+            await _context.Repository.DeleteRoleFieldPermissionLinksByFieldIdsAsync(fieldIds, cancellationToken);
         }
 
-        await _context.GetFeatureRepository().DeleteCascadeByDatabaseAsync(item => item.Id == feature.Id, cancellationToken);
+        await _context.Repository.DeleteFeatureCascadeAsync(feature.Id, cancellationToken);
         await _context.AdminContext.BumpSessionVersionAsync(cancellationToken);
     }
 
@@ -207,7 +197,7 @@ public sealed class FeatureDesignFeatureService
             throw new ValidationDomainException("父级分类不能选择当前节点。");
         }
 
-        var parent = await _context.Db.Orm.Select<AdminFeature>().Where(item => item.Id == parentId.Value).ToOneAsync(cancellationToken)
+        var parent = await _context.Repository.GetFeatureByIdAsync(parentId.Value, cancellationToken)
                      ?? throw new NotFoundDomainException("父级分类不存在。");
         if (!IsCategoryNode(parent))
         {
@@ -226,37 +216,23 @@ public sealed class FeatureDesignFeatureService
     {
         if (request.ParentId.HasValue)
         {
-            var parent = await _context.Db.Orm.Select<AdminFeature>()
-                .Where(item => item.Id == request.ParentId.Value)
-                .ToOneAsync(cancellationToken)
+            var parent = await _context.Repository.GetFeatureByIdAsync(request.ParentId.Value, cancellationToken)
                 ?? throw new NotFoundDomainException("父级分类不存在。");
             if (!IsCategoryNode(parent))
             {
                 throw new ValidationDomainException("父级只能选择分类节点。");
             }
 
-            return await _context.Db.Orm.Select<AdminFeature>()
-                .Where(item => item.ParentId == parent.Id)
-                .OrderBy(item => item.SortOrder)
-                .OrderBy(item => item.FeatureCode)
-                .ToListAsync(cancellationToken);
+            return await _context.Repository.ListSortableFeatureSiblingsAsync(parent.Id, AdminFeatureNodeType.Feature, cancellationToken);
         }
 
         var nodeType = request.NodeType ?? AdminFeatureNodeType.Feature;
         if (nodeType == AdminFeatureNodeType.Category)
         {
-            return await _context.Db.Orm.Select<AdminFeature>()
-                .Where(item => item.ParentId == null && item.NodeType == AdminFeatureNodeType.Category)
-                .OrderBy(item => item.SortOrder)
-                .OrderBy(item => item.FeatureCode)
-                .ToListAsync(cancellationToken);
+            return await _context.Repository.ListSortableFeatureSiblingsAsync(null, AdminFeatureNodeType.Category, cancellationToken);
         }
 
-        return await _context.Db.Orm.Select<AdminFeature>()
-            .Where(item => item.ParentId == null && item.NodeType != AdminFeatureNodeType.Category)
-            .OrderBy(item => item.SortOrder)
-            .OrderBy(item => item.FeatureCode)
-            .ToListAsync(cancellationToken);
+        return await _context.Repository.ListSortableFeatureSiblingsAsync(null, nodeType, cancellationToken);
     }
 
     private async Task<bool> IsDescendantAsync(long candidateParentId, long currentFeatureId, CancellationToken cancellationToken)
@@ -269,9 +245,7 @@ public sealed class FeatureDesignFeatureService
                 return true;
             }
 
-            var next = await _context.Db.Orm.Select<AdminFeature>()
-                .Where(item => item.Id == nextParentId)
-                .ToOneAsync(cancellationToken);
+            var next = await _context.Repository.GetFeatureByIdAsync(nextParentId, cancellationToken);
             if (next?.ParentId is null)
             {
                 return false;

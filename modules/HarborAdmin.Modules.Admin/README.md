@@ -124,11 +124,11 @@ Infrastructure/
 
 ## 依赖注册
 
-`AddAdminModule()` 分组注册：
+组合根通过 `AddHarborModules(...)` 扫描 `AdminStartUp` 注册模块。`AdminStartUp` 同时声明模块默认数据库 `AdminDb`，并按分组注册：
 
 | 分组 | 注册内容 |
 |------|----------|
-| Infrastructure | `IAdminDbContext`、`IAdminRepository`、Token、验证码图片池、上下文、动态资源解析器 |
+| Infrastructure | `IAdminDbContext`、Auth / Dictionary / User / Menu / Access / FeatureDesign 等窄仓储、Token、验证码图片池、上下文、动态资源解析器 |
 | Auth | `AuthService` |
 | Access | 访问缓存、Principal、API 授权、Session、字段策略 |
 | SystemManagement | 菜单、部门、角色、用户、缓存管理 |

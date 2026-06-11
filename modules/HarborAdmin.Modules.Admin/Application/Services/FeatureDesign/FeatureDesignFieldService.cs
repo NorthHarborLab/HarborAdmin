@@ -106,7 +106,7 @@ public sealed class FeatureDesignFieldService
             field.UpdatedAt = now;
         }
 
-        await _context.Db.Orm.Update<AdminFeatureField>().SetSource(fields).ExecuteAffrowsAsync(cancellationToken);
+        await _context.Repository.UpdateFeatureFieldsAsync(fields, cancellationToken);
         await _context.IncrementSchemaVersionAsync(feature.FeatureCode, cancellationToken);
         await _context.AdminContext.BumpSessionVersionAsync(cancellationToken);
     }
@@ -125,9 +125,7 @@ public sealed class FeatureDesignFieldService
         var fieldId = field.Id;
         feature.Fields.Remove(field);
         _context.SaveFeatureChildren(feature, nameof(AdminFeature.Fields));
-        await _context.Db.Orm.Delete<AdminRoleFieldPermission>()
-            .Where(item => item.AdminFeatureFieldId == fieldId)
-            .ExecuteAffrowsAsync(cancellationToken);
+        await _context.Repository.DeleteRoleFieldPermissionLinksByFieldIdAsync(fieldId, cancellationToken);
         await _context.IncrementSchemaVersionAsync(normalized, cancellationToken);
         await _context.AdminContext.BumpSessionVersionAsync(cancellationToken);
     }

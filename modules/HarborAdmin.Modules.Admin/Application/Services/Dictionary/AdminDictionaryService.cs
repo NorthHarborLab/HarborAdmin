@@ -1,17 +1,17 @@
 using System.Text.Json;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
+using HarborAdmin.Modules.Admin.Application.Abstractions;
 using HarborAdmin.Modules.Admin.Application.Services.Shared;
 using HarborAdmin.Modules.Admin.Contracts.Dictionary.Dto;
 using HarborAdmin.Modules.Admin.Contracts.Dictionary.Request;
 using HarborAdmin.Modules.Admin.Domain.Entities;
-using HarborAdmin.Modules.Admin.Infrastructure.Caching;
 
 namespace HarborAdmin.Modules.Admin.Application.Services.Dictionary;
 
 /// <summary>
 /// Admin 字典服务。
 /// </summary>
-public sealed class AdminDictionaryService(AdminServiceContext context)
+public sealed class AdminDictionaryService(AdminServiceContext context, IAdminDictionaryRepository repository)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -22,16 +22,7 @@ public sealed class AdminDictionaryService(AdminServiceContext context)
     {
         await EnsureBuiltInDictionariesAsync(cancellationToken);
         var normalized = keyword?.Trim();
-        var query = context.Orm.Select<AdminDictionary>();
-        if (!string.IsNullOrWhiteSpace(normalized))
-        {
-            query = query.Where(item => item.DictCode.Contains(normalized) || item.Name.Contains(normalized));
-        }
-
-        var databaseItems = await query
-            .OrderBy(item => item.SortOrder)
-            .OrderBy(item => item.DictCode)
-            .ToListAsync(cancellationToken);
+        var databaseItems = await repository.ListDictionariesAsync(normalized, cancellationToken);
         var items = databaseItems.Select(MapDictionary)
             .Concat(AdminDictionaryBuiltIns.ListDictionaries(normalized))
             .GroupBy(item => item.DictCode, StringComparer.OrdinalIgnoreCase)
@@ -48,7 +39,7 @@ public sealed class AdminDictionaryService(AdminServiceContext context)
     public async Task<AdminDictionaryDto> CreateDictionaryAsync(SaveAdminDictionaryRequest request, CancellationToken cancellationToken)
     {
         var dictCode = NormalizeRequired(request.DictCode, "字典编码不能为空。");
-        if (await context.Orm.Select<AdminDictionary>().Where(item => item.DictCode == dictCode).AnyAsync(cancellationToken))
+        if (await repository.DictionaryExistsAsync(dictCode, cancellationToken))
         {
             throw new ConflictDomainException($"Dictionary '{dictCode}' already exists.");
         }
@@ -60,7 +51,7 @@ public sealed class AdminDictionaryService(AdminServiceContext context)
             CreatedAt = now,
         };
         ApplyDictionary(dictionary, request, now);
-        await context.Orm.Insert(dictionary).ExecuteAffrowsAsync(cancellationToken);
+        await repository.InsertDictionaryAsync(dictionary, cancellationToken);
         await context.InvalidateDictionaryRuntimeAsync(cancellationToken);
         return MapDictionary(dictionary);
     }
@@ -71,13 +62,10 @@ public sealed class AdminDictionaryService(AdminServiceContext context)
     public async Task<AdminDictionaryDto> UpdateDictionaryAsync(string dictCode, SaveAdminDictionaryRequest request, CancellationToken cancellationToken)
     {
         var normalized = NormalizeRequired(dictCode, "字典编码不能为空。");
-        var dictionary = await context.Orm.Select<AdminDictionary>()
-            .Where(item => item.DictCode == normalized)
-            .ToOneAsync(cancellationToken)
-                         ?? throw new NotFoundDomainException($"Dictionary '{normalized}' was not found.");
+        var dictionary = await LoadDictionaryAsync(normalized, cancellationToken);
         ApplyDictionary(dictionary, request, DateTimeOffset.UtcNow);
         dictionary.DictCode = normalized;
-        await context.Orm.Update<AdminDictionary>().SetSource(dictionary).ExecuteAffrowsAsync(cancellationToken);
+        await repository.UpdateDictionaryAsync(dictionary, cancellationToken);
         await context.InvalidateDictionaryRuntimeAsync(cancellationToken);
         return MapDictionary(dictionary);
     }
@@ -88,16 +76,8 @@ public sealed class AdminDictionaryService(AdminServiceContext context)
     public async Task DeleteDictionaryAsync(string dictCode, CancellationToken cancellationToken)
     {
         var normalized = NormalizeRequired(dictCode, "字典编码不能为空。");
-        var dictionary = await context.Orm.Select<AdminDictionary>()
-            .Where(item => item.DictCode == normalized)
-            .ToOneAsync(cancellationToken)
-                         ?? throw new NotFoundDomainException($"Dictionary '{normalized}' was not found.");
-        await context.Orm.Delete<AdminDictionaryItem>()
-            .Where(item => item.DictCode == normalized)
-            .ExecuteAffrowsAsync(cancellationToken);
-        await context.Orm.Delete<AdminDictionary>()
-            .Where(item => item.Id == dictionary.Id)
-            .ExecuteAffrowsAsync(cancellationToken);
+        var dictionary = await LoadDictionaryAsync(normalized, cancellationToken);
+        await repository.DeleteDictionaryWithItemsAsync(dictionary, cancellationToken);
         await context.InvalidateDictionaryRuntimeAsync(cancellationToken);
     }
 
@@ -108,11 +88,7 @@ public sealed class AdminDictionaryService(AdminServiceContext context)
     {
         await EnsureBuiltInDictionariesAsync(cancellationToken);
         var normalized = NormalizeRequired(dictCode, "字典编码不能为空。");
-        var items = await context.Orm.Select<AdminDictionaryItem>()
-            .Where(item => item.DictCode == normalized)
-            .OrderBy(item => item.SortOrder)
-            .OrderBy(item => item.ItemValue)
-            .ToListAsync(cancellationToken);
+        var items = await repository.ListItemsAsync(normalized, cancellationToken);
         return items.Select(MapItem).ToArray();
     }
 
@@ -122,19 +98,13 @@ public sealed class AdminDictionaryService(AdminServiceContext context)
     public async Task<IReadOnlyList<AdminDictionaryOptionDto>> ListOptionsAsync(string dictCode, string? dataType, CancellationToken cancellationToken)
     {
         var normalized = NormalizeRequired(dictCode, "字典编码不能为空。");
-        var dictionary = await context.Orm.Select<AdminDictionary>()
-            .Where(item => item.DictCode == normalized)
-            .ToOneAsync(cancellationToken);
+        var dictionary = await repository.GetDictionaryByCodeAsync(normalized, cancellationToken);
         if (dictionary is { Enabled: false })
         {
             return [];
         }
 
-        var databaseOptions = await context.Orm.Select<AdminDictionaryItem>()
-            .Where(item => item.DictCode == normalized && item.Enabled)
-            .OrderBy(item => item.SortOrder)
-            .OrderBy(item => item.ItemValue)
-            .ToListAsync(cancellationToken);
+        var databaseOptions = await repository.ListEnabledItemsAsync(normalized, cancellationToken);
         if (databaseOptions.Count > 0)
         {
             return databaseOptions
@@ -156,7 +126,7 @@ public sealed class AdminDictionaryService(AdminServiceContext context)
     {
         var dictionary = await LoadDictionaryAsync(dictCode, cancellationToken);
         var itemValue = NormalizeRequired(request.ItemValue, "字典项值不能为空。");
-        if (await context.Orm.Select<AdminDictionaryItem>().Where(item => item.DictCode == dictionary.DictCode && item.ItemValue == itemValue).AnyAsync(cancellationToken))
+        if (await repository.DictionaryItemExistsAsync(dictionary.DictCode, itemValue, cancellationToken))
         {
             throw new ConflictDomainException($"Dictionary item '{dictionary.DictCode}.{itemValue}' already exists.");
         }
@@ -170,7 +140,7 @@ public sealed class AdminDictionaryService(AdminServiceContext context)
             CreatedAt = now,
         };
         ApplyItem(item, request, now);
-        await context.Orm.Insert(item).ExecuteAffrowsAsync(cancellationToken);
+        await repository.InsertItemAsync(item, cancellationToken);
         await context.InvalidateDictionaryRuntimeAsync(cancellationToken);
         return MapItem(item);
     }
@@ -181,13 +151,11 @@ public sealed class AdminDictionaryService(AdminServiceContext context)
     public async Task<AdminDictionaryItemDto> UpdateItemAsync(string dictCode, long itemId, SaveAdminDictionaryItemRequest request, CancellationToken cancellationToken)
     {
         var dictionary = await LoadDictionaryAsync(dictCode, cancellationToken);
-        var item = await context.Orm.Select<AdminDictionaryItem>()
-            .Where(item => item.Id == itemId && item.DictCode == dictionary.DictCode)
-            .ToOneAsync(cancellationToken)
+        var item = await repository.GetItemAsync(dictionary.DictCode, itemId, cancellationToken)
                    ?? throw new NotFoundDomainException($"Dictionary item '{itemId}' was not found.");
         var nextValue = NormalizeRequired(request.ItemValue, "字典项值不能为空。");
         if (!string.Equals(item.ItemValue, nextValue, StringComparison.OrdinalIgnoreCase)
-            && await context.Orm.Select<AdminDictionaryItem>().Where(row => row.DictCode == dictionary.DictCode && row.ItemValue == nextValue).AnyAsync(cancellationToken))
+            && await repository.DictionaryItemExistsAsync(dictionary.DictCode, nextValue, cancellationToken))
         {
             throw new ConflictDomainException($"Dictionary item '{dictionary.DictCode}.{nextValue}' already exists.");
         }
@@ -196,7 +164,7 @@ public sealed class AdminDictionaryService(AdminServiceContext context)
         item.DictCode = dictionary.DictCode;
         item.ItemValue = nextValue;
         ApplyItem(item, request, DateTimeOffset.UtcNow);
-        await context.Orm.Update<AdminDictionaryItem>().SetSource(item).ExecuteAffrowsAsync(cancellationToken);
+        await repository.UpdateItemAsync(item, cancellationToken);
         await context.InvalidateDictionaryRuntimeAsync(cancellationToken);
         return MapItem(item);
     }
@@ -207,18 +175,14 @@ public sealed class AdminDictionaryService(AdminServiceContext context)
     public async Task DeleteItemAsync(string dictCode, long itemId, CancellationToken cancellationToken)
     {
         var normalized = NormalizeRequired(dictCode, "字典编码不能为空。");
-        await context.Orm.Delete<AdminDictionaryItem>()
-            .Where(item => item.Id == itemId && item.DictCode == normalized)
-            .ExecuteAffrowsAsync(cancellationToken);
+        await repository.DeleteItemAsync(normalized, itemId, cancellationToken);
         await context.InvalidateDictionaryRuntimeAsync(cancellationToken);
     }
 
     private async Task<AdminDictionary> LoadDictionaryAsync(string dictCode, CancellationToken cancellationToken)
     {
         var normalized = NormalizeRequired(dictCode, "字典编码不能为空。");
-        return await context.Orm.Select<AdminDictionary>()
-            .Where(item => item.DictCode == normalized)
-            .ToOneAsync(cancellationToken)
+        return await repository.GetDictionaryByCodeAsync(normalized, cancellationToken)
                ?? throw new NotFoundDomainException($"Dictionary '{normalized}' was not found.");
     }
 
@@ -228,9 +192,7 @@ public sealed class AdminDictionaryService(AdminServiceContext context)
         var seeded = false;
         foreach (var seed in AdminDictionaryBuiltIns.ListSeeds())
         {
-            var dictionary = await context.Orm.Select<AdminDictionary>()
-                .Where(item => item.DictCode == seed.DictCode)
-                .ToOneAsync(cancellationToken);
+            var dictionary = await repository.GetDictionaryByCodeAsync(seed.DictCode, cancellationToken);
             if (dictionary is null)
             {
                 dictionary = new AdminDictionary
@@ -243,13 +205,11 @@ public sealed class AdminDictionaryService(AdminServiceContext context)
                     SortOrder = seed.SortOrder,
                     UpdatedAt = now,
                 };
-                await context.Orm.Insert(dictionary).ExecuteAffrowsAsync(cancellationToken);
+                await repository.InsertDictionaryAsync(dictionary, cancellationToken);
                 seeded = true;
             }
 
-            var existingValues = (await context.Orm.Select<AdminDictionaryItem>()
-                    .Where(item => item.DictCode == seed.DictCode)
-                    .ToListAsync(cancellationToken))
+            var existingValues = (await repository.ListItemsAsync(seed.DictCode, cancellationToken))
                 .Select(item => item.ItemValue)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
             foreach (var seedItem in seed.Items)
@@ -260,7 +220,7 @@ public sealed class AdminDictionaryService(AdminServiceContext context)
                     continue;
                 }
 
-                await context.Orm.Insert(new AdminDictionaryItem
+                await repository.InsertItemAsync(new AdminDictionaryItem
                 {
                     AdminDictionaryId = dictionary.Id,
                     Color = seedItem.Color,
@@ -271,7 +231,7 @@ public sealed class AdminDictionaryService(AdminServiceContext context)
                     ItemValue = itemValue,
                     SortOrder = existingValues.Count + 1,
                     UpdatedAt = now,
-                }).ExecuteAffrowsAsync(cancellationToken);
+                }, cancellationToken);
                 existingValues.Add(itemValue);
                 seeded = true;
             }

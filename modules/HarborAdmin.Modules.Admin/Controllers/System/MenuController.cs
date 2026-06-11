@@ -2,7 +2,7 @@ using HarborAdmin.Modules.Admin.Application.Services.Menu;
 using HarborAdmin.Modules.Admin.Contracts.System.Dto;
 using HarborAdmin.Modules.Admin.Contracts.System.Request;
 using Microsoft.AspNetCore.Mvc;
-using HarborAdmin.BuildingBlocks.Abstractions.Api;
+using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 
 namespace HarborAdmin.Modules.Admin.Controllers.System;
 

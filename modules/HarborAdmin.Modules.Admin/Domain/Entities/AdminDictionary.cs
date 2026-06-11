@@ -6,7 +6,6 @@ namespace HarborAdmin.Modules.Admin.Domain.Entities;
 /// <summary>
 /// Admin 字典类型。
 /// </summary>
-[DbKey("AdminDb")]
 [Index("ux_admin_dictionary_code", nameof(DictCode), true)]
 public sealed class AdminDictionary : AuditableEntity
 {

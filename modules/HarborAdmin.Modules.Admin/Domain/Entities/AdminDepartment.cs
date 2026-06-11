@@ -6,7 +6,6 @@ namespace HarborAdmin.Modules.Admin.Domain.Entities;
 /// <summary>
 /// Admin 组织部门。
 /// </summary>
-[DbKey("AdminDb")]
 [Index("ux_admin_department_code", nameof(DeptCode), true)]
 public sealed class AdminDepartment : AuditableEntity
 {

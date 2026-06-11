@@ -6,7 +6,6 @@ namespace HarborAdmin.Modules.Admin.Domain.Entities;
 /// <summary>
 /// Admin 角色菜单关系。
 /// </summary>
-[DbKey("AdminDb")]
 [Index("ux_admin_role_menu", $"{nameof(RoleId)},{nameof(MenuId)}", true)]
 public sealed class AdminRoleMenu : EntityBase
 {

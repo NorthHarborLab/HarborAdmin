@@ -17,7 +17,9 @@ namespace HarborAdmin.Modules.Admin.Application.Services.User;
 public sealed class UserService(
     SystemServiceContext systemContext,
     AdminServiceContext context,
-    IAdminRepository repository,
+    IAdminUserRepository userRepository,
+    IAdminAccessRepository accessRepository,
+    IAdminDepartmentRepository departmentRepository,
     AccessQueryService accessQuery,
     FieldPolicyService fieldPolicyService,
     IHarborMapper mapper)
@@ -28,14 +30,14 @@ public sealed class UserService(
     /// 根据用户 ID 获取用户实体。
     /// </summary>
     public async Task<AdminUser?> GetUserAsync(long userId, CancellationToken cancellationToken) =>
-        await repository.GetUserAggregateAsync(userId, cancellationToken);
+        await userRepository.GetUserAggregateAsync(userId, cancellationToken);
 
     /// <summary>
     /// 按数据范围获取用户列表，并应用字段脱敏策略。
     /// </summary>
     public async Task<IReadOnlyList<SystemUserDto>> ListUsersAsync(long currentUserId, long? deptId, CancellationToken cancellationToken)
     {
-        var users = await repository.ListUsersWithRolesAsync(cancellationToken);
+        var users = await userRepository.ListUsersWithRolesAsync(cancellationToken);
         var allowedDeptIds = await accessQuery.GetAllowedDepartmentIdsAsync(currentUserId, cancellationToken);
         if (allowedDeptIds is not null)
         {
@@ -71,7 +73,7 @@ public sealed class UserService(
         user.UserName = string.IsNullOrWhiteSpace(request.UserName) ? AdminIdHelper.BuildCode(request.Name) : request.UserName;
         user.DisplayName = request.Name;
         var deptId = AdminIdHelper.ParseNullableId(request.DeptId);
-        if (deptId.HasValue && await repository.GetDepartmentAsync(deptId.Value, cancellationToken) is null)
+        if (deptId.HasValue && await departmentRepository.GetAsync(deptId.Value, cancellationToken) is null)
         {
             throw new NotFoundDomainException("部门不存在。");
         }
@@ -88,15 +90,7 @@ public sealed class UserService(
             user.PasswordHash = _passwordHasher.HashPassword(user, string.IsNullOrWhiteSpace(request.Password) ? "HarborAdmin@123456" : request.Password);
         }
 
-        var userRepository = systemContext.GetUserRepository();
-        if (id.HasValue)
-        {
-            await userRepository.UpdateAsync(user, cancellationToken);
-        }
-        else
-        {
-            await userRepository.InsertAsync(user, cancellationToken);
-        }
+        await systemContext.SaveUserAsync(user, id.HasValue, cancellationToken);
 
         var roleIds = (request.RoleIds ?? request.Permissions ?? [])
             .Select(AdminIdHelper.ParseId)
@@ -121,7 +115,7 @@ public sealed class UserService(
     {
         _ = await systemContext.LoadUserAggregateAsync(id, cancellationToken)
             ?? throw new NotFoundDomainException("用户不存在。");
-        await systemContext.GetUserRepository().DeleteCascadeByDatabaseAsync(user => user.Id == id, cancellationToken);
+        await systemContext.DeleteUserCascadeAsync(id, cancellationToken);
         await context.BumpSessionVersionAsync(cancellationToken);
     }
 
@@ -164,7 +158,7 @@ public sealed class UserService(
             return;
         }
 
-        var roles = await repository.GetRolesByIdsAsync(roleIds, enabledOnly: false, cancellationToken);
+        var roles = await accessRepository.GetRolesByIdsAsync(roleIds, enabledOnly: false, cancellationToken);
         var existingIds = roles.Select(role => role.Id).ToHashSet();
         var missingIds = roleIds.Where(roleId => !existingIds.Contains(roleId)).ToArray();
         if (missingIds.Length > 0)

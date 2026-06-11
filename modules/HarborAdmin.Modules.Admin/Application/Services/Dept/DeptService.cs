@@ -1,10 +1,12 @@
+using HarborAdmin.BuildingBlocks.Abstractions.Application;
+using HarborAdmin.BuildingBlocks.Abstractions.Enums;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.BuildingBlocks.Mapping;
 using HarborAdmin.Modules.Admin.Application.Abstractions;
+using HarborAdmin.Modules.Admin.Application.Services.Shared;
 using HarborAdmin.Modules.Admin.Contracts.System.Dto;
 using HarborAdmin.Modules.Admin.Contracts.System.Request;
 using HarborAdmin.Modules.Admin.Domain.Entities;
-using HarborAdmin.Modules.Admin.Application.Services.Shared;
 
 namespace HarborAdmin.Modules.Admin.Application.Services.Dept;
 
@@ -13,70 +15,73 @@ namespace HarborAdmin.Modules.Admin.Application.Services.Dept;
 /// </summary>
 public sealed class DeptService(
     AdminServiceContext context,
-    IAdminRepository repository,
+    IAdminDepartmentRepository repository,
     IHarborMapper mapper)
+    : HarborApplicationRepositoryService<AdminDepartment, SystemDeptDto, SaveSystemDeptRequest, IAdminDepartmentRepository>(repository)
 {
+    private string? _deleteRejectedMessage;
+
     /// <summary>
     /// 获取部门树。
     /// </summary>
-    public async Task<IReadOnlyList<SystemDeptDto>> ListDepartmentsAsync(CancellationToken cancellationToken)
+    public override async Task<IReadOnlyList<SystemDeptDto>> ListAsync(CancellationToken cancellationToken = default)
     {
-        var depts = await repository.ListDepartmentsAsync(cancellationToken);
+        var depts = await Repository.ListAsync(cancellationToken);
         return BuildDepartmentTree(depts);
     }
 
+    /// <inheritdoc />
+    protected override SystemDeptDto MapToDto(AdminDepartment entity) => mapper.Map<SystemDeptDto>(entity);
+
+    /// <inheritdoc />
+    protected override AdminDepartment CreateEntity(SaveSystemDeptRequest request) =>
+        new() { CreatedAt = UtcNow, DeptCode = AdminIdHelper.BuildCode(request.Name) };
+
     /// <summary>
-    /// 新增或更新部门。
+    /// 将保存请求应用到部门。
     /// </summary>
-    public async Task<SystemDeptDto> SaveDepartmentAsync(long? id, SaveSystemDeptRequest request, CancellationToken cancellationToken)
+    protected override async Task ApplySaveAsync(AdminDepartment entity, SaveSystemDeptRequest request, CancellationToken cancellationToken)
     {
-        var now = DateTimeOffset.UtcNow;
-        var dept = id.HasValue
-            ? await repository.GetDepartmentAsync(id.Value, cancellationToken)
-              ?? throw new NotFoundDomainException("部门不存在。")
-            : new AdminDepartment { CreatedAt = now, DeptCode = AdminIdHelper.BuildCode(request.Name) };
         var parentId = AdminIdHelper.ParseNullableId(request.Pid);
-        await EnsureValidParentAsync(id, parentId, cancellationToken);
-
-        dept.Name = request.Name;
-        dept.ParentId = parentId;
-        dept.Remark = request.Remark;
-        dept.Enabled = request.Status == 1;
-        dept.UpdatedAt = now;
-
-        if (id.HasValue)
-        {
-            await repository.UpdateDepartmentAsync(dept, cancellationToken);
-        }
-        else
-        {
-            await repository.InsertDepartmentAsync(dept, cancellationToken);
-        }
-
-        await context.BumpSessionVersionAsync(cancellationToken);
-        return mapper.Map<SystemDeptDto>(dept);
+        await EnsureValidParentAsync(entity.Id > 0 ? entity.Id : null, parentId, cancellationToken);
+        entity.Name = request.Name;
+        entity.ParentId = parentId;
+        entity.Remark = request.Remark;
+        entity.Enabled = request.Status == 1;
+        entity.UpdatedAt = UtcNow;
     }
 
-    /// <summary>
-    /// 删除部门。
-    /// </summary>
-    public async Task DeleteDepartmentAsync(long id, CancellationToken cancellationToken)
+    /// <inheritdoc />
+    protected override async Task<CrudDeleteDecision> CanDeleteAsync(AdminDepartment entity, CancellationToken cancellationToken)
     {
-        _ = await repository.GetDepartmentAsync(id, cancellationToken)
-            ?? throw new NotFoundDomainException("部门不存在。");
-        if (await repository.CountChildDepartmentsAsync(id, cancellationToken) > 0)
+        if (await Repository.CountChildrenAsync(entity.Id, cancellationToken) > 0)
         {
-            throw new ConflictDomainException("请先删除下级部门。");
+            _deleteRejectedMessage = "请先删除下级部门。";
+            return CrudDeleteDecision.Reject;
         }
 
-        if (await repository.DepartmentHasUsersAsync(id, cancellationToken))
+        if (await Repository.HasUsersAsync(entity.Id, cancellationToken))
         {
-            throw new ConflictDomainException("部门下存在用户，不能删除。");
+            _deleteRejectedMessage = "部门下存在用户，不能删除。";
+            return CrudDeleteDecision.Reject;
         }
 
-        await repository.DeleteDepartmentAsync(id, cancellationToken);
-        await context.BumpSessionVersionAsync(cancellationToken);
+        return CrudDeleteDecision.PhysicalDelete;
     }
+
+    /// <inheritdoc />
+    protected override async Task AfterSaveAsync(AdminDepartment entity, SaveSystemDeptRequest request, CancellationToken cancellationToken) =>
+        await context.BumpSessionVersionAsync(cancellationToken);
+
+    /// <inheritdoc />
+    protected override async Task AfterDeleteAsync(AdminDepartment entity, CrudDeleteDecision decision, CancellationToken cancellationToken) =>
+        await context.BumpSessionVersionAsync(cancellationToken);
+
+    /// <inheritdoc />
+    protected override string GetNotFoundMessage(long id) => "部门不存在。";
+
+    /// <inheritdoc />
+    protected override string GetDeleteRejectedMessage(AdminDepartment entity) => _deleteRejectedMessage ?? "部门不能删除。";
 
     /// <summary>
     /// 将部门列表构建为树形 DTO。
@@ -115,7 +120,7 @@ public sealed class DeptService(
             throw new ValidationDomainException("上级部门不能选择当前部门。");
         }
 
-        var departments = await repository.ListDepartmentsAsync(cancellationToken);
+        var departments = await Repository.ListAsync(cancellationToken);
         if (departments.All(dept => dept.Id != parentId.Value))
         {
             throw new NotFoundDomainException("上级部门不存在。");

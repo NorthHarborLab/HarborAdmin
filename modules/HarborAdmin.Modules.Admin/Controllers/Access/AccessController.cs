@@ -1,8 +1,9 @@
-using HarborAdmin.BuildingBlocks.Abstractions.Api;
+using HarborAdmin.BuildingBlocks.Abstractions.Attributes;
 using HarborAdmin.Modules.Admin.Application.Services.Auth;
 using HarborAdmin.Modules.Admin.Application.Services.Access;
 using HarborAdmin.Modules.Admin.Contracts.Access.Dto;
 using HarborAdmin.BuildingBlocks.Abstractions.Auth;
+using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HarborAdmin.Modules.Admin.Controllers.Access;
@@ -13,10 +14,7 @@ namespace HarborAdmin.Modules.Admin.Controllers.Access;
 [ApiController]
 [AuthenticatedOnly]
 [Route("api/admin/access")]
-public sealed class AccessController(
-    SessionService sessionService,
-    AuthService authService,
-    ICurrentUser currentUser) : ControllerBase
+public sealed class AccessController(SessionService sessionService, AuthService authService, ICurrentUser currentUser) : ControllerBase
 {
     /// <summary>
     /// 获取当前用户信息。

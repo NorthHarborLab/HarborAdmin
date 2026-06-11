@@ -3,9 +3,9 @@ using HarborAdmin.Modules.Admin.Domain.Entities;
 namespace HarborAdmin.Modules.Admin.Application.Abstractions;
 
 /// <summary>
-/// 访问控制相关链接表查询。
+/// Admin 访问控制仓储。
 /// </summary>
-public partial interface IAdminRepository
+public interface IAdminAccessRepository
 {
     /// <summary>
     /// 获取用户角色关联。
@@ -46,4 +46,29 @@ public partial interface IAdminRepository
     /// 获取 Feature API 与动作的绑定关系。
     /// </summary>
     Task<IReadOnlyList<AdminFeatureActionApi>> GetFeatureActionApiLinksAsync(long featureApiId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 获取角色字段策略。
+    /// </summary>
+    Task<IReadOnlyList<AdminRoleFieldPermission>> GetRoleFieldPoliciesAsync(long roleId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 按用户 ID 获取用户。
+    /// </summary>
+    Task<AdminUser?> GetUserByIdAsync(long userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 加载已启用菜单。
+    /// </summary>
+    Task<IReadOnlyList<AdminMenu>> ListEnabledMenusAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 按 ID 加载已启用菜单。
+    /// </summary>
+    Task<IReadOnlyList<AdminMenu>> ListEnabledMenusByIdsAsync(IReadOnlyList<long> menuIds, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 加载全部部门。
+    /// </summary>
+    Task<IReadOnlyList<AdminDepartment>> ListDepartmentsAsync(CancellationToken cancellationToken = default);
 }

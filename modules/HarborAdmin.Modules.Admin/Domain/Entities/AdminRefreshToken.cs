@@ -6,7 +6,6 @@ namespace HarborAdmin.Modules.Admin.Domain.Entities;
 /// <summary>
 /// Admin 刷新令牌。
 /// </summary>
-[DbKey("AdminDb")]
 [Index("ux_admin_refresh_token_hash", nameof(TokenHash), true)]
 public sealed class AdminRefreshToken : EntityBase
 {

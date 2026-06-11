@@ -11,7 +11,12 @@ namespace HarborAdmin.Modules.Admin.Application.Services.Access;
 /// <summary>
 /// Admin 访问控制缓存编排服务。
 /// </summary>
-public sealed class AccessCacheService(IHarborCache cache, IHarborCacheInvalidator cacheInvalidator, IAdminRepository repository, AdminServiceContext context)
+public sealed class AccessCacheService(
+    IHarborCache cache,
+    IHarborCacheInvalidator cacheInvalidator,
+    IAdminAccessRepository repository,
+    IAdminFeatureDesignRepository featureDesignRepository,
+    AdminServiceContext context)
 {
     /// <summary>
     /// 获取全局 sessionVersion（带缓存）。
@@ -217,10 +222,7 @@ public sealed class AccessCacheService(IHarborCache cache, IHarborCacheInvalidat
             .Where(item => item.RoleId == roleId)
             .GetOrCreateAsync(async ct =>
             {
-                var policies = await context.Orm.Select<AdminRoleFieldPermission>()
-                    .Where(policy => policy.RoleId == roleId)
-                    .Include(policy => policy.AdminFeatureField)
-                    .ToListAsync(ct);
+                var policies = await repository.GetRoleFieldPoliciesAsync(roleId, ct);
                 return new RoleFieldPoliciesCacheModel
                 {
                     RoleId = roleId,
@@ -280,7 +282,7 @@ public sealed class AccessCacheService(IHarborCache cache, IHarborCacheInvalidat
             .Where(item => item.FeatureCode == normalized)
             .GetOrCreateAsync(async ct =>
             {
-                var feature = await repository.GetEnabledFeatureRuntimeAsync(normalized, ct)
+                var feature = await featureDesignRepository.GetEnabledFeatureRuntimeAsync(normalized, ct)
                               ?? throw new NotFoundDomainException($"Feature '{normalized}' was not found.");
                 return new FeatureRuntimeSchemaCacheModel
                 {
@@ -335,6 +337,12 @@ public sealed class AccessCacheService(IHarborCache cache, IHarborCacheInvalidat
     }
 
     /// <summary>
+    /// 失效 Feature/API 运行时授权缓存（直接改库后需调用或重启 Host）。
+    /// </summary>
+    public ValueTask InvalidateRuntimeAccessAsync(CancellationToken cancellationToken) =>
+        cacheInvalidator.InvalidateTagAsync(AdminAccessCacheKeys.RuntimeTag, cancellationToken);
+
+    /// <summary>
     /// 失效全部角色维度缓存。
     /// </summary>
     public ValueTask InvalidateAllRolesAccessAsync(CancellationToken cancellationToken) =>
@@ -345,7 +353,7 @@ public sealed class AccessCacheService(IHarborCache cache, IHarborCacheInvalidat
     /// </summary>
     private async ValueTask<UserAccessSnapshotCacheModel> LoadUserSnapshotAsync(long userId, long sessionVersion, CancellationToken cancellationToken)
     {
-        var user = await context.Orm.Select<AdminUser>().Where(item => item.Id == userId).ToOneAsync(cancellationToken);
+        var user = await repository.GetUserByIdAsync(userId, cancellationToken);
         if (user is not { Enabled: true })
         {
             return new UserAccessSnapshotCacheModel
@@ -359,10 +367,7 @@ public sealed class AccessCacheService(IHarborCache cache, IHarborCacheInvalidat
         {
             // 超级管理员不受数据范围限制，菜单和权限来自全部启用资源。
             var allActions = await repository.GetEnabledFeatureActionsAsync(cancellationToken);
-            var allMenus = await context.Orm.Select<AdminMenu>()
-                .Where(menu => menu.Enabled && menu.MenuType != "button")
-                .OrderBy(menu => menu.SortOrder)
-                .ToListAsync(cancellationToken);
+            var allMenus = await repository.ListEnabledMenusAsync(cancellationToken);
             return new UserAccessSnapshotCacheModel
             {
                 UserId = userId,
@@ -415,10 +420,7 @@ public sealed class AccessCacheService(IHarborCache cache, IHarborCacheInvalidat
 
         var menus = menuIds.Count == 0
             ? []
-            : await context.Orm.Select<AdminMenu>()
-                .Where(menu => menuIds.Contains(menu.Id) && menu.Enabled && menu.MenuType != "button")
-                .OrderBy(menu => menu.SortOrder)
-                .ToListAsync(cancellationToken);
+            : await repository.ListEnabledMenusByIdsAsync(menuIds.ToArray(), cancellationToken);
 
         return new UserAccessSnapshotCacheModel
         {
@@ -450,7 +452,7 @@ public sealed class AccessCacheService(IHarborCache cache, IHarborCacheInvalidat
 
         if (roles.Any(role => role.DataScopeType is "DeptWithChildren" or "SelfWithSubordinates"))
         {
-            var departments = await context.Orm.Select<AdminDepartment>().ToListAsync(cancellationToken);
+            var departments = await repository.ListDepartmentsAsync(cancellationToken);
             var ids = new HashSet<long> { user.DeptId.Value };
             AddChildDepartmentIds(user.DeptId.Value, departments, ids);
             return ids.ToArray();

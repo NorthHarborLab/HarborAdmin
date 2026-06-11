@@ -6,7 +6,6 @@ namespace HarborAdmin.Modules.Admin.Domain.Entities;
 /// <summary>
 /// Admin 登录用户。
 /// </summary>
-[DbKey("AdminDb")]
 [Index("ux_admin_user_name", nameof(UserName), true)]
 public sealed class AdminUser : AuditableEntity
 {

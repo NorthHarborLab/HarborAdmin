@@ -1,5 +1,4 @@
 using HarborAdmin.BuildingBlocks.Data;
-using HarborAdmin.Modules.Admin.Domain.Entities;
 
 namespace HarborAdmin.Modules.Admin.Infrastructure.Contexts;
 
@@ -8,8 +7,6 @@ namespace HarborAdmin.Modules.Admin.Infrastructure.Contexts;
 /// </summary>
 public sealed class AdminDbContext(
     HarborFreeSqlCloud cloud,
-    DbEntityRegistry entityRegistry) : IAdminDbContext
+    DbModuleRegistry moduleRegistry) : HarborModuleDbContext<AdminStartUp>(cloud, moduleRegistry), IAdminDbContext
 {
-    /// <inheritdoc />
-    public IFreeSql Orm => cloud.Use(entityRegistry.GetDbKey<AdminFeature>());
 }

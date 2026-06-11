@@ -1,5 +1,4 @@
 using HarborAdmin.Modules.Admin.Contracts.FeatureDesign.Dto;
-using HarborAdmin.Modules.Admin.Contracts.FeatureDesign;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.Modules.Admin.Contracts.FeatureDesign.Request;
 using HarborAdmin.Modules.Admin.Domain.Entities;
@@ -36,12 +35,7 @@ public sealed class FeatureDesignApiService
     /// </summary>
     public async Task<IReadOnlyList<AdminFeatureApiTreeDto>> ListApiTreeAsync(CancellationToken cancellationToken)
     {
-        var features = await _context.Db.Orm.Select<AdminFeature>()
-            .Where(item => item.NodeType == AdminFeatureNodeType.Feature)
-            .IncludeMany(item => item.Apis)
-            .OrderBy(item => item.SortOrder)
-            .OrderBy(item => item.FeatureCode)
-            .ToListAsync(cancellationToken);
+        var features = await _context.Repository.ListFeatureApiTreeAsync(cancellationToken);
 
         return features
             .Select(feature => new AdminFeatureApiTreeDto(
@@ -136,7 +130,7 @@ public sealed class FeatureDesignApiService
             api.UpdatedAt = now;
         }
 
-        await _context.Db.Orm.Update<AdminFeatureApi>().SetSource(apis).ExecuteAffrowsAsync(cancellationToken);
+        await _context.Repository.UpdateFeatureApisAsync(apis, cancellationToken);
         await _context.AdminContext.BumpSessionVersionAsync(cancellationToken);
     }
 

@@ -10,7 +10,11 @@ namespace HarborAdmin.Modules.Admin.Application.Services.Menu;
 /// <summary>
 /// 菜单管理服务。
 /// </summary>
-public sealed class MenuService(SystemServiceContext systemContext, AdminServiceContext context, IAdminRepository repository)
+public sealed class MenuService(
+    SystemServiceContext systemContext,
+    AdminServiceContext context,
+    IAdminMenuRepository repository,
+    IAdminAccessRepository accessRepository)
 {
     /// <summary>
     /// 获取完整菜单树。
@@ -29,7 +33,7 @@ public sealed class MenuService(SystemServiceContext systemContext, AdminService
     {
         var menus = await repository.ListMenusWithFeaturesAsync(cancellationToken);
         var features = await repository.ListFeaturesAsync(cancellationToken);
-        var actions = await repository.ListEnabledFeatureActionsAsync(cancellationToken);
+        var actions = await accessRepository.GetEnabledFeatureActionsAsync(cancellationToken);
         return MenuMapper.BuildSystemMenuTree(menus, features, actions);
     }
 
@@ -42,7 +46,7 @@ public sealed class MenuService(SystemServiceContext systemContext, AdminService
         var menuType = MenuMapper.NormalizeMenuType(request.Type);
         var meta = MenuMapper.NormalizeMenuMeta(request, menuType);
         var routePath = MenuMapper.NormalizeMenuPath(request, meta, menuType);
-        var featureCode = await MenuMapper.EnsureFeatureForMenuAsync(systemContext.Orm, request, menuType, cancellationToken);
+        var featureCode = MenuMapper.ResolveFeatureCodeForMenu(request, menuType);
         var feature = featureCode is null
             ? null
             : await systemContext.ResolveFeatureByCodeAsync(featureCode, cancellationToken)
@@ -80,15 +84,7 @@ public sealed class MenuService(SystemServiceContext systemContext, AdminService
         menu.MetaJson = menuType == "button" ? null : MenuMapper.BuildExtensionMetaJson(meta);
         menu.UpdatedAt = now;
 
-        var menuRepository = systemContext.GetMenuRepository();
-        if (id.HasValue)
-        {
-            await menuRepository.UpdateAsync(menu, cancellationToken);
-        }
-        else
-        {
-            await menuRepository.InsertAsync(menu, cancellationToken);
-        }
+        await systemContext.SaveMenuAsync(menu, id.HasValue, cancellationToken);
 
         await context.BumpSessionVersionAsync(cancellationToken);
         menu = await repository.GetMenuWithFeatureAsync(menu.Id, cancellationToken)
@@ -152,7 +148,7 @@ public sealed class MenuService(SystemServiceContext systemContext, AdminService
 
         _ = await repository.GetMenuWithFeatureAsync(id, cancellationToken)
             ?? throw new NotFoundDomainException("菜单不存在。");
-        await systemContext.GetMenuRepository().DeleteCascadeByDatabaseAsync(menu => menu.Id == id, cancellationToken);
+        await systemContext.DeleteMenuCascadeAsync(id, cancellationToken);
         await context.BumpSessionVersionAsync(cancellationToken);
     }
 

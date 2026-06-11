@@ -7,7 +7,6 @@ namespace HarborAdmin.Modules.Admin.Domain.Entities;
 /// <summary>
 /// 功能资源表
 /// </summary>
-[DbKey("AdminDb")]
 [Index("ux_admin_feature_code", nameof(FeatureCode), true)]
 [Index("idx_admin_feature_parent", nameof(ParentId), false)]
 public sealed class AdminFeature : AuditableEntity

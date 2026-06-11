@@ -6,7 +6,6 @@ namespace HarborAdmin.Modules.Admin.Domain.Entities;
 /// <summary>
 /// Admin 功能 API 端点
 /// </summary>
-[DbKey("AdminDb")]
 [Index("ux_admin_feature_api_code", $"{nameof(FeatureCode)},{nameof(ApiCode)}", true)]
 [Index("ux_admin_feature_api_endpoint", $"{nameof(Path)},{nameof(HttpMethod)}", true)]
 [Index("idx_admin_feature_api_feature_id", nameof(AdminFeatureId), false)]

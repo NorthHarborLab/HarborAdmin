@@ -1,6 +1,6 @@
 using System.Collections;
 using System.Reflection;
-using HarborAdmin.BuildingBlocks.Abstractions.Auth;
+using HarborAdmin.BuildingBlocks.Abstractions.Attributes;
 
 namespace HarborAdmin.Modules.Admin.Application.Services.Access;
 

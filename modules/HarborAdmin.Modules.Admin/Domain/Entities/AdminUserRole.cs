@@ -6,7 +6,6 @@ namespace HarborAdmin.Modules.Admin.Domain.Entities;
 /// <summary>
 /// Admin 用户角色关系。
 /// </summary>
-[DbKey("AdminDb")]
 [Index("ux_admin_user_role", $"{nameof(UserId)},{nameof(RoleId)}", true)]
 public sealed class AdminUserRole : EntityBase
 {

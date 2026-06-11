@@ -2,7 +2,8 @@ using HarborAdmin.Modules.Admin.Application.Services.Role;
 using HarborAdmin.Modules.Admin.Contracts.System.Dto;
 using HarborAdmin.Modules.Admin.Contracts.System.Request;
 using Microsoft.AspNetCore.Mvc;
-using HarborAdmin.BuildingBlocks.Abstractions.Api;
+using HarborAdmin.BuildingBlocks.Abstractions.Controllers;
+using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 
 namespace HarborAdmin.Modules.Admin.Controllers.System;
 
@@ -11,36 +12,33 @@ namespace HarborAdmin.Modules.Admin.Controllers.System;
 /// </summary>
 [ApiController]
 [Route("api/admin/system/role")]
-public sealed class RoleController(RoleService roleService) : ControllerBase
+public sealed class RoleController(RoleService roleService) : CrudControllerBase<SystemRoleDto, SaveSystemRoleRequest>
 {
     /// <summary>
     /// 查询角色列表。
     /// </summary>
     [HttpGet("list")]
     public async Task<ApiResult<IReadOnlyList<SystemRoleDto>>> List(CancellationToken cancellationToken) =>
-        ApiResult.Ok(await roleService.ListRolesAsync(cancellationToken));
+        await ListResultAsync(roleService, cancellationToken);
 
     /// <summary>
     /// 创建角色。
     /// </summary>
     [HttpPost]
     public async Task<ApiResult<SystemRoleDto>> Create([FromBody] SaveSystemRoleRequest request, CancellationToken cancellationToken) =>
-        ApiResult.Ok(await roleService.SaveRoleAsync(null, request, cancellationToken));
+        await CreateResultAsync(request, roleService, cancellationToken);
 
     /// <summary>
     /// 更新角色。
     /// </summary>
     [HttpPut("{id:long}")]
     public async Task<ApiResult<SystemRoleDto>> Update(long id, [FromBody] SaveSystemRoleRequest request, CancellationToken cancellationToken) =>
-        ApiResult.Ok(await roleService.SaveRoleAsync(id, request, cancellationToken));
+        await UpdateResultAsync(id, request, roleService, cancellationToken);
 
     /// <summary>
     /// 删除角色。
     /// </summary>
     [HttpDelete("{id:long}")]
-    public async Task<ApiResult<bool>> Delete(long id, CancellationToken cancellationToken)
-    {
-        await roleService.DeleteRoleAsync(id, cancellationToken);
-        return ApiResult.Ok(true);
-    }
+    public async Task<ApiResult<bool>> Delete(long id, CancellationToken cancellationToken) =>
+        await DeleteResultAsync(id, roleService, cancellationToken);
 }

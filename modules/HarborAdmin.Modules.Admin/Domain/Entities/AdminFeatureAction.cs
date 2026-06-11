@@ -6,7 +6,6 @@ namespace HarborAdmin.Modules.Admin.Domain.Entities;
 /// <summary>
 /// 功能按钮和权限点
 /// </summary>
-[DbKey("AdminDb")]
 [Index("ux_admin_feature_action", $"{nameof(FeatureCode)},{nameof(ActionCode)}", true)]
 [Index("ux_admin_feature_action_permission", nameof(PermissionCode), true)]
 [Index("idx_admin_feature_action_feature_id", nameof(AdminFeatureId), false)]

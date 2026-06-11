@@ -3,8 +3,8 @@ using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.Modules.Admin.Contracts.Access.Dto;
 using HarborAdmin.Modules.Admin.Contracts.System.Dto;
 using HarborAdmin.Modules.Admin.Contracts.System.Request;
-using HarborAdmin.Modules.Admin.Domain.Entities;
 using HarborAdmin.Modules.Admin.Application.Services.Shared;
+using HarborAdmin.Modules.Admin.Domain.Entities;
 
 namespace HarborAdmin.Modules.Admin.Application.Services.Menu;
 
@@ -138,10 +138,8 @@ internal static class MenuMapper
             children.Length > 0 ? children : null);
     }
 
-    internal static async Task<IReadOnlyList<BackendRouteDto>> BuildRoutesAsync(IFreeSql orm, IReadOnlyList<AdminMenu> menus, IReadOnlyList<string> permissions,
-        CancellationToken cancellationToken)
+    internal static IReadOnlyList<BackendRouteDto> BuildRoutes(IReadOnlyList<AdminFeature> features, IReadOnlyList<AdminMenu> menus, IReadOnlyList<string> permissions)
     {
-        var features = await orm.Select<AdminFeature>().Where(feature => feature.Enabled).ToListAsync(cancellationToken);
         var featureMap = features.ToDictionary(feature => feature.FeatureCode, StringComparer.OrdinalIgnoreCase);
         var routeMenus = menus
             .Where(menu => menu.MenuType != "button")
@@ -346,7 +344,7 @@ internal static class MenuMapper
         throw new ValidationDomainException("目录、菜单和内嵌菜单必须指定路径。");
     }
 
-    internal static async Task<string?> EnsureFeatureForMenuAsync(IFreeSql orm, SaveSystemMenuRequest request, string menuType, CancellationToken cancellationToken)
+    internal static string? ResolveFeatureCodeForMenu(SaveSystemMenuRequest request, string menuType)
     {
         if (menuType is not ("menu" or "embedded" or "link"))
         {
@@ -357,14 +355,6 @@ internal static class MenuMapper
         if (string.IsNullOrWhiteSpace(featureCode))
         {
             throw new ValidationDomainException("菜单必须选择已存在的功能资源。");
-        }
-
-        var exists = await orm.Select<AdminFeature>()
-            .Where(feature => feature.FeatureCode == featureCode && feature.Enabled)
-            .AnyAsync(cancellationToken);
-        if (!exists)
-        {
-            throw new NotFoundDomainException($"Feature '{featureCode}' was not found.");
         }
 
         return featureCode;

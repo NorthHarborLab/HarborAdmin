@@ -106,15 +106,18 @@ builder.Services.AddHarborFreeSql(builder.Configuration.GetSection(DbConfig.Sect
 模块扩展中优先使用 `AddHarborModuleData(...)` 注册模块 DbContext 与仓储，避免每个模块重复写同一组生命周期代码：
 
 ```csharp
-services.AddHarborModuleData<IAdminDbContext, AdminDbContext, IAdminRepository, FreeSqlAdminRepository, AdminServiceContext>();
+services.AddHarborModuleData<IAiDbContext, AiDbContext, IAiRepository, FreeSqlAiRepository>();
+services.AddScoped<IAiProviderRepository, AiProviderRepository>();
 ```
 
-默认 DbContext 与仓储生命周期为 Singleton，ServiceContext 为 Scoped。少数模块如果仓储需要请求级生命周期，可显式指定：
+默认 DbContext 与模块级仓储生命周期为 Singleton，ServiceContext 为 Scoped。少数模块如果仓储需要请求级生命周期，可显式指定：
 
 ```csharp
 services.AddHarborModuleData<ISecretsDbContext, SecretsDbContext, ISecretsRepository, FreeSqlSecretsRepository>(
     repositoryLifetime: ServiceLifetime.Scoped);
 ```
+
+如果模块已经拆成多个窄领域仓储，例如 Admin 的 `IAdminUserRepository`、`IAdminAccessRepository`、`IAdminFeatureDesignRepository`，不要为了使用 `AddHarborModuleData(...)` 再造一个模块总仓储；直接注册模块 DbContext 与各窄仓储即可。
 
 ## 数据库配置
 
