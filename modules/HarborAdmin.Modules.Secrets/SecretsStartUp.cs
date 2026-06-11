@@ -1,6 +1,5 @@
 using HarborAdmin.BuildingBlocks.Abstractions.Secrets;
 using HarborAdmin.BuildingBlocks.Abstractions.Modules;
-using HarborAdmin.BuildingBlocks.Data;
 using HarborAdmin.Modules.Secrets.Application.Abstractions;
 using HarborAdmin.Modules.Secrets.Application.Services;
 using HarborAdmin.Modules.Secrets.Infrastructure.Contexts;
@@ -29,8 +28,8 @@ public sealed class SecretsStartUp : HarborModuleMetadataBase, IHarborModuleStar
     /// <param name="context">模块注册上下文。</param>
     public void AddModule(IServiceCollection services, HarborModuleRegistrationContext context)
     {
-        services.AddHarborModuleData<ISecretsDbContext, SecretsDbContext, ISecretsRepository, FreeSqlSecretsRepository>(
-            repositoryLifetime: ServiceLifetime.Scoped);
+        services.AddSingleton<ISecretsDbContext, SecretsDbContext>();
+        services.AddScoped<ISecretsRepository, FreeSqlSecretsRepository>();
         services.TryAddScoped<SecretStore>();
         services.TryAddScoped<ISecretStore>(sp => sp.GetRequiredService<SecretStore>());
         services.TryAddScoped<ISecretResolver>(sp => sp.GetRequiredService<SecretStore>());
