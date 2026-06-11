@@ -1,8 +1,8 @@
-using HarborAdmin.BuildingBlocks.Abstractions.Api;
+using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 
-namespace HarborAdmin.Host.Infrastructure;
+namespace HarborAdmin.Host.Filter;
 
 /// <summary>
 /// 将模型校验失败统一转为 ApiResult 契约。

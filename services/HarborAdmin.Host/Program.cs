@@ -1,5 +1,6 @@
 // HarborAdmin.Host 入口：管理后台 HTTP API（配置中心草稿 CRUD、发布等）。
 
+using HarborAdmin.BuildingBlocks.Abstractions.Modules;
 using HarborAdmin.BuildingBlocks.Data;
 using HarborAdmin.BuildingBlocks.Data.Configs;
 using HarborAdmin.BuildingBlocks.EventBus;
@@ -7,17 +8,12 @@ using HarborAdmin.BuildingBlocks.Caching;
 using HarborAdmin.BuildingBlocks.Caching.Options;
 using HarborAdmin.BuildingBlocks.Mapping;
 using HarborAdmin.BuildingBlocks.Secrets.DependencyInjection;
-using HarborAdmin.Modules.Secrets.Domain.Entities;
 using HarborAdmin.Client.AI;
 using HarborAdmin.Client.ConfigCenter;
 using HarborAdmin.Host.Infrastructure;
 using HarborAdmin.Host.Filter;
-using HarborAdmin.Modules.ConfigCenter;
 using HarborAdmin.Modules.ConfigCenter.Application.Abstractions;
 using HarborAdmin.Modules.ConfigCenter.Infrastructure.Clients;
-using HarborAdmin.Modules.AI;
-using HarborAdmin.Modules.Admin;
-using HarborAdmin.Modules.International;
 using HarborAdmin.Modules.International.Application.Services;
 using HarborAdmin.Modules.Secrets;
 
@@ -25,7 +21,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 var configCenterSection = builder.Configuration.GetSection(ConfigCenterOptions.DefaultSectionName);
 var configCenterSource = await builder.Configuration.AddHarborConfigCenterAsync(configCenterSection);
-var moduleAssemblies = ModuleApplicationPartExtensions.DiscoverHarborModuleAssemblies();
+// 显式追加 Secrets 模块，确保 ProviderService 等依赖 ISecretStore 的服务可解析。
+var moduleAssemblies = HarborModuleAssemblyDiscovery.Discover([typeof(SecretsStartUp).Assembly]);
 
 var mvcBuilder = builder.Services.AddControllers(options =>
 {
@@ -34,10 +31,7 @@ var mvcBuilder = builder.Services.AddControllers(options =>
     options.Filters.Add<FieldPermissionResultFilter>();
 });
 
-mvcBuilder.ConfigureApiBehaviorOptions(options =>
-{
-    options.SuppressModelStateInvalidFilter = true;
-});
+mvcBuilder.ConfigureApiBehaviorOptions(options => { options.SuppressModelStateInvalidFilter = true; });
 mvcBuilder.AddHarborModuleApplicationParts(moduleAssemblies);
 builder.Services.AddOpenApi();
 builder.Services.AddCors(options =>
@@ -58,25 +52,22 @@ builder.Services.AddAdminSecurity();
 builder.Services.AddHarborFreeSql(builder.Configuration.GetSection(DbConfig.SectionName), options =>
 {
     options.SnowflakeWorkerId = GetYitterWorkId(builder.Configuration);
-    options.AddEntityAssembly(typeof(HarborSecret).Assembly);
+    foreach (var moduleAssembly in moduleAssemblies)
+    {
+        options.AddModuleAssembly(moduleAssembly);
+    }
+
     options.AddCurdAfterHandler(CacheInvalidationAopBridge.Dispatch);
 });
 builder.Services.AddHarborSecrets();
 builder.Services
-    .AddHarborCap(builder.Configuration, cap =>
-    {
-        cap.DefaultGroupName = "harbor.admin.host";
-    })
+    .AddHarborCap(builder.Configuration, cap => { cap.DefaultGroupName = "harbor.admin.host"; })
     .AddHarborCapSubscribers(typeof(InternationalTranslationSubscriber).Assembly);
 
 builder.Services.AddSingleton<IConfigCenterNotifyClient, TcpConfigCenterNotifyClient>();
 builder.Services.AddHarborConfigCenter(configCenterSource, configCenterSection);
 builder.Services.AddAiClient(builder.Configuration);
-builder.Services.AddAiModule(builder.Configuration);
-builder.Services.AddAdminModule();
-builder.Services.AddInternationalModule();
-builder.Services.AddConfigCenterModule(builder.Configuration);
-builder.Services.AddSecretsModule(builder.Configuration);
+builder.Services.AddHarborModules(moduleAssemblies, builder.Configuration);
 
 var app = builder.Build();
 

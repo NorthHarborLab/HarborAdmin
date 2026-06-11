@@ -1,12 +1,12 @@
-using HarborAdmin.BuildingBlocks.Abstractions.Api;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
+using HarborAdmin.BuildingBlocks.Abstractions.Exception;
+using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Npgsql;
-using System.Text.Json;
-using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 
-namespace HarborAdmin.Host.Infrastructure;
+namespace HarborAdmin.Host.Filter;
 
 /// <summary>
 /// 将常见业务异常映射为 <see cref="ApiResult"/> 与合适的 HTTP 状态码。
