@@ -6,8 +6,8 @@ HarborAdmin 的 FreeSql 数据访问基础设施 ，负责多库注册、模块�
 
 - 注册 `HarborFreeSqlCloud`，支持单库、多库和读写分离。
 - 使用 `Harbor:DbConfig:Databases` 作为唯一数据库配置入口。
-- 扫描 `HarborAdmin.Modules.*` 程序集中的模块元数据与实体类型。
-- 在多库模式下通过模块 `{Module}ModuleMetadata.GetDbKey()` 建立默认数据库映射，特殊实体可用 `[OverrideDbKey("...")]` 覆盖。
+- 扫描 `HarborAdmin.Modules.*` 程序集中的模块启动入口与实体类型。
+- 在多库模式下通过模块 `{Module}StartUp.GetDbKey()` 建立默认数据库映射，特殊实体可用 `[OverrideDbKey("...")]` 覆盖。
 - 注册 `DbModuleRegistry` 与 `DbEntityRegistry`，供模块 DbContext 和少量基础设施查找数据库 Key。
 - 注册默认 `IFreeSql`，指向 `Databases` 数组中的第一个数据库。
 - 注册 `UnitOfWorkManagerCloud`，支持按数据库 Key 开启 FreeSql 工作单元。
@@ -61,7 +61,7 @@ Host 或服务组合根中注册：
 builder.Services.AddHarborFreeSql(builder.Configuration.GetSection(DbConfig.SectionName), options =>
 {
     options.SnowflakeWorkerId = configuration.GetValue<ushort?>("Harbor:YitterWorkId") ?? 1;
-    options.AddModuleAssembly(typeof(SomeModuleMetadata).Assembly);
+    options.AddModuleAssembly(typeof(SomeStartUp).Assembly);
     options.AddCurdAfterHandler(CacheInvalidationAopBridge.Dispatch);
 });
 ```
@@ -87,11 +87,11 @@ builder.Services.AddHarborFreeSql(builder.Configuration.GetSection(DbConfig.Sect
 
 ### 模块 DbContext 与 ORM 选择
 
-模块 DbContext 继承 `HarborModuleDbContext<TMetadata>`，并通过模块 metadata 从 `DbModuleRegistry` 解析模块默认数据库 Key。
+模块 DbContext 继承 `HarborModuleDbContext<TMetadata>`，并通过模块启动入口从 `DbModuleRegistry` 解析模块默认数据库 Key。
 
 | 成员 | 含义 |
 |------|------|
-| `DbKey` | 当前模块 metadata 声明的默认数据库 Key |
+| `DbKey` | 当前模块启动入口声明的默认数据库 Key |
 | `Orm` | 当前模块默认数据库对应的 `IFreeSql` |
 | `GetOrm(string dbKey)` | 获取指定数据库 Key 对应的 `IFreeSql` |
 | `Bind(IFreeSql orm)` | 在当前异步作用域绑定模块默认库的事务 ORM |
@@ -199,7 +199,7 @@ services.AddHarborModuleData<ISecretsDbContext, SecretsDbContext, ISecretsReposi
 
 | 字段 | 说明 |
 |------|------|
-| `Key` | FreeSqlCloud 注册键，多库模式下与模块 metadata 的 `GetDbKey()` 对应 |
+| `Key` | FreeSqlCloud 注册键，多库模式下与模块启动入口的 `GetDbKey()` 对应 |
 | `DataType` | 数据库类型，见下方支持列表 |
 | `ConnectionString` | 主库连接字符串 |
 | `SyncStructure` | 是否在启动时对该库关联实体执行 CodeFirst 同步 |
@@ -234,18 +234,18 @@ services.AddHarborModuleData<ISecretsDbContext, SecretsDbContext, ISecretsReposi
 - 默认通过 `HarborModuleAssemblyDiscovery` 扫描当前 AppDomain 已加载的 `HarborAdmin.Modules.*` 程序集。
 - 同时扫描入口程序集引用的 `HarborAdmin.Modules.*` 程序集，必要时主动 `Assembly.Load`。
 - 可通过 `HarborFreeSqlOptions.AddModuleAssembly(...)` 追加扫描程序集。
-- 每个模块程序集必须声明且只能声明一个 `IHarborModuleMetadata` 实现。
+- 每个模块程序集必须声明且只能声明一个 `IHarborModuleStartup` 实现；该实现同时也是 `IHarborModuleMetadata`。
 - 只扫描继承 `EntityBase` 的非抽象类。
 
 单库模式：
 
 - 所有模块实体映射到唯一数据库。
-- 模块 metadata 仍需存在，但声明的 DbKey 不参与单库配置匹配。
+- 模块启动入口仍需存在，但声明的 DbKey 不参与单库配置匹配。
 
 多库模式：
 
-- 每个模块 metadata 必须返回非空 DbKey。
-- metadata 的 DbKey 必须存在于 `Harbor:DbConfig:Databases`。
+- 每个模块启动入口必须返回非空 DbKey。
+- 启动入口的 DbKey 必须存在于 `Harbor:DbConfig:Databases`。
 - 普通实体使用模块默认 DbKey；只有需要覆盖模块默认库的实体才声明 `[OverrideDbKey("...")]`。
 - `[OverrideDbKey]` 的值必须存在于 `Harbor:DbConfig:Databases`。
 - 注册时保留配置文件里的数据库 Key 原始大小写，避免 `cloud.Use(dbKey)` 表示不一致。
@@ -253,15 +253,20 @@ services.AddHarborModuleData<ISecretsDbContext, SecretsDbContext, ISecretsReposi
 示例：
 
 ```csharp
-public sealed class InternationalModuleMetadata : HarborModuleMetadataBase
+public sealed class InternationalStartUp : HarborModuleMetadataBase, IHarborModuleStartup
 {
     public override string ModuleName => "International";
 
     public override string GetDbKey() => "AdminDb";
+
+    public void AddModule(IServiceCollection services, HarborModuleRegistrationContext context)
+    {
+        // 注册模块服务。
+    }
 }
 ```
 
-普通实体不声明数据库 Key，数据库归属由实体所在模块程序集的 metadata 供给。少数特殊实体可覆盖模块默认库：
+普通实体不声明数据库 Key，数据库归属由实体所在模块程序集的启动入口供给。少数特殊实体可覆盖模块默认库：
 
 ```csharp
 [OverrideDbKey("AuditDb")]
@@ -272,7 +277,7 @@ public sealed class AdminAuditLog : EntityBase
 
 ## DbModuleRegistry
 
-`DbModuleRegistry` 保存模块 metadata 类型到运行时数据库 Key 的映射，注册为 Singleton。模块 DbContext 基类通过它解析实际使用的 DbKey。
+`DbModuleRegistry` 保存模块启动入口类型到运行时数据库 Key 的映射，注册为 Singleton。模块 DbContext 基类通过它解析实际使用的 DbKey。
 
 ## DbEntityRegistry
 
@@ -301,7 +306,7 @@ public sealed class AiProviderRepository(IAiDbContext db, DbEntityRegistry entit
 
 分库规则不进入 Service / Controller 方法签名：
 
-- 普通实体使用模块 metadata 的默认 DbKey。
+- 普通实体使用模块启动入口的默认 DbKey。
 - 标注 `[OverrideDbKey("...")]` 的实体使用覆盖 DbKey。
 - Repository 每次操作按实体最终 DbKey 获取 ORM，不长期缓存 `IBaseRepository<TEntity>`。
 

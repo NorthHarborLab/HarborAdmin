@@ -164,31 +164,31 @@ public static class ServiceCollectionExtensions
         foreach (var assembly in HarborModuleAssemblyDiscovery.Discover(options.ModuleAssemblies))
         {
             var types = GetLoadableTypes(assembly);
-            var metadataTypes = types
-                .Where(type => type is { IsClass: true, IsAbstract: false } && typeof(IHarborModuleMetadata).IsAssignableFrom(type))
+            var startupTypes = types
+                .Where(type => type is { IsClass: true, IsAbstract: false } && typeof(IHarborModuleStartup).IsAssignableFrom(type))
                 .ToArray();
 
-            if (metadataTypes.Length == 0)
+            if (startupTypes.Length == 0)
             {
                 throw new InvalidOperationException(
-                    $"Module assembly '{assembly.GetName().Name}' must declare exactly one IHarborModuleMetadata implementation.");
+                    $"Module assembly '{assembly.GetName().Name}' must declare exactly one IHarborModuleStartup implementation.");
             }
 
-            if (metadataTypes.Length > 1)
+            if (startupTypes.Length > 1)
             {
                 throw new InvalidOperationException(
-                    $"Module assembly '{assembly.GetName().Name}' declares multiple IHarborModuleMetadata implementations: {string.Join(", ", metadataTypes.Select(type => type.FullName))}.");
+                    $"Module assembly '{assembly.GetName().Name}' declares multiple IHarborModuleStartup implementations: {string.Join(", ", startupTypes.Select(type => type.FullName))}.");
             }
 
-            var metadata = Activator.CreateInstance(metadataTypes[0]) as IHarborModuleMetadata
+            var metadata = Activator.CreateInstance(startupTypes[0]) as IHarborModuleStartup
                            ?? throw new InvalidOperationException(
-                               $"Module metadata '{metadataTypes[0].FullName}' must provide a public parameterless constructor.");
+                               $"Module startup '{startupTypes[0].FullName}' must provide a public parameterless constructor.");
             var entityTypes = types
                 .Where(type => type is { IsClass: true, IsAbstract: false } && typeof(EntityBase).IsAssignableFrom(type))
                 .Distinct()
                 .ToArray();
 
-            yield return new ModuleDescriptor(assembly, metadataTypes[0], metadata, entityTypes);
+            yield return new ModuleDescriptor(assembly, startupTypes[0], metadata, entityTypes);
         }
     }
 
@@ -216,7 +216,7 @@ public static class ServiceCollectionExtensions
         if (string.IsNullOrWhiteSpace(declaredDbKey))
         {
             throw new InvalidOperationException(
-                $"Module metadata '{module.MetadataType.FullName}' must return a non-empty database key.");
+            $"Module startup '{module.MetadataType.FullName}' must return a non-empty database key.");
         }
 
         // 保留配置文件中的原始大小写，避免后续 cloud.Use(dbKey) 与注册 key 表示不一致。
@@ -227,7 +227,7 @@ public static class ServiceCollectionExtensions
         }
 
         throw new InvalidOperationException(
-            $"Module metadata '{module.MetadataType.FullName}' declares database key '{declaredDbKey}', but Harbor:DbConfig:Databases does not contain it.");
+            $"Module startup '{module.MetadataType.FullName}' declares database key '{declaredDbKey}', but Harbor:DbConfig:Databases does not contain it.");
     }
 
     /// <summary>

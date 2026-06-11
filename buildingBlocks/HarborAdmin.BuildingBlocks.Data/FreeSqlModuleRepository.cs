@@ -29,7 +29,7 @@ public abstract class FreeSqlModuleRepository<TDbContext>
     /// <summary>
     /// 当前模块 ORM。
     /// 使用的模块默认数据库，如果所操作实体使用了<see cref="OverrideDbKeyAttribute"/>则必须显式用
-    /// /// <c>DbEntityRegistry.GetDbKey&lt;TEntity&gt;()</c>
+    /// <c>DbEntityRegistry.GetDbKey&lt;TEntity&gt;()</c>
     /// 获取实体最终 DbKey，再调用 <c>db.GetOrm(dbKey)</c>。
     /// </summary>
     protected IFreeSql FreeSql => _db.Orm;

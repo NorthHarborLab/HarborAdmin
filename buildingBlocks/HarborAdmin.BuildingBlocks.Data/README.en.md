@@ -6,8 +6,8 @@ HarborAdmin FreeSql data access infrastructure: multi-database registration, mod
 
 - Registers `HarborFreeSqlCloud` with support for single-database, multi-database, and read/write splitting.
 - Uses `Harbor:DbConfig:Databases` as the single database configuration entry point.
-- Scans module metadata and entity types from `HarborAdmin.Modules.*` assemblies.
-- In multi-database mode, maps entities to the module default database via `{Module}ModuleMetadata.GetDbKey()`; special entities can override it with `[OverrideDbKey("...")]`.
+- Scans module startup entries and entity types from `HarborAdmin.Modules.*` assemblies.
+- In multi-database mode, maps entities to the module default database via `{Module}StartUp.GetDbKey()`; special entities can override it with `[OverrideDbKey("...")]`.
 - Registers `DbModuleRegistry` and `DbEntityRegistry` so module DbContexts and infrastructure can resolve database keys.
 - Registers the default `IFreeSql` pointing to the first database in the `Databases` array.
 - Registers `UnitOfWorkManagerCloud` to start FreeSql unit-of-work by database key.
@@ -60,7 +60,7 @@ Register in Host or another composition root:
 builder.Services.AddHarborFreeSql(builder.Configuration.GetSection(DbConfig.SectionName), options =>
 {
     options.SnowflakeWorkerId = configuration.GetValue<ushort?>("Harbor:YitterWorkId") ?? 1;
-    options.AddModuleAssembly(typeof(SomeModuleMetadata).Assembly);
+    options.AddModuleAssembly(typeof(SomeStartUp).Assembly);
     options.AddCurdAfterHandler(CacheInvalidationAopBridge.Dispatch);
 });
 ```
@@ -182,7 +182,7 @@ Read/write splitting:
 
 | Field | Description |
 |-------|-------------|
-| `Key` | FreeSqlCloud registration key; in multi-database mode it matches module metadata `GetDbKey()` |
+| `Key` | FreeSqlCloud registration key; in multi-database mode it matches the module startup `GetDbKey()` |
 | `DataType` | Database type; see supported list below |
 | `ConnectionString` | Primary database connection string |
 | `SyncStructure` | Whether to run CodeFirst sync for entities mapped to this database at startup |
@@ -211,18 +211,18 @@ Module scanning rules:
 - By default, uses `HarborModuleAssemblyDiscovery` to scan `HarborAdmin.Modules.*` assemblies already loaded in the current AppDomain.
 - Also scans `HarborAdmin.Modules.*` assemblies referenced by the entry assembly, calling `Assembly.Load` when needed.
 - Additional assemblies can be added via `HarborFreeSqlOptions.AddModuleAssembly(...)`.
-- Each module assembly must declare exactly one `IHarborModuleMetadata` implementation.
+- Each module assembly must declare exactly one `IHarborModuleStartup` implementation; it is also an `IHarborModuleMetadata` implementation.
 - Only non-abstract classes inheriting `EntityBase` are scanned.
 
 Single-database mode:
 
 - All entities map to the sole database.
-- Module metadata must exist, but the declared DbKey is not matched against configuration in single-database mode.
+- Module startup must exist, but the declared DbKey is not matched against configuration in single-database mode.
 
 Multi-database mode:
 
-- Every module metadata must return a non-empty DbKey.
-- The metadata DbKey value must exist in `Harbor:DbConfig:Databases`.
+- Every module startup must return a non-empty DbKey.
+- The startup DbKey value must exist in `Harbor:DbConfig:Databases`.
 - Ordinary entities use the module default DbKey; only entities that must override the module default database should declare `[OverrideDbKey("...")]`.
 - The `[OverrideDbKey]` value must exist in `Harbor:DbConfig:Databases`.
 - Registration preserves the original casing from configuration to keep `cloud.Use(dbKey)` consistent.
@@ -230,15 +230,20 @@ Multi-database mode:
 Example:
 
 ```csharp
-public sealed class InternationalModuleMetadata : HarborModuleMetadataBase
+public sealed class InternationalStartUp : HarborModuleMetadataBase, IHarborModuleStartup
 {
     public override string ModuleName => "International";
 
     public override string GetDbKey() => "AdminDb";
+
+    public void AddModule(IServiceCollection services, HarborModuleRegistrationContext context)
+    {
+        // Register module services.
+    }
 }
 ```
 
-Ordinary entities do not declare database keys; database ownership is supplied by the metadata of the entity's module assembly. A special entity can override the module default database:
+Ordinary entities do not declare database keys; database ownership is supplied by the startup entry of the entity's module assembly. A special entity can override the module default database:
 
 ```csharp
 [OverrideDbKey("AuditDb")]
@@ -278,7 +283,7 @@ public sealed class AiProviderRepository(IAiDbContext db, DbEntityRegistry entit
 
 Database routing is not part of service or controller method signatures:
 
-- Ordinary entities use their module metadata default DbKey.
+- Ordinary entities use their module startup default DbKey.
 - Entities marked with `[OverrideDbKey("...")]` use the override DbKey.
 - Repositories resolve the entity's effective DbKey per operation and do not keep a long-lived `IBaseRepository<TEntity>` field.
 
