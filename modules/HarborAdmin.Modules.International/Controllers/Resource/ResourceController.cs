@@ -1,5 +1,6 @@
 using HarborAdmin.Modules.International.Application.Services;
 using Microsoft.AspNetCore.Mvc;
+using HarborAdmin.BuildingBlocks.Abstractions.Controllers;
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using HarborAdmin.Modules.International.Contracts.Resource.Dto;
 using HarborAdmin.Modules.International.Contracts.Page.Dto;
@@ -13,33 +14,33 @@ namespace HarborAdmin.Modules.International.Controllers.Resource;
 [ApiController]
 [AllowAnonymous]
 [Route("api/admin/international/resources")]
-public sealed class ResourceController(InternationalResourceBundleService resourceBundleService) : ControllerBase
+public sealed class ResourceController(InternationalResourceBundleService resourceBundleService) : HarborControllerBase
 {
     /// <summary>
     /// 获取当前资源版本。
     /// </summary>
     [HttpGet("version")]
-    public async Task<ApiResult<InternationalVersionDto>> GetVersion() =>
-        ApiResult.Ok(await resourceBundleService.GetVersionAsync(HttpContext.RequestAborted));
+    public async Task<ApiResult<InternationalVersionDto>> GetVersion(CancellationToken cancellationToken) =>
+        await OkResultAsync(cancellationToken, resourceBundleService.GetVersionAsync);
 
     /// <summary>
     /// 获取带版本号的资源包。
     /// </summary>
     [HttpGet("bundle")]
-    public async Task<ApiResult<InternationalBundleDto>> GetBundle() =>
-        ApiResult.Ok(await resourceBundleService.GetBundleAsync(HttpContext.RequestAborted));
+    public async Task<ApiResult<InternationalBundleDto>> GetBundle(CancellationToken cancellationToken) =>
+        await OkResultAsync(cancellationToken, resourceBundleService.GetBundleAsync);
 
     /// <summary>
     /// 获取带版本号的单页面资源包。
     /// </summary>
     [HttpGet("pages/bundle")]
-    public async Task<ApiResult<InternationalPageBundleDto>> GetPageBundle([FromQuery] string path) =>
-        ApiResult.Ok(await resourceBundleService.GetPageBundleAsync(path, HttpContext.RequestAborted));
+    public async Task<ApiResult<InternationalPageBundleDto>> GetPageBundle([FromQuery] string path, CancellationToken cancellationToken) =>
+        await OkResultAsync(resourceBundleService.GetPageBundleAsync(path, cancellationToken));
 
     /// <summary>
     /// 获取带版本号的单页面资源包。
     /// </summary>
     [HttpGet("pages/{pageKey}/bundle")]
-    public async Task<ApiResult<InternationalPageBundleDto>> GetLegacyPageBundle(string pageKey) =>
-        ApiResult.Ok(await resourceBundleService.GetPageBundleAsync(pageKey, HttpContext.RequestAborted));
+    public async Task<ApiResult<InternationalPageBundleDto>> GetLegacyPageBundle(string pageKey, CancellationToken cancellationToken) =>
+        await OkResultAsync(resourceBundleService.GetPageBundleAsync(pageKey, cancellationToken));
 }

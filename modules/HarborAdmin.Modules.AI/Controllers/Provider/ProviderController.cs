@@ -12,14 +12,14 @@ namespace HarborAdmin.Modules.AI.Controllers.Provider;
 /// </summary>
 [ApiController]
 [Route("api/admin/ai/providers")]
-public sealed class ProviderController(ProviderService service) : CrudControllerBase<AiProviderDto, SaveAiProviderRequest>
+public sealed class ProviderController(ProviderService service) : PagedCrudControllerBase<AiProviderDto, PageRequest, SaveAiProviderRequest>
 {
     /// <summary>
     /// 列出供应商。
     /// </summary>
     [HttpGet]
-    public async Task<ApiResult<IReadOnlyList<AiProviderDto>>> List(CancellationToken cancellationToken) =>
-        await ListResultAsync(service, cancellationToken);
+    public async Task<ApiResult<PagedResult<AiProviderDto>>> List([FromQuery] PageRequest query, CancellationToken cancellationToken) =>
+        await PageResultAsync(query, service, cancellationToken);
 
     /// <summary>
     /// 获取供应商详情。

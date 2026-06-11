@@ -12,14 +12,14 @@ namespace HarborAdmin.Modules.AI.Controllers.Quota;
 /// </summary>
 [ApiController]
 [Route("api/admin/ai/model-quotas")]
-public sealed class ModelQuotaController(QuotaService service) : CrudControllerBase<AiModelQuotaDto, SaveAiModelQuotaRequest>
+public sealed class ModelQuotaController(QuotaService service) : PagedCrudControllerBase<AiModelQuotaDto, PageRequest, SaveAiModelQuotaRequest>
 {
     /// <summary>
     /// 列出模型限额。
     /// </summary>
     [HttpGet]
-    public async Task<ApiResult<IReadOnlyList<AiModelQuotaDto>>> List(CancellationToken cancellationToken) =>
-        await ListResultAsync(service, cancellationToken);
+    public async Task<ApiResult<PagedResult<AiModelQuotaDto>>> List([FromQuery] PageRequest query, CancellationToken cancellationToken) =>
+        await PageResultAsync(query, service, cancellationToken);
 
     /// <summary>
     /// 获取模型限额详情。

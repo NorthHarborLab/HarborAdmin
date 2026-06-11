@@ -1,4 +1,5 @@
 using HarborAdmin.BuildingBlocks.Abstractions.Attributes;
+using HarborAdmin.BuildingBlocks.Abstractions.Controllers;
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using HarborAdmin.Modules.Admin.Application.Services.Dictionary;
 using HarborAdmin.Modules.Admin.Contracts.Dictionary.Dto;
@@ -13,7 +14,7 @@ namespace HarborAdmin.Modules.Admin.Controllers.Dictionary;
 [ApiController]
 [AuthenticatedOnly]
 [Route("api/admin/dictionaries")]
-public sealed class DictionaryController(AdminDictionaryService dictionaryService) : ControllerBase
+public sealed class DictionaryController(AdminDictionaryService dictionaryService) : HarborControllerBase
 {
     /// <summary>
     /// 查询字典类型。
@@ -22,7 +23,7 @@ public sealed class DictionaryController(AdminDictionaryService dictionaryServic
     public async Task<ApiResult<IReadOnlyList<AdminDictionaryDto>>> ListDictionaries(
         [FromQuery] string? keyword,
         CancellationToken cancellationToken) =>
-        ApiResult.Ok(await dictionaryService.ListDictionariesAsync(keyword, cancellationToken));
+        await OkResultAsync(dictionaryService.ListDictionariesAsync(keyword, cancellationToken));
 
     /// <summary>
     /// 新建字典类型。
@@ -31,7 +32,7 @@ public sealed class DictionaryController(AdminDictionaryService dictionaryServic
     public async Task<ApiResult<AdminDictionaryDto>> CreateDictionary(
         [FromBody] SaveAdminDictionaryRequest request,
         CancellationToken cancellationToken) =>
-        ApiResult.Ok(await dictionaryService.CreateDictionaryAsync(request, cancellationToken));
+        await CreateResultAsync<SaveAdminDictionaryRequest, AdminDictionaryDto>(request, cancellationToken, dictionaryService.CreateDictionaryAsync);
 
     /// <summary>
     /// 更新字典类型。
@@ -41,7 +42,7 @@ public sealed class DictionaryController(AdminDictionaryService dictionaryServic
         string dictCode,
         [FromBody] SaveAdminDictionaryRequest request,
         CancellationToken cancellationToken) =>
-        ApiResult.Ok(await dictionaryService.UpdateDictionaryAsync(dictCode, request, cancellationToken));
+        await UpdateResultAsync<string, SaveAdminDictionaryRequest, AdminDictionaryDto>(dictCode, request, cancellationToken, dictionaryService.UpdateDictionaryAsync);
 
     /// <summary>
     /// 删除字典类型。
@@ -50,7 +51,7 @@ public sealed class DictionaryController(AdminDictionaryService dictionaryServic
     public async Task<ApiResult<bool>> DeleteDictionary(string dictCode, CancellationToken cancellationToken)
     {
         await dictionaryService.DeleteDictionaryAsync(dictCode, cancellationToken);
-        return ApiResult.Ok(true);
+        return OkResult(true);
     }
 
     /// <summary>
@@ -60,7 +61,7 @@ public sealed class DictionaryController(AdminDictionaryService dictionaryServic
     public async Task<ApiResult<IReadOnlyList<AdminDictionaryItemDto>>> ListItems(
         string dictCode,
         CancellationToken cancellationToken) =>
-        ApiResult.Ok(await dictionaryService.ListItemsAsync(dictCode, cancellationToken));
+        await OkResultAsync(dictionaryService.ListItemsAsync(dictCode, cancellationToken));
 
     /// <summary>
     /// 查询运行时字典选项。
@@ -70,7 +71,7 @@ public sealed class DictionaryController(AdminDictionaryService dictionaryServic
         string dictCode,
         [FromQuery] string? dataType,
         CancellationToken cancellationToken) =>
-        ApiResult.Ok(await dictionaryService.ListOptionsAsync(dictCode, dataType, cancellationToken));
+        await OkResultAsync(dictionaryService.ListOptionsAsync(dictCode, dataType, cancellationToken));
 
     /// <summary>
     /// 新建字典项。
@@ -80,7 +81,7 @@ public sealed class DictionaryController(AdminDictionaryService dictionaryServic
         string dictCode,
         [FromBody] SaveAdminDictionaryItemRequest request,
         CancellationToken cancellationToken) =>
-        ApiResult.Ok(await dictionaryService.CreateItemAsync(dictCode, request, cancellationToken));
+        await OkResultAsync(dictionaryService.CreateItemAsync(dictCode, request, cancellationToken));
 
     /// <summary>
     /// 更新字典项。
@@ -91,7 +92,7 @@ public sealed class DictionaryController(AdminDictionaryService dictionaryServic
         long itemId,
         [FromBody] SaveAdminDictionaryItemRequest request,
         CancellationToken cancellationToken) =>
-        ApiResult.Ok(await dictionaryService.UpdateItemAsync(dictCode, itemId, request, cancellationToken));
+        await OkResultAsync(dictionaryService.UpdateItemAsync(dictCode, itemId, request, cancellationToken));
 
     /// <summary>
     /// 删除字典项。
@@ -103,6 +104,6 @@ public sealed class DictionaryController(AdminDictionaryService dictionaryServic
         CancellationToken cancellationToken)
     {
         await dictionaryService.DeleteItemAsync(dictCode, itemId, cancellationToken);
-        return ApiResult.Ok(true);
+        return OkResult(true);
     }
 }

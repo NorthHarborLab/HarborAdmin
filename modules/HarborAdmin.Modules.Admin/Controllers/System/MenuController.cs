@@ -2,6 +2,7 @@ using HarborAdmin.Modules.Admin.Application.Services.Menu;
 using HarborAdmin.Modules.Admin.Contracts.System.Dto;
 using HarborAdmin.Modules.Admin.Contracts.System.Request;
 using Microsoft.AspNetCore.Mvc;
+using HarborAdmin.BuildingBlocks.Abstractions.Controllers;
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 
 namespace HarborAdmin.Modules.Admin.Controllers.System;
@@ -11,7 +12,7 @@ namespace HarborAdmin.Modules.Admin.Controllers.System;
 /// </summary>
 [ApiController]
 [Route("api/admin/system/menu")]
-public sealed class MenuController(MenuService menuService) : ControllerBase
+public sealed class MenuController(MenuService menuService) : HarborControllerBase
 {
     /// <summary>
     /// 查询菜单树。
@@ -20,7 +21,7 @@ public sealed class MenuController(MenuService menuService) : ControllerBase
     public async Task<ApiResult<IReadOnlyList<SystemMenuDto>>> List(
         [FromQuery] bool includePermissions,
         CancellationToken cancellationToken) =>
-        ApiResult.Ok(includePermissions
+        OkResult(includePermissions
             ? await menuService.ListMenuPermissionTreeAsync(cancellationToken)
             : await menuService.ListMenusAsync(cancellationToken));
 
@@ -32,7 +33,7 @@ public sealed class MenuController(MenuService menuService) : ControllerBase
         [FromQuery] string name,
         [FromQuery] string? id,
         CancellationToken cancellationToken) =>
-        ApiResult.Ok(await menuService.MenuNameExistsAsync(name, ParseMenuId(id), cancellationToken));
+        await OkResultAsync(menuService.MenuNameExistsAsync(name, ParseMenuId(id), cancellationToken));
 
     /// <summary>
     /// 菜单路径是否存在。
@@ -42,7 +43,7 @@ public sealed class MenuController(MenuService menuService) : ControllerBase
         [FromQuery] string path,
         [FromQuery] string? id,
         CancellationToken cancellationToken) =>
-        ApiResult.Ok(await menuService.MenuPathExistsAsync(path, ParseMenuId(id), cancellationToken));
+        await OkResultAsync(menuService.MenuPathExistsAsync(path, ParseMenuId(id), cancellationToken));
 
     /// <summary>
     /// 解析菜单 ID 查询参数。
@@ -55,14 +56,14 @@ public sealed class MenuController(MenuService menuService) : ControllerBase
     /// </summary>
     [HttpPost]
     public async Task<ApiResult<SystemMenuDto>> Create([FromBody] SaveSystemMenuRequest request, CancellationToken cancellationToken) =>
-        ApiResult.Ok(await menuService.SaveMenuAsync(null, request, cancellationToken));
+        await OkResultAsync(menuService.SaveMenuAsync(null, request, cancellationToken));
 
     /// <summary>
     /// 更新菜单。
     /// </summary>
     [HttpPut("{id:long}")]
     public async Task<ApiResult<SystemMenuDto>> Update(long id, [FromBody] SaveSystemMenuRequest request, CancellationToken cancellationToken) =>
-        ApiResult.Ok(await menuService.SaveMenuAsync(id, request, cancellationToken));
+        await OkResultAsync(menuService.SaveMenuAsync(id, request, cancellationToken));
 
     /// <summary>
     /// 同级菜单排序。
@@ -71,7 +72,7 @@ public sealed class MenuController(MenuService menuService) : ControllerBase
     public async Task<ApiResult<bool>> Reorder([FromBody] ReorderSystemMenuRequest request, CancellationToken cancellationToken)
     {
         await menuService.ReorderMenusAsync(request, cancellationToken);
-        return ApiResult.Ok(true);
+        return OkResult(true);
     }
 
     /// <summary>
@@ -81,6 +82,6 @@ public sealed class MenuController(MenuService menuService) : ControllerBase
     public async Task<ApiResult<bool>> Delete(long id, CancellationToken cancellationToken)
     {
         await menuService.DeleteMenuAsync(id, cancellationToken);
-        return ApiResult.Ok(true);
+        return OkResult(true);
     }
 }

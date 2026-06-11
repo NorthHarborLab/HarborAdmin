@@ -1,3 +1,4 @@
+using HarborAdmin.BuildingBlocks.Abstractions.Controllers;
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using HarborAdmin.Client.ConfigCenter;
 using Microsoft.AspNetCore.Mvc;
@@ -12,7 +13,7 @@ namespace HarborAdmin.Modules.ConfigCenter.Controllers.Diagnostics;
 /// <param name="configuration">当前进程配置</param>
 [ApiController]
 [Route("api/admin/config-center/client-state")]
-public sealed class ConfigCenterClientDiagnosticsController(IConfigCenterClientState state, IConfiguration configuration) : ControllerBase
+public sealed class ConfigCenterClientDiagnosticsController(IConfigCenterClientState state, IConfiguration configuration) : HarborControllerBase
 {
     /// <summary>
     /// 获取当前连接状态、版本与可选配置键的当前值。
@@ -27,7 +28,7 @@ public sealed class ConfigCenterClientDiagnosticsController(IConfigCenterClientS
             state.CurrentData.TryGetValue(key.Trim(), out remoteValue);
         }
 
-        return Task.FromResult(ApiResult.Ok<object>(new
+        return Task.FromResult(OkResult<object>(new
         {
             state.AppId,
             state.ClientId,

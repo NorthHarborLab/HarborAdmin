@@ -12,14 +12,14 @@ namespace HarborAdmin.Modules.AI.Controllers.Prompt;
 /// </summary>
 [ApiController]
 [Route("api/admin/ai/prompts")]
-public sealed class PromptController(PromptService service) : CrudControllerBase<AiPromptDto, SaveAiPromptRequest>
+public sealed class PromptController(PromptService service) : PagedCrudControllerBase<AiPromptDto, PageRequest, SaveAiPromptRequest>
 {
     /// <summary>
     /// 列出 Prompt。
     /// </summary>
     [HttpGet]
-    public async Task<ApiResult<IReadOnlyList<AiPromptDto>>> List(CancellationToken cancellationToken) =>
-        await ListResultAsync(service, cancellationToken);
+    public async Task<ApiResult<PagedResult<AiPromptDto>>> List([FromQuery] PageRequest query, CancellationToken cancellationToken) =>
+        await PageResultAsync(query, service, cancellationToken);
 
     /// <summary>
     /// 获取 Prompt 详情。

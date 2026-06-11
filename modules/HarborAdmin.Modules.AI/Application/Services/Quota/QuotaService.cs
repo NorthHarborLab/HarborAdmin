@@ -1,5 +1,6 @@
 using HarborAdmin.BuildingBlocks.Abstractions.Application;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
+using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using HarborAdmin.BuildingBlocks.Mapping;
 using HarborAdmin.Modules.AI.Application.Abstractions;
 using HarborAdmin.Modules.AI.Application.Services.Shared;
@@ -19,7 +20,7 @@ public sealed class QuotaService(
     IAiProviderRepository providerRepository,
     IAiModelQuotaRepository modelQuotaRepository,
     IHarborMapper mapper)
-    : HarborApplicationRepositoryService<AiModelQuota, AiModelQuotaDto, SaveAiModelQuotaRequest, IAiModelQuotaRepository>(modelQuotaRepository)
+    : HarborApplicationPagedRepositoryService<AiModelQuota, AiModelQuotaDto, PageRequest, SaveAiModelQuotaRequest, IAiModelQuotaRepository>(modelQuotaRepository)
 {
     /// <summary>
     /// 获取供应商限额。

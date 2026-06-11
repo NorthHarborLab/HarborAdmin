@@ -1,4 +1,5 @@
 using HarborAdmin.BuildingBlocks.Abstractions.Auth;
+using HarborAdmin.BuildingBlocks.Abstractions.Controllers;
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using HarborAdmin.Modules.AI.Application.Services.Conversation;
 using HarborAdmin.Modules.AI.Contracts.Conversation.Dto;
@@ -12,7 +13,7 @@ namespace HarborAdmin.Modules.AI.Controllers.Conversation;
 /// </summary>
 [ApiController]
 [Route("api/admin/ai/conversations")]
-public sealed class ConversationController(ConversationService conversationService, ICurrentUser currentUser) : ControllerBase
+public sealed class ConversationController(ConversationService conversationService, ICurrentUser currentUser) : HarborControllerBase
 {
     /// <summary>
     /// 分页列出当前用户会话。
@@ -21,14 +22,14 @@ public sealed class ConversationController(ConversationService conversationServi
     public async Task<ApiResult<PagedResult<AiConversationDto>>> List(
         [FromQuery] AiConversationListQuery query,
         CancellationToken cancellationToken) =>
-        ApiResult.Ok(await conversationService.ListAsync(currentUser.Id, query, cancellationToken));
+        await OkResultAsync(conversationService.ListAsync(currentUser.Id, query, cancellationToken));
 
     /// <summary>
     /// 获取会话详情。
     /// </summary>
     [HttpGet("{id:long}")]
     public async Task<ApiResult<AiConversationDetailDto>> Get(long id, CancellationToken cancellationToken) =>
-        ApiResult.Ok(await conversationService.GetDetailAsync(currentUser.Id, id, cancellationToken));
+        await OkResultAsync(conversationService.GetDetailAsync(currentUser.Id, id, cancellationToken));
 
     /// <summary>
     /// 创建会话。
@@ -37,7 +38,7 @@ public sealed class ConversationController(ConversationService conversationServi
     public async Task<ApiResult<AiConversationDetailDto>> Create(
         [FromBody] SaveAiConversationRequest request,
         CancellationToken cancellationToken) =>
-        ApiResult.Ok(await conversationService.CreateAsync(currentUser.Id, request, cancellationToken));
+        await OkResultAsync(conversationService.CreateAsync(currentUser.Id, request, cancellationToken));
 
     /// <summary>
     /// 更新会话设置。
@@ -47,15 +48,12 @@ public sealed class ConversationController(ConversationService conversationServi
         long id,
         [FromBody] SaveAiConversationRequest request,
         CancellationToken cancellationToken) =>
-        ApiResult.Ok(await conversationService.UpdateAsync(currentUser.Id, id, request, cancellationToken));
+        await OkResultAsync(conversationService.UpdateAsync(currentUser.Id, id, request, cancellationToken));
 
     /// <summary>
     /// 删除会话。
     /// </summary>
     [HttpDelete("{id:long}")]
-    public async Task<ApiResult<bool>> Delete(long id, CancellationToken cancellationToken)
-    {
-        await conversationService.DeleteAsync(currentUser.Id, id, cancellationToken);
-        return ApiResult.Ok(true);
-    }
+    public async Task<ApiResult<bool>> Delete(long id, CancellationToken cancellationToken) =>
+        await DeleteResultAsync(id, cancellationToken, (conversationId, token) => conversationService.DeleteAsync(currentUser.Id, conversationId, token));
 }

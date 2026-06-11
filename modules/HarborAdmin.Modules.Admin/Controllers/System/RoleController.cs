@@ -12,14 +12,14 @@ namespace HarborAdmin.Modules.Admin.Controllers.System;
 /// </summary>
 [ApiController]
 [Route("api/admin/system/role")]
-public sealed class RoleController(RoleService roleService) : CrudControllerBase<SystemRoleDto, SaveSystemRoleRequest>
+public sealed class RoleController(RoleService roleService) : PagedCrudControllerBase<SystemRoleDto, PageRequest, SaveSystemRoleRequest>
 {
     /// <summary>
     /// 查询角色列表。
     /// </summary>
     [HttpGet("list")]
-    public async Task<ApiResult<IReadOnlyList<SystemRoleDto>>> List(CancellationToken cancellationToken) =>
-        await ListResultAsync(roleService, cancellationToken);
+    public async Task<ApiResult<PagedResult<SystemRoleDto>>> List([FromQuery] PageRequest query, CancellationToken cancellationToken) =>
+        await PageResultAsync(query, roleService, cancellationToken);
 
     /// <summary>
     /// 创建角色。

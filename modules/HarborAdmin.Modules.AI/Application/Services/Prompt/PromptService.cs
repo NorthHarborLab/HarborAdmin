@@ -1,5 +1,6 @@
 using HarborAdmin.BuildingBlocks.Abstractions.Application;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
+using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using HarborAdmin.BuildingBlocks.Mapping;
 using HarborAdmin.Modules.AI.Application.Abstractions;
 using HarborAdmin.Modules.AI.Application.Services.Shared;
@@ -13,7 +14,7 @@ namespace HarborAdmin.Modules.AI.Application.Services.Prompt;
 /// AI Prompt 管理服务。
 /// </summary>
 public sealed class PromptService(IAiPromptRepository repository, IHarborMapper mapper)
-    : HarborApplicationRepositoryService<AiPrompt, AiPromptDto, SaveAiPromptRequest, IAiPromptRepository>(repository)
+    : HarborApplicationPagedRepositoryService<AiPrompt, AiPromptDto, PageRequest, SaveAiPromptRequest, IAiPromptRepository>(repository)
 {
     /// <inheritdoc />
     protected override AiPromptDto MapToDto(AiPrompt entity) => mapper.Map<AiPromptDto>(entity);

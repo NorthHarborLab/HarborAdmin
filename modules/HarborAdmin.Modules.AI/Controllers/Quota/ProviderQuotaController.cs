@@ -1,5 +1,6 @@
 using HarborAdmin.Modules.AI.Application.Services.Quota;
 using Microsoft.AspNetCore.Mvc;
+using HarborAdmin.BuildingBlocks.Abstractions.Controllers;
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using HarborAdmin.Modules.AI.Contracts.Provider.Dto;
 using HarborAdmin.Modules.AI.Contracts.Provider.Request;
@@ -11,14 +12,14 @@ namespace HarborAdmin.Modules.AI.Controllers.Quota;
 /// </summary>
 [ApiController]
 [Route("api/admin/ai/providers/{providerId:long}/quota")]
-public sealed class ProviderQuotaController(QuotaService service) : ControllerBase
+public sealed class ProviderQuotaController(QuotaService service) : HarborControllerBase
 {
     /// <summary>
     /// 获取供应商限额。
     /// </summary>
     [HttpGet]
     public async Task<ApiResult<AiProviderQuotaDto?>> Get(long providerId, [FromQuery] string? producerKey, CancellationToken cancellationToken) =>
-        ApiResult.Ok(await service.GetProviderQuotaAsync(providerId, producerKey, cancellationToken));
+        await OkResultAsync(service.GetProviderQuotaAsync(providerId, producerKey, cancellationToken));
 
     /// <summary>
     /// 保存供应商限额。
@@ -28,5 +29,5 @@ public sealed class ProviderQuotaController(QuotaService service) : ControllerBa
         long providerId,
         [FromBody] SaveAiProviderQuotaRequest request,
         CancellationToken cancellationToken) =>
-        ApiResult.Ok(await service.SaveProviderQuotaAsync(providerId, request, cancellationToken));
+        await OkResultAsync(service.SaveProviderQuotaAsync(providerId, request, cancellationToken));
 }

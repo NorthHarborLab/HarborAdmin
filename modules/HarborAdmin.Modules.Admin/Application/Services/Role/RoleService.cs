@@ -1,6 +1,7 @@
 using HarborAdmin.BuildingBlocks.Abstractions.Application;
 using HarborAdmin.BuildingBlocks.Abstractions.Enums;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
+using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using HarborAdmin.BuildingBlocks.Mapping;
 using HarborAdmin.Modules.Admin.Application.Abstractions;
 using HarborAdmin.Modules.Admin.Application.Services.Shared;
@@ -18,7 +19,7 @@ public sealed class RoleService(
     IAdminRoleRepository roleRepository,
     IAdminMenuRepository menuRepository,
     IHarborMapper mapper)
-    : HarborApplicationRepositoryService<AdminRole, SystemRoleDto, SaveSystemRoleRequest, IAdminRoleRepository>(roleRepository)
+    : HarborApplicationPagedRepositoryService<AdminRole, SystemRoleDto, PageRequest, SaveSystemRoleRequest, IAdminRoleRepository>(roleRepository)
 {
     /// <inheritdoc />
     protected override SystemRoleDto MapToDto(AdminRole entity) => mapper.Map<SystemRoleDto>(entity);

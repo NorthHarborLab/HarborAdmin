@@ -1,5 +1,6 @@
 using HarborAdmin.BuildingBlocks.Abstractions.Application;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
+using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using HarborAdmin.BuildingBlocks.Abstractions.Secrets;
 using HarborAdmin.BuildingBlocks.Mapping;
 using HarborAdmin.Modules.AI.Application.Abstractions;
@@ -14,7 +15,7 @@ namespace HarborAdmin.Modules.AI.Application.Services.Provider;
 /// AI 供应商管理服务。
 /// </summary>
 public sealed class ProviderService(IAiProviderRepository repository, ISecretStore secretStore, IHarborMapper mapper)
-    : HarborApplicationRepositoryService<AiProvider, AiProviderDto, SaveAiProviderRequest, IAiProviderRepository>(repository)
+    : HarborApplicationPagedRepositoryService<AiProvider, AiProviderDto, PageRequest, SaveAiProviderRequest, IAiProviderRepository>(repository)
 {
     /// <inheritdoc />
     protected override AiProviderDto MapToDto(AiProvider entity) => mapper.Map<AiProviderDto>(entity);

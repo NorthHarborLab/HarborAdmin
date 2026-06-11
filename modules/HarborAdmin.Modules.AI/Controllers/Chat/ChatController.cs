@@ -1,6 +1,7 @@
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using HarborAdmin.Client.AI.Invocation;
+using HarborAdmin.BuildingBlocks.Abstractions.Controllers;
 using HarborAdmin.Modules.AI.Application.Services;
 using HarborAdmin.Modules.AI.Application.Services.Business;
 using Microsoft.AspNetCore.Http;
@@ -16,7 +17,7 @@ namespace HarborAdmin.Modules.AI.Controllers.Chat;
 /// </summary>
 [ApiController]
 [Route("api/admin/ai/chat")]
-public sealed class ChatController(AiChatStreamService chatStreamService, BusinessService businessService) : ControllerBase
+public sealed class ChatController(AiChatStreamService chatStreamService, BusinessService businessService) : HarborControllerBase
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -28,7 +29,7 @@ public sealed class ChatController(AiChatStreamService chatStreamService, Busine
     /// </summary>
     [HttpGet("businesses")]
     public async Task<ApiResult<IReadOnlyList<AiChatBusinessOptionDto>>> ListBusinesses(CancellationToken cancellationToken) =>
-        ApiResult.Ok(await businessService.ListChatOptionsAsync(cancellationToken));
+        await ListResultAsync(cancellationToken, businessService.ListChatOptionsAsync);
 
     /// <summary>
     /// 中转 AIWorker SSE 聊天流。

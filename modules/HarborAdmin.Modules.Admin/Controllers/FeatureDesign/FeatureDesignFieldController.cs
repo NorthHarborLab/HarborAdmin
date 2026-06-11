@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using HarborAdmin.BuildingBlocks.Abstractions.Controllers;
 using HarborAdmin.Modules.Admin.Application.Services.FeatureDesign;
 using HarborAdmin.Modules.Admin.Contracts.FeatureDesign.Dto;
 using HarborAdmin.Modules.Admin.Contracts.FeatureDesign.Request;
@@ -12,7 +13,7 @@ namespace HarborAdmin.Modules.Admin.Controllers.FeatureDesign;
 /// </summary>
 [ApiController]
 [Route("api/admin/feature-design/features/{featureCode}/fields")]
-public sealed class FeatureDesignFieldController(FeatureDesignFieldService fieldService) : ControllerBase
+public sealed class FeatureDesignFieldController(FeatureDesignFieldService fieldService) : HarborControllerBase
 {
     private CancellationToken RequestCancellationToken => HttpContext.RequestAborted;
 
@@ -21,7 +22,7 @@ public sealed class FeatureDesignFieldController(FeatureDesignFieldService field
     /// </summary>
     [HttpGet]
     public async Task<ApiResult<IReadOnlyList<AdminFeatureFieldDto>>> ListFields([FromRoute, Required] string featureCode) =>
-        ApiResult.Ok(await fieldService.ListFieldsAsync(featureCode, RequestCancellationToken));
+        await OkResultAsync(fieldService.ListFieldsAsync(featureCode, RequestCancellationToken));
 
     /// <summary>
     /// 新建功能字段。
@@ -30,7 +31,7 @@ public sealed class FeatureDesignFieldController(FeatureDesignFieldService field
     public async Task<ApiResult<AdminFeatureFieldDto>> CreateField(
         [FromRoute, Required] string featureCode,
         [FromBody] SaveAdminFeatureFieldRequest request) =>
-        ApiResult.Ok(await fieldService.CreateFieldAsync(featureCode, request, RequestCancellationToken));
+        await OkResultAsync(fieldService.CreateFieldAsync(featureCode, request, RequestCancellationToken));
 
     /// <summary>
     /// 更新功能字段。
@@ -40,7 +41,7 @@ public sealed class FeatureDesignFieldController(FeatureDesignFieldService field
         [FromRoute, Required] string featureCode,
         [FromRoute, Required] string fieldCode,
         [FromBody] SaveAdminFeatureFieldRequest request) =>
-        ApiResult.Ok(await fieldService.UpdateFieldAsync(featureCode, fieldCode, request, RequestCancellationToken));
+        await OkResultAsync(fieldService.UpdateFieldAsync(featureCode, fieldCode, request, RequestCancellationToken));
 
     /// <summary>
     /// 字段排序。
@@ -51,7 +52,7 @@ public sealed class FeatureDesignFieldController(FeatureDesignFieldService field
         [FromBody] ReorderAdminFeatureFieldRequest request)
     {
         await fieldService.ReorderFieldsAsync(featureCode, request, RequestCancellationToken);
-        return ApiResult.Ok(true);
+        return OkResult(true);
     }
 
     /// <summary>
@@ -63,8 +64,7 @@ public sealed class FeatureDesignFieldController(FeatureDesignFieldService field
         [FromRoute, Required] string fieldCode)
     {
         await fieldService.DeleteFieldAsync(featureCode, fieldCode, RequestCancellationToken);
-        return ApiResult.Ok(true);
-    }
+        return OkResult(true);
 }
-
+}
 

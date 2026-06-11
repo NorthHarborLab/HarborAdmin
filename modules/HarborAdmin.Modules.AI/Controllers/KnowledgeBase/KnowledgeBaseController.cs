@@ -12,14 +12,14 @@ namespace HarborAdmin.Modules.AI.Controllers.KnowledgeBase;
 /// </summary>
 [ApiController]
 [Route("api/admin/ai/knowledge-bases")]
-public sealed class KnowledgeBaseController(KnowledgeBaseService service) : CrudControllerBase<AiKnowledgeBaseDto, SaveAiKnowledgeBaseRequest>
+public sealed class KnowledgeBaseController(KnowledgeBaseService service) : PagedCrudControllerBase<AiKnowledgeBaseDto, PageRequest, SaveAiKnowledgeBaseRequest>
 {
     /// <summary>
     /// 列出知识库。
     /// </summary>
     [HttpGet]
-    public async Task<ApiResult<IReadOnlyList<AiKnowledgeBaseDto>>> List(CancellationToken cancellationToken) =>
-        await ListResultAsync(service, cancellationToken);
+    public async Task<ApiResult<PagedResult<AiKnowledgeBaseDto>>> List([FromQuery] PageRequest query, CancellationToken cancellationToken) =>
+        await PageResultAsync(query, service, cancellationToken);
 
     /// <summary>
     /// 获取知识库详情。

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using HarborAdmin.BuildingBlocks.Abstractions.Controllers;
 using HarborAdmin.Modules.Admin.Application.Services.FeatureDesign;
 using HarborAdmin.Modules.Admin.Contracts.FeatureDesign.Dto;
 using HarborAdmin.Modules.Admin.Contracts.FeatureDesign.Request;
@@ -12,7 +13,7 @@ namespace HarborAdmin.Modules.Admin.Controllers.FeatureDesign;
 /// </summary>
 [ApiController]
 [Route("api/admin/feature-design/features")]
-public sealed class FeatureDesignFeatureController(FeatureDesignFeatureService featureService) : ControllerBase
+public sealed class FeatureDesignFeatureController(FeatureDesignFeatureService featureService) : HarborControllerBase
 {
     private CancellationToken RequestCancellationToken => HttpContext.RequestAborted;
 
@@ -21,21 +22,21 @@ public sealed class FeatureDesignFeatureController(FeatureDesignFeatureService f
     /// </summary>
     [HttpGet]
     public async Task<ApiResult<IReadOnlyList<AdminFeatureDto>>> ListFeatures() =>
-        ApiResult.Ok(await featureService.ListFeaturesAsync(RequestCancellationToken));
+        await OkResultAsync(featureService.ListFeaturesAsync(RequestCancellationToken));
 
     /// <summary>
     /// 新建 Feature。
     /// </summary>
     [HttpPost]
     public async Task<ApiResult<AdminFeatureDto>> CreateFeature([FromBody] SaveAdminFeatureRequest request) =>
-        ApiResult.Ok(await featureService.CreateFeatureAsync(request, RequestCancellationToken));
+        await CreateResultAsync<SaveAdminFeatureRequest, AdminFeatureDto>(request, RequestCancellationToken, featureService.CreateFeatureAsync);
 
     /// <summary>
     /// 更新 Feature。
     /// </summary>
     [HttpPut("{featureCode}")]
     public async Task<ApiResult<AdminFeatureDto>> UpdateFeature([FromRoute, Required] string featureCode, [FromBody] SaveAdminFeatureRequest request) =>
-        ApiResult.Ok(await featureService.UpdateFeatureAsync(featureCode, request, RequestCancellationToken));
+        await UpdateResultAsync<string, SaveAdminFeatureRequest, AdminFeatureDto>(featureCode, request, RequestCancellationToken, featureService.UpdateFeatureAsync);
 
     /// <summary>
     /// 同组排序 Feature。
@@ -44,7 +45,7 @@ public sealed class FeatureDesignFeatureController(FeatureDesignFeatureService f
     public async Task<ApiResult<bool>> ReorderFeatures([FromBody] ReorderAdminFeatureRequest request)
     {
         await featureService.ReorderFeaturesAsync(request, RequestCancellationToken);
-        return ApiResult.Ok(true);
+        return OkResult(true);
     }
 
     /// <summary>
@@ -54,8 +55,7 @@ public sealed class FeatureDesignFeatureController(FeatureDesignFeatureService f
     public async Task<ApiResult<bool>> DeleteFeature([FromRoute, Required] string featureCode)
     {
         await featureService.DeleteFeatureAsync(featureCode, RequestCancellationToken);
-        return ApiResult.Ok(true);
-    }
+        return OkResult(true);
 }
-
+}
 

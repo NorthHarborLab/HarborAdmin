@@ -1,5 +1,6 @@
 using HarborAdmin.Modules.Admin.Application.Services.DynamicCrud;
 using Microsoft.AspNetCore.Mvc;
+using HarborAdmin.BuildingBlocks.Abstractions.Controllers;
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using HarborAdmin.Modules.Admin.Contracts.DynamicCrud.Dto;
 using HarborAdmin.Modules.Admin.Contracts.DynamicCrud.Request;
@@ -11,7 +12,7 @@ namespace HarborAdmin.Modules.Admin.Controllers.DynamicCrud;
 /// </summary>
 [ApiController]
 [Route("api/admin/dynamic-crud")]
-public sealed class DynamicCrudController(AdminDynamicCrudService service) : ControllerBase
+public sealed class DynamicCrudController(AdminDynamicCrudService service) : HarborControllerBase
 {
     /// <summary>
     /// 分页查询动态资源记录。
@@ -21,7 +22,7 @@ public sealed class DynamicCrudController(AdminDynamicCrudService service) : Con
         string featureCode,
         [FromBody] DynamicQueryRequest request,
         CancellationToken cancellationToken) =>
-        ApiResult.Ok(await service.QueryAsync(featureCode, request, cancellationToken));
+        await OkResultAsync(service.QueryAsync(featureCode, request, cancellationToken));
 
     /// <summary>
     /// 获取动态资源记录详情。
@@ -31,7 +32,7 @@ public sealed class DynamicCrudController(AdminDynamicCrudService service) : Con
         string featureCode,
         string id,
         CancellationToken cancellationToken) =>
-        ApiResult.Ok(await service.GetAsync(featureCode, id, cancellationToken));
+        await OkResultAsync(service.GetAsync(featureCode, id, cancellationToken));
 
     /// <summary>
     /// 新增动态资源记录。
@@ -41,7 +42,7 @@ public sealed class DynamicCrudController(AdminDynamicCrudService service) : Con
         string featureCode,
         [FromBody] Dictionary<string, object?> values,
         CancellationToken cancellationToken) =>
-        ApiResult.Ok(await service.CreateAsync(featureCode, values, cancellationToken));
+        await OkResultAsync(service.CreateAsync(featureCode, values, cancellationToken));
 
     /// <summary>
     /// 更新动态资源记录。
@@ -52,7 +53,7 @@ public sealed class DynamicCrudController(AdminDynamicCrudService service) : Con
         string id,
         [FromBody] Dictionary<string, object?> values,
         CancellationToken cancellationToken) =>
-        ApiResult.Ok(await service.UpdateAsync(featureCode, id, values, cancellationToken));
+        await OkResultAsync(service.UpdateAsync(featureCode, id, values, cancellationToken));
 
     /// <summary>
     /// 删除动态资源记录。
@@ -64,6 +65,6 @@ public sealed class DynamicCrudController(AdminDynamicCrudService service) : Con
         CancellationToken cancellationToken)
     {
         await service.DeleteAsync(featureCode, id, cancellationToken);
-        return ApiResult.Ok(true);
+        return OkResult(true);
     }
 }

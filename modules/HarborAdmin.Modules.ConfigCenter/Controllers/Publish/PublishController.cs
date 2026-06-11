@@ -1,3 +1,4 @@
+using HarborAdmin.BuildingBlocks.Abstractions.Controllers;
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using HarborAdmin.Modules.ConfigCenter.Contracts.Publish.Request;
 using Microsoft.AspNetCore.Mvc;
@@ -10,7 +11,7 @@ namespace HarborAdmin.Modules.ConfigCenter.Controllers.Publish;
 /// <param name="service">配置中心应用服务。</param>
 [ApiController]
 [Route("api/admin/config-center/{appId}")]
-public sealed class PublishController(ConfigCenterPublishService service) : ControllerBase
+public sealed class PublishController(ConfigCenterPublishService service) : HarborControllerBase
 {
     /// <summary>
     /// 列出发布历史（按版本降序）。
@@ -20,7 +21,7 @@ public sealed class PublishController(ConfigCenterPublishService service) : Cont
     /// <returns>发布记录列表。</returns>
     [HttpGet("releases")]
     public async Task<ApiResult<IReadOnlyList<ConfigReleaseDto>>> ListReleases(string appId, CancellationToken cancellationToken) =>
-        ApiResult.Ok(await service.ListReleasesAsync(appId, cancellationToken));
+        await OkResultAsync(service.ListReleasesAsync(appId, cancellationToken));
 
     /// <summary>
     /// 发布当前草稿：写入发布快照并通过 TCP 通知 ConfigCenter 进程。
@@ -31,7 +32,7 @@ public sealed class PublishController(ConfigCenterPublishService service) : Cont
     /// <returns>发布结果（发布 ID 与版本号）。</returns>
     [HttpPost("publish")]
     public async Task<ApiResult<PublishConfigResult>> Publish(string appId, [FromBody] PublishConfigRequest request, CancellationToken cancellationToken) =>
-        ApiResult.Ok(await service.PublishAsync(appId, request, cancellationToken));
+        await OkResultAsync(service.PublishAsync(appId, request, cancellationToken));
 
     /// <summary>
     /// 获取已发布配置快照；<paramref name="version"/> 为 0 或未传时取最新版本。
@@ -43,7 +44,7 @@ public sealed class PublishController(ConfigCenterPublishService service) : Cont
     [HttpGet("published")]
     public async Task<ApiResult<AdminPublishedConfigSnapshot>> GetPublished(string appId, [FromQuery] int version = 0,
         CancellationToken cancellationToken = default) =>
-        ApiResult.Ok(await service.GetAdminPublishedSnapshotRequiredAsync(appId, version, cancellationToken));
+        await OkResultAsync(service.GetAdminPublishedSnapshotRequiredAsync(appId, version, cancellationToken));
 
     /// <summary>
     /// 按版本列出发布快照配置项。
@@ -57,5 +58,5 @@ public sealed class PublishController(ConfigCenterPublishService service) : Cont
         string appId,
         [FromRoute] int version,
         CancellationToken cancellationToken) =>
-        ApiResult.Ok(await service.ListReleaseItemsByVersionAsync(appId, version, cancellationToken));
+        await OkResultAsync(service.ListReleaseItemsByVersionAsync(appId, version, cancellationToken));
 }

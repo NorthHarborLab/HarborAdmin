@@ -3,6 +3,7 @@ using HarborAdmin.Modules.Admin.Application.Services.Auth;
 using HarborAdmin.Modules.Admin.Application.Services.Access;
 using HarborAdmin.Modules.Admin.Contracts.Access.Dto;
 using HarborAdmin.BuildingBlocks.Abstractions.Auth;
+using HarborAdmin.BuildingBlocks.Abstractions.Controllers;
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using Microsoft.AspNetCore.Mvc;
 
@@ -14,7 +15,7 @@ namespace HarborAdmin.Modules.Admin.Controllers.Access;
 [ApiController]
 [AuthenticatedOnly]
 [Route("api/admin/access")]
-public sealed class AccessController(SessionService sessionService, AuthService authService, ICurrentUser currentUser) : ControllerBase
+public sealed class AccessController(SessionService sessionService, AuthService authService, ICurrentUser currentUser) : HarborControllerBase
 {
     /// <summary>
     /// 获取当前用户信息。
@@ -23,7 +24,7 @@ public sealed class AccessController(SessionService sessionService, AuthService 
     public async Task<ApiResult<CurrentUserDto>> GetMe(CancellationToken cancellationToken)
     {
         var session = await sessionService.BuildSessionAsync(currentUser.Id, cancellationToken);
-        return ApiResult.Ok(session.User);
+        return OkResult(session.User);
     }
 
     /// <summary>
@@ -31,14 +32,14 @@ public sealed class AccessController(SessionService sessionService, AuthService 
     /// </summary>
     [HttpGet("session")]
     public async Task<ApiResult<SessionSnapshotDto>> GetSession(CancellationToken cancellationToken) =>
-        ApiResult.Ok(await sessionService.BuildSessionAsync(currentUser.Id, cancellationToken));
+        await OkResultAsync(sessionService.BuildSessionAsync(currentUser.Id, cancellationToken));
 
     /// <summary>
     /// 获取 sessionVersion。
     /// </summary>
     [HttpGet("session/version")]
     public async Task<ApiResult<SessionVersionDto>> GetSessionVersion(CancellationToken cancellationToken) =>
-        ApiResult.Ok(await sessionService.GetSessionVersionAsync(cancellationToken));
+        await OkResultAsync(cancellationToken, sessionService.GetSessionVersionAsync);
 
     /// <summary>
     /// 获取权限码。
@@ -47,7 +48,7 @@ public sealed class AccessController(SessionService sessionService, AuthService 
     public async Task<ApiResult<IReadOnlyList<string>>> GetPermissions(CancellationToken cancellationToken)
     {
         var session = await sessionService.BuildSessionAsync(currentUser.Id, cancellationToken);
-        return ApiResult.Ok(session.Permissions);
+        return OkResult(session.Permissions);
     }
 
     /// <summary>
@@ -57,6 +58,6 @@ public sealed class AccessController(SessionService sessionService, AuthService 
     public async Task<ApiResult<bool>> Logout(CancellationToken cancellationToken)
     {
         await authService.LogoutAsync(Request, Response, cancellationToken);
-        return ApiResult.Ok(true);
+        return OkResult(true);
     }
 }

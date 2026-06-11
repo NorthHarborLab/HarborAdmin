@@ -1,4 +1,5 @@
 using HarborAdmin.BuildingBlocks.Abstractions.Application;
+using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using HarborAdmin.BuildingBlocks.Mapping;
 using HarborAdmin.Modules.AI.Application.Abstractions;
 using HarborAdmin.Modules.AI.Application.Services.Shared;
@@ -12,7 +13,7 @@ namespace HarborAdmin.Modules.AI.Application.Services.KnowledgeBase;
 /// AI 知识库管理服务。
 /// </summary>
 public sealed class KnowledgeBaseService(IAiKnowledgeBaseRepository repository, IHarborMapper mapper)
-    : HarborApplicationRepositoryService<AiKnowledgeBase, AiKnowledgeBaseDto, SaveAiKnowledgeBaseRequest, IAiKnowledgeBaseRepository>(repository)
+    : HarborApplicationPagedRepositoryService<AiKnowledgeBase, AiKnowledgeBaseDto, PageRequest, SaveAiKnowledgeBaseRequest, IAiKnowledgeBaseRepository>(repository)
 {
     /// <inheritdoc />
     protected override AiKnowledgeBaseDto MapToDto(AiKnowledgeBase entity) => mapper.Map<AiKnowledgeBaseDto>(entity);

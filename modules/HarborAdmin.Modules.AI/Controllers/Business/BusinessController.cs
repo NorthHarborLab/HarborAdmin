@@ -12,14 +12,14 @@ namespace HarborAdmin.Modules.AI.Controllers.Business;
 /// </summary>
 [ApiController]
 [Route("api/admin/ai/businesses")]
-public sealed class BusinessController(BusinessService service) : CrudControllerBase<AiBusinessDto, SaveAiBusinessRequest>
+public sealed class BusinessController(BusinessService service) : PagedCrudControllerBase<AiBusinessDto, PageRequest, SaveAiBusinessRequest>
 {
     /// <summary>
     /// 列出业务。
     /// </summary>
     [HttpGet]
-    public async Task<ApiResult<IReadOnlyList<AiBusinessDto>>> List(CancellationToken cancellationToken) =>
-        await ListResultAsync(service, cancellationToken);
+    public async Task<ApiResult<PagedResult<AiBusinessDto>>> List([FromQuery] PageRequest query, CancellationToken cancellationToken) =>
+        await PageResultAsync(query, service, cancellationToken);
 
     /// <summary>
     /// 获取业务详情。
