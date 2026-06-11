@@ -3,7 +3,6 @@ namespace HarborAdmin.Modules.ConfigCenter.Domain.Entities;
 /// <summary>
 /// 发布快照中的单条配置，发布时从 <see cref="ConfigItem"/> 草稿复制。
 /// </summary>
-[DbKey("ConfigCenterDb")]
 [Index("ux_config_release_item_release_group_key", $"{nameof(ReleaseId)},{nameof(Group)},{nameof(Key)}", true)]
 public sealed class ConfigReleaseItem : EntityBase
 {

@@ -40,21 +40,26 @@ public sealed partial class FreeSqlConfigCenterRepository
         IReadOnlyList<ConfigReleaseItem> items,
         CancellationToken cancellationToken = default)
     {
-        var inserted = await FreeSql.Insert(release).ExecuteInsertedAsync(cancellationToken);
-        release.Id = inserted.First().Id;
-        if (release.Id == 0)
+        using var uow = _unitOfWorkManager.Begin(DbContext.DbKey);
+        using (DbContext.Bind(DbContext.DbKey, uow.Orm))
         {
-            release.Id = await FreeSql.Select<ConfigRelease>()
-                .Where(r => r.AppId == release.AppId && r.Version == release.Version)
-                .FirstAsync(r => r.Id, cancellationToken);
+            var inserted = await FreeSql.Insert(release).ExecuteInsertedAsync(cancellationToken);
+            release.Id = inserted.First().Id;
+            if (release.Id == 0)
+            {
+                release.Id = await FreeSql.Select<ConfigRelease>()
+                    .Where(r => r.AppId == release.AppId && r.Version == release.Version)
+                    .FirstAsync(r => r.Id, cancellationToken);
+            }
+
+            foreach (var item in items)
+            {
+                item.ReleaseId = release.Id;
+                await FreeSql.Insert(item).ExecuteAffrowsAsync(cancellationToken);
+            }
         }
 
-        foreach (var item in items)
-        {
-            item.ReleaseId = release.Id;
-            await FreeSql.Insert(item).ExecuteAffrowsAsync(cancellationToken);
-        }
-
+        uow.Commit();
         return release;
     }
 }

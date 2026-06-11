@@ -3,7 +3,6 @@ namespace HarborAdmin.Modules.ConfigCenter.Domain.Entities;
 /// <summary>
 /// 草稿配置项；发布前仅在此表维护，发布后快照写入 <see cref="ConfigReleaseItem"/>。
 /// </summary>
-[DbKey("ConfigCenterDb")]
 [Index("ux_config_item_app_group_key", $"{nameof(AppId)},{nameof(Group)},{nameof(Key)}", true)]
 public sealed class ConfigItem : AuditableEntity
 {

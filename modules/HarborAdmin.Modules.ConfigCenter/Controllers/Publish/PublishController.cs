@@ -1,5 +1,6 @@
-using Microsoft.AspNetCore.Mvc;
+using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using HarborAdmin.Modules.ConfigCenter.Contracts.Publish.Request;
+using Microsoft.AspNetCore.Mvc;
 
 namespace HarborAdmin.Modules.ConfigCenter.Controllers.Publish;
 
@@ -40,7 +41,21 @@ public sealed class PublishController(ConfigCenterPublishService service) : Cont
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>快照；不存在时 404。</returns>
     [HttpGet("published")]
-    public async Task<ApiResult<PublishedConfigSnapshot>> GetPublished(string appId, [FromQuery] int version = 0,
+    public async Task<ApiResult<AdminPublishedConfigSnapshot>> GetPublished(string appId, [FromQuery] int version = 0,
         CancellationToken cancellationToken = default) =>
-        ApiResult.Ok(await service.GetPublishedSnapshotRequiredAsync(appId, version, cancellationToken));
+        ApiResult.Ok(await service.GetAdminPublishedSnapshotRequiredAsync(appId, version, cancellationToken));
+
+    /// <summary>
+    /// 按版本列出发布快照配置项。
+    /// </summary>
+    /// <param name="appId">应用标识。</param>
+    /// <param name="version">发布版本号。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>快照配置项列表。</returns>
+    [HttpGet("releases/{version:int}/items")]
+    public async Task<ApiResult<IReadOnlyList<ConfigReleaseItemDto>>> ListReleaseItems(
+        string appId,
+        [FromRoute] int version,
+        CancellationToken cancellationToken) =>
+        ApiResult.Ok(await service.ListReleaseItemsByVersionAsync(appId, version, cancellationToken));
 }

@@ -1,3 +1,4 @@
+using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using HarborAdmin.Client.ConfigCenter.Protocol;
 using HarborAdmin.Modules.ConfigCenter.Infrastructure.Options;
 using Microsoft.AspNetCore.Http;

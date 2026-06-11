@@ -7,13 +7,13 @@ namespace HarborAdmin.Modules.ConfigCenter.Application.Services;
 /// <summary>
 /// 配置中心应用管理服务。
 /// </summary>
-public sealed class ConfigCenterApplicationService(IConfigCenterRepository repository, IHarborMapper mapper)
+public sealed class ConfigCenterApplicationService(IConfigApplicationRepository repository, IHarborMapper mapper)
 {
     /// <summary>
     /// 列出所有应用。
     /// </summary>
     public async Task<IReadOnlyList<ConfigApplicationDto>> ListApplicationsAsync(CancellationToken cancellationToken = default) =>
-        (await repository.ListApplicationsAsync(cancellationToken))
+        (await repository.ListAsync(cancellationToken))
         .Select(mapper.Map<ConfigApplicationDto>)
         .ToList();
 
@@ -36,11 +36,11 @@ public sealed class ConfigCenterApplicationService(IConfigCenterRepository repos
     public async Task DeleteApplicationAsync(string appId, CancellationToken cancellationToken = default)
     {
         _ = await RequireApplicationAsync(appId, cancellationToken);
-        await repository.DeleteApplicationAsync(appId.Trim(), cancellationToken);
+        await repository.DeleteByAppIdAsync(appId.Trim(), cancellationToken);
     }
 
     internal async Task<ConfigApplication> RequireApplicationAsync(string appId, CancellationToken cancellationToken) =>
-        await repository.GetApplicationByAppIdAsync(appId.Trim(), cancellationToken)
+        await repository.GetByAppIdAsync(appId.Trim(), cancellationToken)
         ?? throw new NotFoundDomainException($"应用 '{appId}' 不存在。");
 
     /// <summary>
@@ -54,7 +54,7 @@ public sealed class ConfigCenterApplicationService(IConfigCenterRepository repos
         }
 
         var appId = request.AppId.Trim();
-        var existing = await repository.GetApplicationByAppIdAsync(appId, cancellationToken);
+        var existing = await repository.GetByAppIdAsync(appId, cancellationToken);
         if (existing is not null)
         {
             throw new ConflictDomainException($"应用 '{appId}' 已存在。");
@@ -67,7 +67,7 @@ public sealed class ConfigCenterApplicationService(IConfigCenterRepository repos
             Description = request.Description?.Trim()
         };
 
-        var created = await repository.InsertApplicationAsync(entity, cancellationToken);
+        var created = await repository.InsertAsync(entity, cancellationToken);
         return mapper.Map<ConfigApplicationDto>(created);
     }
 
@@ -79,7 +79,7 @@ public sealed class ConfigCenterApplicationService(IConfigCenterRepository repos
         var entity = await RequireApplicationAsync(appId, cancellationToken);
         entity.Name = request.Name.Trim();
         entity.Description = request.Description?.Trim();
-        await repository.UpdateApplicationAsync(entity, cancellationToken);
+        await repository.UpdateAsync(entity, cancellationToken);
         return mapper.Map<ConfigApplicationDto>(entity);
     }
 }

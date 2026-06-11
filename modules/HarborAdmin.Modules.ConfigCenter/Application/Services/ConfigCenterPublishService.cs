@@ -1,6 +1,4 @@
-using HarborAdmin.BuildingBlocks.Data;
 using HarborAdmin.BuildingBlocks.Mapping;
-using HarborAdmin.Modules.ConfigCenter.Infrastructure.Contexts;
 using HarborAdmin.Modules.ConfigCenter.Contracts.Publish.Request;
 
 namespace HarborAdmin.Modules.ConfigCenter.Application.Services;
@@ -10,9 +8,7 @@ namespace HarborAdmin.Modules.ConfigCenter.Application.Services;
 /// </summary>
 public sealed class ConfigCenterPublishService(
     IConfigCenterRepository repository,
-    IConfigCenterDbContext dbContext,
-    DbEntityRegistry entityRegistry,
-    UnitOfWorkManagerCloud unitOfWorkManager,
+    IConfigItemRepository itemRepository,
     IConfigCenterNotifyClient notifyClient,
     ConfigCenterApplicationService applicationService,
     ConfigCenterSnapshotService snapshotService,
@@ -37,7 +33,7 @@ public sealed class ConfigCenterPublishService(
         await applicationService.RequireApplicationAsync(appId, cancellationToken);
         var normalizedAppId = appId.Trim();
 
-        var draftItems = await repository.ListItemsAsync(normalizedAppId, cancellationToken);
+        var draftItems = await itemRepository.ListByAppIdAsync(normalizedAppId, cancellationToken);
         var latest = await repository.GetLatestReleaseAsync(normalizedAppId, cancellationToken);
         var nextVersion = (latest?.Version ?? 0) + 1;
 
@@ -62,15 +58,7 @@ public sealed class ConfigCenterPublishService(
             });
         }
 
-        ConfigRelease created;
-        using var uow = unitOfWorkManager.Begin(entityRegistry.GetDbKey<ConfigRelease>());
-        using (dbContext.Bind(uow.Orm))
-        {
-            // 发布头和发布项必须写入同一个 FreeSqlCloud UoW，避免只生成半个快照。
-            created = await repository.InsertReleaseAsync(release, releaseItems, cancellationToken);
-        }
-
-        uow.Commit();
+        var created = await repository.InsertReleaseAsync(release, releaseItems, cancellationToken);
         // 事务提交后再通知 TCP 读进程刷新缓存，避免读进程提前看到未提交数据。
         await notifyClient.NotifyPublishedAsync(normalizedAppId, created.Id, cancellationToken);
         return new PublishConfigResult(created.Id, created.Version);
@@ -94,6 +82,39 @@ public sealed class ConfigCenterPublishService(
     /// </summary>
     public Task<PublishedConfigSnapshot?> GetResolvedPublishedSnapshotAsync(string appId, int version = 0, CancellationToken cancellationToken = default) =>
         snapshotService.GetResolvedPublishedSnapshotAsync(appId, version, cancellationToken);
+
+    /// <summary>
+    /// 按版本列出发布快照配置项（保留分组信息，供管理端树形展示）。
+    /// </summary>
+    public async Task<IReadOnlyList<ConfigReleaseItemDto>> ListReleaseItemsByVersionAsync(
+        string appId,
+        int version,
+        CancellationToken cancellationToken = default)
+    {
+        await applicationService.RequireApplicationAsync(appId, cancellationToken);
+        var normalizedAppId = appId.Trim();
+        var releases = await repository.ListReleasesAsync(normalizedAppId, cancellationToken);
+        var release = releases.FirstOrDefault(item => item.Version == version)
+                      ?? throw new NotFoundDomainException($"Release v{version} not found.");
+
+        var items = await repository.ListReleaseItemsAsync(release.Id, cancellationToken);
+        return items
+            .Select(item => new ConfigReleaseItemDto(item.Group, item.Key, item.Value, item.ValueType))
+            .ToList();
+    }
+
+    /// <summary>
+    /// 获取管理端已发布快照（扁平字典 + 分组配置项）。
+    /// </summary>
+    public async Task<AdminPublishedConfigSnapshot> GetAdminPublishedSnapshotRequiredAsync(
+        string appId,
+        int version = 0,
+        CancellationToken cancellationToken = default)
+    {
+        var snapshot = await GetPublishedSnapshotRequiredAsync(appId, version, cancellationToken);
+        var items = await ListReleaseItemsByVersionAsync(appId, snapshot.Version, cancellationToken);
+        return new AdminPublishedConfigSnapshot(snapshot.Version, snapshot.Data, items);
+    }
 
     /// <summary>
     /// 按发布主键获取配置快照。

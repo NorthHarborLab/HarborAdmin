@@ -3,7 +3,6 @@ namespace HarborAdmin.Modules.ConfigCenter.Domain.Entities;
 /// <summary>
 /// 配置中心注册的应用（业务服务标识）。
 /// </summary>
-[DbKey("ConfigCenterDb")]
 [Index("ux_config_application_appid", nameof(AppId), true)]
 public sealed class ConfigApplication : AuditableEntity
 {

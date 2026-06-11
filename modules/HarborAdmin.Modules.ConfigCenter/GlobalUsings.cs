@@ -1,7 +1,6 @@
 ﻿// global using 指令
 
 global using FreeSql.DataAnnotations;
-global using HarborAdmin.BuildingBlocks.Abstractions.Api;
 global using HarborAdmin.BuildingBlocks.Abstractions.Domain;
 global using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 global using HarborAdmin.Modules.ConfigCenter.Application.Abstractions;

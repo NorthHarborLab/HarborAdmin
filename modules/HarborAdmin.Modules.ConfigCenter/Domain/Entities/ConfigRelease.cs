@@ -3,7 +3,6 @@ namespace HarborAdmin.Modules.ConfigCenter.Domain.Entities;
 /// <summary>
 /// 一次配置发布记录，同一应用下版本号单调递增。
 /// </summary>
-[DbKey("ConfigCenterDb")]
 [Index("ux_config_release_app_version", $"{nameof(AppId)},{nameof(Version)}", true)]
 public sealed class ConfigRelease : EntityBase
 {

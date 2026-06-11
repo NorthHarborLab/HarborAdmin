@@ -1,3 +1,4 @@
+using HarborAdmin.BuildingBlocks.Data;
 using HarborAdmin.Modules.ConfigCenter.Infrastructure.Contexts;
 
 namespace HarborAdmin.Modules.ConfigCenter.Infrastructure.Repositories;
@@ -5,7 +6,8 @@ namespace HarborAdmin.Modules.ConfigCenter.Infrastructure.Repositories;
 /// <summary>
 /// 基于 FreeSql 的 <see cref="IConfigCenterRepository"/> 实现。
 /// </summary>
-public sealed partial class FreeSqlConfigCenterRepository(IConfigCenterDbContext db) : IConfigCenterRepository
+public sealed partial class FreeSqlConfigCenterRepository(IConfigCenterDbContext db, UnitOfWorkManagerCloud unitOfWorkManager)
+    : FreeSqlModuleRepository<IConfigCenterDbContext>(db), IConfigCenterRepository
 {
-    private IFreeSql FreeSql => db.Orm;
+    private readonly UnitOfWorkManagerCloud _unitOfWorkManager = unitOfWorkManager;
 }

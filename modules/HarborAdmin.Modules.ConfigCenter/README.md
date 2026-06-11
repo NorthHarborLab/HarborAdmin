@@ -46,7 +46,7 @@ TCP 通知，避免 TCP 读进程提前读取未提交数据。
 | `ConfigRelease`     | `EntityBase`      | 一次发布记录，应用内 `Version` 递增  |
 | `ConfigReleaseItem` | `EntityBase`      | 发布快照明细，发布时从草稿项复制         |
 
-所有实体均通过 `[DbKey("ConfigCenterDb")]` 显式声明数据库归属。跨模块不要直接引用这些实体；其他模块若需要消费配置，应通过配置中心客户端、Contracts
+模块数据库归属由 `ConfigCenterStartUp.GetDbKey()` 显式声明为 `ConfigCenterDb`。跨模块不要直接引用这些实体；其他模块若需要消费配置，应通过配置中心客户端、Contracts
 或应用服务边界完成。
 
 ## 配置键与值类型
@@ -96,7 +96,7 @@ Infrastructure/
 
 ## 依赖注册
 
-Host 通过 `AddConfigCenterModule(configuration)` 注册模块：
+组合根通过 `AddHarborModules(...)` 扫描 `ConfigCenterStartUp` 注册模块。`ConfigCenterStartUp` 同时声明模块默认数据库 `ConfigCenterDb`：
 
 | 生命周期      | 服务                                                                                                                                                     |
 |-----------|--------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -120,7 +120,7 @@ TCP 进程刷新缓存。
 }
 ```
 
-实体数据库归属由 `[DbKey("ConfigCenterDb")]` 和 `DbConfig:Databases` 共同决定；Host 与
+实体数据库归属由 `ConfigCenterStartUp` 和 `DbConfig:Databases` 共同决定；Host 与
 `services/HarborAdmin.ConfigCenter` 必须指向同一个 `ConfigCenterDb`，否则发布后 TCP 读进程无法读取 Host 写入的快照。
 
 ## 开发注意事项

@@ -9,7 +9,7 @@ namespace HarborAdmin.Modules.ConfigCenter.Application.Services;
 /// 配置中心草稿项管理服务。
 /// </summary>
 public sealed class ConfigCenterItemService(
-    IConfigCenterRepository repository,
+    IConfigItemRepository repository,
     ConfigCenterApplicationService applicationService,
     ConfigSecretReferenceValidator secretValidator,
     IHarborMapper mapper)
@@ -20,7 +20,7 @@ public sealed class ConfigCenterItemService(
     public async Task<IReadOnlyList<ConfigItemDto>> ListItemsAsync(string appId, CancellationToken cancellationToken = default)
     {
         await applicationService.RequireApplicationAsync(appId, cancellationToken);
-        var items = await repository.ListItemsAsync(appId.Trim(), cancellationToken);
+        var items = await repository.ListByAppIdAsync(appId.Trim(), cancellationToken);
         return items.Select(mapper.Map<ConfigItemDto>).ToList();
     }
 
@@ -42,9 +42,9 @@ public sealed class ConfigCenterItemService(
     /// </summary>
     public async Task DeleteItemAsync(long id, CancellationToken cancellationToken = default)
     {
-        _ = await repository.GetItemAsync(id, cancellationToken)
+        _ = await repository.GetAsync(id, cancellationToken)
             ?? throw new NotFoundDomainException($"配置项 {id} 不存在。");
-        await repository.DeleteItemAsync(id, cancellationToken);
+        await repository.DeleteAsync(id, cancellationToken);
     }
 
     /// <summary>
@@ -68,7 +68,7 @@ public sealed class ConfigCenterItemService(
             Remark = request.Remark?.Trim()
         };
 
-        var created = await repository.InsertItemAsync(entity, cancellationToken);
+        var created = await repository.InsertAsync(entity, cancellationToken);
         return mapper.Map<ConfigItemDto>(created);
     }
 
@@ -77,7 +77,7 @@ public sealed class ConfigCenterItemService(
     /// </summary>
     private async Task<ConfigItemDto> UpdateItemAsync(long id, SaveConfigItemRequest request, CancellationToken cancellationToken)
     {
-        var entity = await repository.GetItemAsync(id, cancellationToken)
+        var entity = await repository.GetAsync(id, cancellationToken)
                      ?? throw new NotFoundDomainException($"配置项 {id} 不存在。");
 
         var valueType = NormalizeValueType(request.ValueType);
@@ -90,7 +90,7 @@ public sealed class ConfigCenterItemService(
         entity.ValueType = valueType;
         entity.Remark = request.Remark?.Trim();
 
-        await repository.UpdateItemAsync(entity, cancellationToken);
+        await repository.UpdateAsync(entity, cancellationToken);
         return mapper.Map<ConfigItemDto>(entity);
     }
 
