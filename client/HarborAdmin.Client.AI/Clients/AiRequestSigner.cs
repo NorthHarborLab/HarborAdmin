@@ -12,17 +12,17 @@ namespace HarborAdmin.Client.AI.Clients;
 /// <summary>
 /// AIWorker 内部请求签名器。
 /// </summary>
-public sealed class AiRequestSigner(IOptions<AiOptions> options, IEnumerable<ISecretResolver> secretResolvers)
+public sealed class AiRequestSigner(
+    IOptions<AiOptions> options,
+    IEnumerable<ISecretResolver> secretResolvers,
+    IAiBusinessSigningSecretResolver? businessSigningSecretResolver = null)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     /// <summary>
-    /// 创建已签名 HTTP 请求。
+    /// 创建已签名 HTTP 请求
     /// </summary>
-    public async Task<HttpRequestMessage> CreateSignedRequestAsync(
-        HttpMethod method,
-        Uri uri,
-        AiBusinessRequest request,
+    public async Task<HttpRequestMessage> CreateSignedRequestAsync(HttpMethod method, Uri uri, AiBusinessRequest request,
         CancellationToken cancellationToken = default)
     {
         var invocationId = string.IsNullOrWhiteSpace(request.InvocationId) ? Guid.NewGuid().ToString("N") : request.InvocationId.Trim();
@@ -36,7 +36,7 @@ public sealed class AiRequestSigner(IOptions<AiOptions> options, IEnumerable<ISe
         };
         message.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
-        var secret = await ResolveSigningSecretAsync(cancellationToken);
+        var secret = await ResolveSigningSecretAsync(request.BusinessKey, cancellationToken);
         if (string.IsNullOrWhiteSpace(secret))
         {
             return message;
@@ -52,8 +52,29 @@ public sealed class AiRequestSigner(IOptions<AiOptions> options, IEnumerable<ISe
         return message;
     }
 
-    private async Task<string?> ResolveSigningSecretAsync(CancellationToken cancellationToken)
+    /// <summary>
+    /// 解析签名密钥。
+    /// </summary>
+    private async Task<string?> ResolveSigningSecretAsync(string businessKey, CancellationToken cancellationToken)
     {
+        if (businessSigningSecretResolver is not null && !string.IsNullOrWhiteSpace(businessKey))
+        {
+            var businessInfo = await businessSigningSecretResolver.ResolveAsync(businessKey, cancellationToken);
+            if (businessInfo is not null)
+            {
+                if (!string.IsNullOrWhiteSpace(businessInfo.Secret))
+                {
+                    return businessInfo.Secret;
+                }
+
+                // 业务已绑定 SigningSecretRef 时，禁止回退到全局密钥，避免 Worker 侧校验失败。
+                if (businessInfo.RequiresSignature)
+                {
+                    return null;
+                }
+            }
+        }
+
         if (!string.IsNullOrWhiteSpace(options.Value.SigningSecret))
         {
             return options.Value.SigningSecret;
