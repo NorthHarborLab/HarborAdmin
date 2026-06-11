@@ -6,7 +6,6 @@ namespace HarborAdmin.Modules.International.Domain.Entities;
 /// <summary>
 /// 国际化资源分组，对齐前端 views 模块和子视图目录。
 /// </summary>
-[DbKey("AdminDb")]
 [Index("ux_intl_group_parent_key", $"{nameof(ParentId)},{nameof(Key)}", true)]
 [Index("ux_intl_group_path", nameof(Path), true)]
 public sealed class InternationalGroup : AuditableEntity

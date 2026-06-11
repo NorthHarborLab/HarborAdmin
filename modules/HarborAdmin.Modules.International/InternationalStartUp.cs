@@ -1,3 +1,5 @@
+using HarborAdmin.BuildingBlocks.Abstractions.Modules;
+using HarborAdmin.BuildingBlocks.Data;
 using HarborAdmin.Modules.International.Application.Services;
 using HarborAdmin.Modules.International.Application.Abstractions;
 using HarborAdmin.Modules.International.Infrastructure.Contexts;
@@ -7,22 +9,28 @@ using Microsoft.Extensions.DependencyInjection;
 namespace HarborAdmin.Modules.International;
 
 /// <summary>
-/// 国际化模块依赖注入扩展。
+/// 国际化模块启动入口。
 /// </summary>
-public static class InternationalModuleExtensions
+public sealed class InternationalStartUp : HarborModuleMetadataBase, IHarborModuleStartup
 {
+    /// <inheritdoc />
+    public override string ModuleName => "International";
+
+    /// <inheritdoc />
+    public override string GetDbKey() => "AdminDb";
+
     /// <summary>
     /// 注册国际化模块服务。
     /// </summary>
-    public static IServiceCollection AddInternationalModule(this IServiceCollection services)
+    /// <param name="services">服务集合。</param>
+    /// <param name="context">模块注册上下文。</param>
+    public void AddModule(IServiceCollection services, HarborModuleRegistrationContext context)
     {
-        services.AddSingleton<IInternationalDbContext, InternationalDbContext>();
-        services.AddSingleton<IInternationalRepository, FreeSqlInternationalRepository>();
+        services.AddHarborModuleData<IInternationalDbContext, InternationalDbContext, IInternationalRepository, FreeSqlInternationalRepository>();
         services.AddScoped<InternationalCacheCoordinator>();
         services.AddScoped<InternationalPageService>();
         services.AddScoped<InternationalEntryService>();
         services.AddScoped<InternationalResourceBundleService>();
         services.AddScoped<InternationalTranslationService>();
-        return services;
     }
 }

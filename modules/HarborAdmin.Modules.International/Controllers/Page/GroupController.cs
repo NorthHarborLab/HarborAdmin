@@ -1,4 +1,4 @@
-using HarborAdmin.BuildingBlocks.Abstractions.Api;
+using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using HarborAdmin.Modules.International.Application.Services;
 using HarborAdmin.Modules.International.Contracts.Page.Dto;
 using HarborAdmin.Modules.International.Contracts.Page.Request;

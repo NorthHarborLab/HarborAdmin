@@ -6,7 +6,6 @@ namespace HarborAdmin.Modules.International.Domain.Entities;
 /// <summary>
 /// 前端国际化页面，例如 <c>config-center/workspace/items</c>。
 /// </summary>
-[DbKey("AdminDb")]
 [Index("ux_intl_page_full_path", nameof(FullPath), true)]
 public sealed class InternationalPage : AuditableEntity
 {

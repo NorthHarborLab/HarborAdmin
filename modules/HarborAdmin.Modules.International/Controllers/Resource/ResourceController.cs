@@ -1,6 +1,6 @@
 using HarborAdmin.Modules.International.Application.Services;
 using Microsoft.AspNetCore.Mvc;
-using HarborAdmin.BuildingBlocks.Abstractions.Api;
+using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using HarborAdmin.Modules.International.Contracts.Resource.Dto;
 using HarborAdmin.Modules.International.Contracts.Page.Dto;
 using Microsoft.AspNetCore.Authorization;

@@ -6,7 +6,6 @@ namespace HarborAdmin.Modules.International.Domain.Entities;
 /// <summary>
 /// 国际化树节点的语言文案。
 /// </summary>
-[DbKey("AdminDb")]
 [Index("ux_intl_entry_locale", $"{nameof(EntryId)},{nameof(Locale)}", true)]
 public sealed class InternationalEntryTranslation : EntityBase
 {
