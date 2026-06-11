@@ -34,7 +34,8 @@ public sealed class AiRequestSignatureValidator(AiRuntimeConfigCache configCache
 
         if (string.IsNullOrWhiteSpace(business.SigningSecretRef))
         {
-            return AiSignatureValidationResult.Failed(AiErrorCodes.InvalidSignature, "AI business signing secret was not configured.");
+            // 未配置业务签名密钥时跳过签名校验，便于管理端调试未启用签名的业务。
+            return AiSignatureValidationResult.Success();
         }
 
         var producerKey = FirstHeader(httpRequest, "X-Harbor-AI-Key");

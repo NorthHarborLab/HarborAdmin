@@ -7,7 +7,7 @@ namespace HarborAdmin.AIWorker.Application;
 /// <summary>
 /// AIWorker 发布配置快照缓存。
 /// </summary>
-public sealed class AiRuntimeConfigCache(IAiRepository repository, ILogger<AiRuntimeConfigCache> logger)
+public sealed class AiRuntimeConfigCache(IServiceScopeFactory scopeFactory, ILogger<AiRuntimeConfigCache> logger)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly SemaphoreSlim _reloadLock = new(1, 1);
@@ -31,6 +31,8 @@ public sealed class AiRuntimeConfigCache(IAiRepository repository, ILogger<AiRun
     /// </summary>
     public async Task<AiConfigSnapshot?> ReloadLatestAsync(CancellationToken cancellationToken = default)
     {
+        await using var scope = scopeFactory.CreateAsyncScope();
+        var repository = scope.ServiceProvider.GetRequiredService<IAiReleaseRepository>();
         var release = await repository.GetLatestReleaseAsync(cancellationToken);
         if (release is null)
         {
@@ -48,6 +50,8 @@ public sealed class AiRuntimeConfigCache(IAiRepository repository, ILogger<AiRun
         await _reloadLock.WaitAsync(cancellationToken);
         try
         {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var repository = scope.ServiceProvider.GetRequiredService<IAiReleaseRepository>();
             var release = await repository.GetReleaseAsync(releaseId, cancellationToken);
             if (release is null)
             {

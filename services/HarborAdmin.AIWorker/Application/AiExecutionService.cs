@@ -22,7 +22,7 @@ public sealed class AiExecutionService(
     AiPromptComposer promptComposer,
     AiProviderAdapterResolver adapterResolver,
     IAiQuotaService quotaService,
-    IAiRepository repository,
+    IAiInvocationRepository invocationRepository,
     ISecretResolver secretResolver,
     IEventPublisher eventPublisher,
     ILogger<AiExecutionService> logger)
@@ -391,7 +391,7 @@ public sealed class AiExecutionService(
             return null;
         }
 
-        return await repository.GetInvocationByIdempotencyAsync(request.BusinessKey, request.ProducerKey!, request.IdempotencyKey, cancellationToken);
+        return await invocationRepository.GetInvocationByIdempotencyAsync(request.BusinessKey, request.ProducerKey!, request.IdempotencyKey, cancellationToken);
     }
 
     /// <summary>
@@ -401,7 +401,7 @@ public sealed class AiExecutionService(
         CancellationToken cancellationToken)
     {
         var now = DateTimeOffset.UtcNow;
-        return await repository.InsertInvocationLogAsync(new AiInvocationLog
+        return await invocationRepository.InsertInvocationLogAsync(new AiInvocationLog
         {
             InvocationId = request.InvocationId!,
             CorrelationId = request.CorrelationId!,
@@ -463,7 +463,7 @@ public sealed class AiExecutionService(
         log.OutputFormat = outputFormat ?? log.OutputFormat;
         log.ResponseHash = string.IsNullOrEmpty(responseContent) ? null : Hash(responseContent);
         log.UpdatedAt = DateTimeOffset.UtcNow;
-        await repository.UpdateInvocationLogAsync(log, cancellationToken);
+        await invocationRepository.UpdateInvocationLogAsync(log, cancellationToken);
     }
 
     /// <summary>

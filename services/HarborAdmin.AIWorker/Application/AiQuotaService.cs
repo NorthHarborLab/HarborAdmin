@@ -1,19 +1,16 @@
-using System.Data;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
-using HarborAdmin.BuildingBlocks.Data;
 using HarborAdmin.Client.AI.Constants;
 using HarborAdmin.Client.AI.Invocation;
 using HarborAdmin.Modules.AI.Application.Abstractions;
 using HarborAdmin.Modules.AI.Contracts.Shared.Snapshot;
 using HarborAdmin.Modules.AI.Domain.Entities;
-using HarborAdmin.Modules.AI.Infrastructure.Contexts;
 
 namespace HarborAdmin.AIWorker.Application;
 
 /// <summary>
 /// 基于原子窗口桶的 AI 配额服务。
 /// </summary>
-public sealed class AiQuotaService(IAiRepository repository, IAiDbContext dbContext, DbEntityRegistry entityRegistry, UnitOfWorkManagerCloud unitOfWorkManager) : IAiQuotaService
+public sealed class AiQuotaService(IAiQuotaRepository repository) : IAiQuotaService
 {
     /// <inheritdoc />
     public async Task<AiQuotaReservation> ReserveAsync(
@@ -32,15 +29,13 @@ public sealed class AiQuotaService(IAiRepository repository, IAiDbContext dbCont
         }
 
         var refs = new List<AiQuotaBucketRef>();
-        // Serializable 隔离级别保证并发预留时窗口桶计数不会被突破。
-        using var uow = unitOfWorkManager.Begin(entityRegistry.GetDbKey<AiQuotaBucket>(), isolationLevel: IsolationLevel.Serializable);
-        using (dbContext.Bind(uow.Orm))
+        await repository.ExecuteSerializableAsync(async ct =>
         {
             foreach (var rule in rules)
             {
                 foreach (var window in rule.Windows)
                 {
-                    var bucket = await GetOrCreateBucketAsync(rule, window.Type, window.Start, cancellationToken);
+                    var bucket = await GetOrCreateBucketAsync(rule, window.Type, window.Start, ct);
                     var requestCount = bucket.ReservedRequests + bucket.SuccessRequests + bucket.FailedRequests;
                     if (window.RequestLimit is > 0 && requestCount >= window.RequestLimit)
                     {
@@ -65,13 +60,12 @@ public sealed class AiQuotaService(IAiRepository repository, IAiDbContext dbCont
 
                     // 预留阶段只占用请求名额；真实 token 和成本在调用完成后提交。
                     bucket.ReservedRequests += 1;
-                    await repository.SaveQuotaBucketAsync(bucket, cancellationToken);
+                    await repository.SaveQuotaBucketAsync(bucket, ct);
                     refs.Add(new AiQuotaBucketRef(bucket.ProviderKey, bucket.Model, bucket.BusinessKey, bucket.ProducerKey, bucket.WindowType, bucket.WindowStart));
                 }
             }
-        }
+        }, cancellationToken);
 
-        uow.Commit();
         return new AiQuotaReservation(refs);
     }
 
@@ -93,13 +87,12 @@ public sealed class AiQuotaService(IAiRepository repository, IAiDbContext dbCont
             return;
         }
 
-        using var uow = unitOfWorkManager.Begin(entityRegistry.GetDbKey<AiQuotaBucket>(), isolationLevel: IsolationLevel.Serializable);
-        using (dbContext.Bind(uow.Orm))
+        await repository.ExecuteSerializableAsync(async ct =>
         {
             foreach (var bucketRef in reservation.Buckets)
             {
                 var bucket = await repository.GetQuotaBucketAsync(bucketRef.ProviderKey, bucketRef.Model, bucketRef.BusinessKey, bucketRef.ProducerKey,
-                    bucketRef.WindowType, bucketRef.WindowStart, cancellationToken);
+                    bucketRef.WindowType, bucketRef.WindowStart, ct);
                 if (bucket is null)
                 {
                     continue;
@@ -118,11 +111,9 @@ public sealed class AiQuotaService(IAiRepository repository, IAiDbContext dbCont
                     bucket.FailedRequests += 1;
                 }
 
-                await repository.SaveQuotaBucketAsync(bucket, cancellationToken);
+                await repository.SaveQuotaBucketAsync(bucket, ct);
             }
-        }
-
-        uow.Commit();
+        }, cancellationToken);
     }
 
     /// <summary>

@@ -1,39 +1,43 @@
 using System.Text.Encodings.Web;
 using HarborAdmin.AIWorker.Application;
 using HarborAdmin.AIWorker.Infrastructure;
+using HarborAdmin.BuildingBlocks.Abstractions.Modules;
 using HarborAdmin.BuildingBlocks.Data;
 using HarborAdmin.BuildingBlocks.Data.Configs;
 using HarborAdmin.BuildingBlocks.EventBus;
 using HarborAdmin.BuildingBlocks.Mapping;
 using HarborAdmin.BuildingBlocks.Secrets.DependencyInjection;
-using HarborAdmin.Modules.Secrets;
-using HarborAdmin.Modules.Secrets.Domain.Entities;
 using HarborAdmin.Client.ConfigCenter;
 using HarborAdmin.Modules.AI;
+using HarborAdmin.Modules.Secrets;
 
 var builder = WebApplication.CreateBuilder(args);
 
 var configCenterSection = builder.Configuration.GetSection(ConfigCenterOptions.DefaultSectionName);
 // Worker 自身配置优先从 ConfigCenter 拉取，保持供应商执行进程也能热更新基础配置。
 var configCenterSource = await builder.Configuration.AddHarborConfigCenterAsync(configCenterSection);
+// AIWorker 必须显式加载 AI 与 Secrets 模块，以便注册仓储与 ISecretResolver。
+var moduleAssemblies = HarborModuleAssemblyDiscovery.Discover([
+    typeof(AiStartUp).Assembly,
+    typeof(SecretsStartUp).Assembly,
+]);
 
 builder.Services.AddHarborFreeSql(builder.Configuration.GetSection(DbConfig.SectionName), options =>
 {
     options.SnowflakeWorkerId = GetYitterWorkId(builder.Configuration);
-    options.AddEntityAssembly(typeof(HarborSecret).Assembly);
+    foreach (var moduleAssembly in moduleAssemblies)
+    {
+        options.AddModuleAssembly(moduleAssembly);
+    }
 });
 builder.Services.AddHarborSecrets();
-builder.Services.AddSecretsModule(builder.Configuration);
 
 builder.Services
-    .AddHarborCap(builder.Configuration, cap =>
-    {
-        cap.DefaultGroupName = "harbor.ai.worker";
-    })
+    .AddHarborCap(builder.Configuration, cap => { cap.DefaultGroupName = "harbor.ai.worker"; })
     .AddHarborCapSubscribers(typeof(AiConfigPublishedSubscriber).Assembly);
 
-builder.Services.AddHarborMapping(typeof(AiModuleExtensions).Assembly, typeof(Program).Assembly);
-builder.Services.AddAiModule(builder.Configuration);
+builder.Services.AddHarborMapping(moduleAssemblies.Append(typeof(Program).Assembly).ToArray());
+builder.Services.AddHarborModules(moduleAssemblies, builder.Configuration, HarborHostKinds.AIWorker);
 builder.Services.AddSingleton<AiRuntimeConfigCache>();
 builder.Services.AddScoped<AiRequestSignatureValidator>();
 builder.Services.AddScoped<AiPromptComposer>();
@@ -50,10 +54,7 @@ builder.Services.AddSingleton<AiProviderAdapterResolver>();
 builder.Services.AddHarborConfigCenter(configCenterSource, configCenterSection);
 builder.Services
     .AddControllers()
-    .AddJsonOptions(options =>
-    {
-        options.JsonSerializerOptions.Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
-    });
+    .AddJsonOptions(options => { options.JsonSerializerOptions.Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping; });
 
 var app = builder.Build();
 
