@@ -1,5 +1,5 @@
 using HarborAdmin.BuildingBlocks.Abstractions.Modules;
-using HarborAdmin.BuildingBlocks.Data;
+using HarborAdmin.Modules.ConfigCenter.Application.Abstractions;
 using HarborAdmin.Modules.ConfigCenter.Infrastructure.Clients;
 using HarborAdmin.Modules.ConfigCenter.Infrastructure.Contexts;
 using HarborAdmin.Modules.ConfigCenter.Infrastructure.Options;
@@ -29,10 +29,10 @@ public sealed class ConfigCenterStartUp : HarborModuleMetadataBase, IHarborModul
     {
         services.Configure<ConfigCenterServerOptions>(context.Configuration.GetSection(ConfigCenterServerOptions.SectionName));
 
-        services.AddHarborModuleData<IConfigCenterDbContext, ConfigCenterDbContext, IConfigCenterRepository, FreeSqlConfigCenterRepository>(
-            repositoryLifetime: ServiceLifetime.Scoped);
+        services.AddSingleton<IConfigCenterDbContext, ConfigCenterDbContext>();
         services.AddScoped<IConfigApplicationRepository, ConfigApplicationRepository>();
         services.AddScoped<IConfigItemRepository, ConfigItemRepository>();
+        services.AddScoped<IConfigReleaseRepository, ConfigReleaseRepository>();
         services.TryAddSingleton<IConfigCenterNotifyClient, NoOpConfigCenterNotifyClient>();
         services.AddScoped<ConfigCenterSnapshotService>();
         services.AddScoped<ConfigSecretReferenceValidator>();

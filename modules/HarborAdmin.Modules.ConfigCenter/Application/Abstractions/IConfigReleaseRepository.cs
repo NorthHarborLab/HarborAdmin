@@ -3,7 +3,7 @@ namespace HarborAdmin.Modules.ConfigCenter.Application.Abstractions;
 /// <summary>
 /// 配置中心发布仓储接口。
 /// </summary>
-public partial interface IConfigCenterRepository
+public interface IConfigReleaseRepository
 {
     /// <summary>
     /// 列出指定应用下的发布历史。

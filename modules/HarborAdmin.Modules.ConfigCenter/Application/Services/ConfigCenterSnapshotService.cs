@@ -9,7 +9,7 @@ namespace HarborAdmin.Modules.ConfigCenter.Application.Services;
 /// <summary>
 /// 配置中心已发布快照读取服务。
 /// </summary>
-public sealed class ConfigCenterSnapshotService(IConfigCenterRepository repository, ISecretStore secretStore)
+public sealed class ConfigCenterSnapshotService(IConfigReleaseRepository repository, ISecretStore secretStore)
 {
     /// <summary>
     /// 获取已发布配置快照。

@@ -7,7 +7,7 @@ namespace HarborAdmin.Modules.ConfigCenter.Application.Services;
 /// 配置中心发布服务。
 /// </summary>
 public sealed class ConfigCenterPublishService(
-    IConfigCenterRepository repository,
+    IConfigReleaseRepository repository,
     IConfigItemRepository itemRepository,
     IConfigCenterNotifyClient notifyClient,
     ConfigCenterApplicationService applicationService,

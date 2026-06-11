@@ -100,8 +100,8 @@ Infrastructure/
 
 | 生命周期      | 服务                                                                                                                                                     |
 |-----------|--------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Singleton | `IConfigCenterDbContext`、`IConfigCenterRepository`、默认 `IConfigCenterNotifyClient`                                                                      |
-| Scoped    | `ConfigCenterApplicationService`、`ConfigCenterItemService`、`ConfigCenterPublishService`、`ConfigCenterSnapshotService`、`ConfigSecretReferenceValidator` |
+| Singleton | `IConfigCenterDbContext`、默认 `IConfigCenterNotifyClient`                                                                                                  |
+| Scoped    | `IConfigApplicationRepository`、`IConfigItemRepository`、`IConfigReleaseRepository`、应用服务、发布服务、快照服务、`ConfigSecretReferenceValidator`             |
 | Options   | `ConfigCenterServerOptions`，绑定 `ConfigCenter` 配置节                                                                                                      |
 
 默认通知客户端是 `NoOpConfigCenterNotifyClient`。Host 需要在组合根中覆盖为 `TcpConfigCenterNotifyClient`，发布后才会通知独立

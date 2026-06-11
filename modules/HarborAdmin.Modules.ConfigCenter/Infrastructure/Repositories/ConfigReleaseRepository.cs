@@ -1,9 +1,14 @@
+using HarborAdmin.BuildingBlocks.Data;
+using HarborAdmin.Modules.ConfigCenter.Application.Abstractions;
+using HarborAdmin.Modules.ConfigCenter.Infrastructure.Contexts;
+
 namespace HarborAdmin.Modules.ConfigCenter.Infrastructure.Repositories;
 
 /// <summary>
 /// 基于 FreeSql 的配置中心发布仓储实现。
 /// </summary>
-public sealed partial class FreeSqlConfigCenterRepository
+public sealed class ConfigReleaseRepository(IConfigCenterDbContext db, UnitOfWorkManagerCloud unitOfWorkManager)
+    : FreeSqlModuleRepository<IConfigCenterDbContext>(db), IConfigReleaseRepository
 {
     /// <inheritdoc />
     public async Task<IReadOnlyList<ConfigRelease>> ListReleasesAsync(string appId, CancellationToken cancellationToken = default) =>
@@ -40,7 +45,7 @@ public sealed partial class FreeSqlConfigCenterRepository
         IReadOnlyList<ConfigReleaseItem> items,
         CancellationToken cancellationToken = default)
     {
-        using var uow = _unitOfWorkManager.Begin(DbContext.DbKey);
+        using var uow = unitOfWorkManager.Begin(DbContext.DbKey);
         using (DbContext.Bind(DbContext.DbKey, uow.Orm))
         {
             var inserted = await FreeSql.Insert(release).ExecuteInsertedAsync(cancellationToken);
