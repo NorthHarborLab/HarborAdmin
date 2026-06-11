@@ -17,7 +17,7 @@ HarborAdmin 的 FreeSql 数据访问基础设施 ，负责多库注册、模块�
 - 注册 PostgreSQL `DateTimeOffset` 映射。
 - 提供 `IHarborFreeSqlPreSyncHook`，在 CodeFirst 结构同步前执行迁移或预处理。
 - 提供 FreeSql `CurdAfter` 旁路扩展点，让组合根接入缓存失效、审计日志、领域事件等能力。
-- 提供 `AddHarborModuleData(...)`，统一注册模块 DbContext、仓储和可选 ServiceContext。
+- 提供模块 DbContext / Repository 基类和可选的模块数据注册扩展。
 
 ## 边界约束
 
@@ -103,21 +103,18 @@ builder.Services.AddHarborFreeSql(builder.Configuration.GetSection(DbConfig.Sect
 
 ### 模块数据注册
 
-模块扩展中优先使用 `AddHarborModuleData(...)` 注册模块 DbContext 与仓储，避免每个模块重复写同一组生命周期代码：
+模块启动入口中优先显式注册模块 DbContext 与各窄领域仓储，不为了复用注册扩展而创建模块总仓储：
 
 ```csharp
-services.AddHarborModuleData<IAiDbContext, AiDbContext, IAiRepository, FreeSqlAiRepository>();
+services.AddSingleton<IAiDbContext, AiDbContext>();
 services.AddScoped<IAiProviderRepository, AiProviderRepository>();
+services.AddScoped<IAiBusinessRepository, AiBusinessRepository>();
+services.AddScoped<IAiReleaseRepository, AiReleaseRepository>();
 ```
 
-默认 DbContext 与模块级仓储生命周期为 Singleton，ServiceContext 为 Scoped。少数模块如果仓储需要请求级生命周期，可显式指定：
+DbContext 使用 Singleton，仓储通常使用 Scoped。标准实体 CRUD 仓储继承 `FreeSqlEntityRepository<TEntity, TDbContext>`；复杂聚合或发布、快照、树、版本等仓储继承 `FreeSqlModuleRepository<TDbContext>`，但接口仍应按领域边界拆小。
 
-```csharp
-services.AddHarborModuleData<ISecretsDbContext, SecretsDbContext, ISecretsRepository, FreeSqlSecretsRepository>(
-    repositoryLifetime: ServiceLifetime.Scoped);
-```
-
-如果模块已经拆成多个窄领域仓储，例如 Admin 的 `IAdminUserRepository`、`IAdminAccessRepository`、`IAdminFeatureDesignRepository`，不要为了使用 `AddHarborModuleData(...)` 再造一个模块总仓储；直接注册模块 DbContext 与各窄仓储即可。
+`AddHarborModuleData(...)` 仅适合单一仓储、单一上下文的简单模块。当前五个业务模块已采用显式注册，避免重新聚合出模块级大仓储。
 
 ## 数据库配置
 

@@ -17,7 +17,7 @@ HarborAdmin FreeSql data access infrastructure: multi-database registration, mod
 - Registers PostgreSQL `DateTimeOffset` mapping.
 - Provides `IHarborFreeSqlPreSyncHook` to run migrations or preprocessing before CodeFirst structure sync.
 - Provides a FreeSql `CurdAfter` side-channel extension point so the composition root can plug in cache invalidation, audit logging, domain events, and similar capabilities.
-- Provides `AddHarborModuleData(...)` to register module DbContext, repository, and optional ServiceContext consistently.
+- Provides module DbContext / repository base classes and optional module data registration helpers.
 
 ## Non-goals / Boundaries
 
@@ -86,21 +86,18 @@ In multi-database scenarios, prefer resolving databases explicitly by `DbKey` in
 
 ### Module data registration
 
-Module extensions should prefer `AddHarborModuleData(...)` to register module DbContext and repository without repeating lifecycle boilerplate:
+Module startup entries should prefer explicit DbContext and narrow repository registration. Do not create a module-wide repository only to reuse a registration helper:
 
 ```csharp
-services.AddHarborModuleData<IAiDbContext, AiDbContext, IAiRepository, FreeSqlAiRepository>();
+services.AddSingleton<IAiDbContext, AiDbContext>();
 services.AddScoped<IAiProviderRepository, AiProviderRepository>();
+services.AddScoped<IAiBusinessRepository, AiBusinessRepository>();
+services.AddScoped<IAiReleaseRepository, AiReleaseRepository>();
 ```
 
-The default lifetimes are Singleton for DbContext and the module-level repository, and Scoped for ServiceContext. If a module needs a scoped repository, specify it explicitly:
+DbContext is Singleton, and repositories are usually Scoped. Standard entity CRUD repositories inherit `FreeSqlEntityRepository<TEntity, TDbContext>`; complex aggregate, release, snapshot, tree, or version repositories inherit `FreeSqlModuleRepository<TDbContext>`, but their interfaces should still stay scoped to a domain boundary.
 
-```csharp
-services.AddHarborModuleData<ISecretsDbContext, SecretsDbContext, ISecretsRepository, FreeSqlSecretsRepository>(
-    repositoryLifetime: ServiceLifetime.Scoped);
-```
-
-If a module is split into multiple narrow repositories, such as Admin's `IAdminUserRepository`, `IAdminAccessRepository`, and `IAdminFeatureDesignRepository`, do not create a module-wide repository just to call `AddHarborModuleData(...)`; register the module DbContext and each narrow repository directly.
+`AddHarborModuleData(...)` is only suitable for simple modules with one context and one repository. The current five business modules use explicit registration to avoid reintroducing module-wide repositories.
 
 ## Database configuration
 
