@@ -45,7 +45,7 @@ public sealed class ConfigCenterTcpHostedService(
                     var handler = new ConfigCenterConnectionHandler(
                         client,
                         scope.ServiceProvider.GetRequiredService<PublishedConfigCache>(),
-                        scope.ServiceProvider.GetRequiredService<IConfigCenterRepository>(),
+                        scope.ServiceProvider.GetRequiredService<IConfigApplicationRepository>(),
                         scope.ServiceProvider.GetRequiredService<ConfigSubscriptionHub>(),
                         scope.ServiceProvider.GetRequiredService<ILogger<ConfigCenterConnectionHandler>>());
 

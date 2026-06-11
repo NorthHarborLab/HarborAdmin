@@ -1,29 +1,35 @@
 // HarborAdmin.ConfigCenter 服务入口：FreeSql 快照读取 + TCP JSON 监听（默认端口 50000）。
 
+using HarborAdmin.BuildingBlocks.Abstractions.Modules;
 using HarborAdmin.BuildingBlocks.Data;
 using HarborAdmin.BuildingBlocks.Data.Configs;
 using HarborAdmin.BuildingBlocks.Mapping;
 using HarborAdmin.BuildingBlocks.Secrets.DependencyInjection;
-using HarborAdmin.Modules.Secrets;
-using HarborAdmin.Modules.Secrets.Domain.Entities;
 using HarborAdmin.ConfigCenter.Tcp;
 using HarborAdmin.Modules.ConfigCenter;
+using HarborAdmin.Modules.Secrets;
 using System.Text.RegularExpressions;
 
 var builder = Host.CreateApplicationBuilder(args);
 
 ResolveEnvironmentPlaceholders(builder.Configuration);
+// ConfigCenter 进程必须显式加载 ConfigCenter 与 Secrets 模块，以便注册仓储与 ISecretStore。
+var moduleAssemblies = HarborModuleAssemblyDiscovery.Discover([
+    typeof(ConfigCenterStartUp).Assembly,
+    typeof(SecretsStartUp).Assembly,
+]);
 
 builder.Services.AddHarborFreeSql(builder.Configuration.GetSection(DbConfig.SectionName), options =>
 {
     options.SnowflakeWorkerId = GetYitterWorkId(builder.Configuration);
-    options.AddEntityAssembly(typeof(HarborSecret).Assembly);
+    foreach (var moduleAssembly in moduleAssemblies)
+    {
+        options.AddModuleAssembly(moduleAssembly);
+    }
 });
 builder.Services.AddHarborSecrets();
-builder.Services.AddSecretsModule(builder.Configuration);
-builder.Services.AddHarborMapping(typeof(ConfigCenterModuleExtensions).Assembly);
-
-builder.Services.AddConfigCenterModule(builder.Configuration);
+builder.Services.AddHarborMapping(moduleAssemblies.ToArray());
+builder.Services.AddHarborModules(moduleAssemblies, builder.Configuration, HarborHostKinds.ConfigCenter);
 builder.Services.AddMemoryCache();
 builder.Services.AddScoped<PublishedConfigCache>();
 builder.Services.AddSingleton<ConfigSubscriptionHub>();

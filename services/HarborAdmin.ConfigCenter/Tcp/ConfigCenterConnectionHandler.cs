@@ -10,13 +10,13 @@ namespace HarborAdmin.ConfigCenter.Tcp;
 /// </summary>
 /// <param name="tcpClient">接受的 TCP 客户端</param>
 /// <param name="cache">已发布配置缓存</param>
-/// <param name="repository">仓储(hello 时校验应用是否存在)</param>
+/// <param name="applicationRepository">应用仓储(hello 时校验应用是否存在)</param>
 /// <param name="subscriptionHub">订阅广播中心</param>
 /// <param name="logger">日志</param>
 public sealed class ConfigCenterConnectionHandler(
     TcpClient tcpClient,
     PublishedConfigCache cache,
-    IConfigCenterRepository repository,
+    IConfigApplicationRepository applicationRepository,
     ConfigSubscriptionHub subscriptionHub,
     ILogger<ConfigCenterConnectionHandler> logger)
 {
@@ -122,7 +122,7 @@ public sealed class ConfigCenterConnectionHandler(
         }
 
         // hello 是连接级身份绑定点；未知 appId 不允许继续拉取或订阅。
-        var app = await repository.GetApplicationByAppIdAsync(message.AppId.Trim(), cancellationToken);
+        var app = await applicationRepository.GetByAppIdAsync(message.AppId.Trim(), cancellationToken);
         if (app is null)
         {
             await SendErrorAsync(message.RequestId, "unknown_app", $"Application '{message.AppId}' not found.", cancellationToken);
