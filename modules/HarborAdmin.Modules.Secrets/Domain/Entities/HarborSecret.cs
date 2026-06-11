@@ -6,7 +6,6 @@ namespace HarborAdmin.Modules.Secrets.Domain.Entities;
 /// <summary>
 /// 通用密钥当前元数据。
 /// </summary>
-[DbKey("AdminDb")]
 [Index("ux_harbor_secret_ref", nameof(SecretRef), true)]
 public sealed class HarborSecret : AuditableEntity
 {

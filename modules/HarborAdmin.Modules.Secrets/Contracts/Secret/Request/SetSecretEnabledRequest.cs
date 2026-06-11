@@ -10,7 +10,7 @@ public sealed class SetSecretEnabledRequest
     /// <summary>
     /// 密钥引用。
     /// </summary>
-    [Required(ErrorMessage = "SecretRef 不能为空。")]
+    [Required(ErrorMessage = "SecretRef 不能为空")]
     [MaxLength(200)]
     public string SecretRef { get; set; } = string.Empty;
 

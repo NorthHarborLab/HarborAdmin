@@ -95,7 +95,7 @@ Infrastructure/
 
 ## 依赖注册
 
-Host 或独立服务通过 `AddSecretsModule(configuration)` 注册模块：
+Host 或独立服务通过 `AddHarborModules(...)` 扫描 `SecretsStartUp` 注册模块。`SecretsStartUp` 同时声明模块默认数据库 `AdminDb`：
 
 | 生命周期            | 服务                                       |
 |-----------------|------------------------------------------|

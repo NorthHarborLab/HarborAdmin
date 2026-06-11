@@ -55,8 +55,7 @@ public sealed partial class FreeSqlSecretsRepository
     /// <inheritdoc />
     public async Task<HarborSecret> SaveRotationAsync(string secretRef, string displayName, string cipherText, CancellationToken cancellationToken = default)
     {
-        var dbKey = entityRegistry.GetDbKey<HarborSecret>();
-        using var uow = unitOfWorkManager.Begin(dbKey);
+        using var uow = unitOfWorkManager.Begin(DbContext.DbKey);
         var fsql = uow.Orm;
         var now = DateTimeOffset.UtcNow;
         var existing = await fsql.Select<HarborSecret>()

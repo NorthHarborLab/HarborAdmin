@@ -6,7 +6,6 @@ namespace HarborAdmin.Modules.Secrets.Domain.Entities;
 /// <summary>
 /// 通用密钥历史版本密文。
 /// </summary>
-[DbKey("AdminDb")]
 [Index("ux_harbor_secret_version_ref_version", $"{nameof(SecretRef)},{nameof(Version)}", true)]
 public sealed class HarborSecretVersion : EntityBase
 {
