@@ -22,6 +22,6 @@ public abstract class PagedCrudControllerBase<TDto, TQuery, TSaveRequest> : Crud
     protected static async Task<ApiResult<PagedResult<TDto>>> PageResultAsync(TQuery query, IPagedCrudApplicationService<TDto, TQuery, TSaveRequest> service,
         CancellationToken cancellationToken)
     {
-        return ApiResult.Ok(await service.PageAsync(query, cancellationToken));
+        return await OkResultAsync(service.PageAsync(query, cancellationToken));
     }
 }

@@ -26,7 +26,7 @@ HarborAdmin.BuildingBlocks.Abstractions/
   Application/    应用服务基类、基础 CRUD / 分页 CRUD 服务契约
   Attributes/     跨模块使用的 Attribute，例如认证、字段权限忽略、实体 DbKey 覆盖
   Auth/           当前用户抽象
-  Controllers/    CRUD / 分页 CRUD Controller 响应包装基类
+  Controllers/    Harbor / CRUD / 分页 CRUD Controller 响应包装基类
   Domain/         EntityBase、AuditableEntity、软删/审计接口
   Enums/          跨模块通用枚举，例如 CRUD 删除决策
   Exception/      统一领域异常
@@ -97,7 +97,27 @@ public sealed class AdminAuditLog : EntityBase
 - Controller 不直接返回 `ApiResult.Fail(...)` 表示业务失败。
 - 业务失败由应用服务抛出领域异常，Host 过滤器转换为统一响应。
 
-`Controllers/` 中的普通 CRUD Controller 基类可复用 List / Get / Create / Update / Delete 的响应包装：
+`Controllers/` 提供三类 Controller 基础能力：
+
+- `HarborControllerBase`：所有非标准 Controller 的最小基类，继承 ASP.NET Core `ControllerBase`，提供 `OkResult(...)`、`OkResultAsync(...)`、`ListResultAsync(...)`、`PageResultAsync(...)`、`CreateResultAsync(...)`、`UpdateResultAsync(...)`、`DeleteResultAsync(...)`。
+- `CrudControllerBase<TDto, TSaveRequest>`：标准非分页 CRUD 基类，服务实现 `ICrudApplicationService<TDto, TSaveRequest>`。
+- `PagedCrudControllerBase<TDto, TQuery, TSaveRequest>`：标准分页 CRUD 基类，服务实现 `IPagedCrudApplicationService<TDto, TQuery, TSaveRequest>`，其中 `TQuery` 继承 `PageRequest`。
+
+标准可分页 CRUD Controller 优先使用分页基类：
+
+```csharp
+public sealed class ProviderController(ProviderService service)
+    : PagedCrudControllerBase<AiProviderDto, PageRequest, SaveAiProviderRequest>
+{
+    [HttpGet]
+    public async Task<ApiResult<PagedResult<AiProviderDto>>> List(
+        [FromQuery] PageRequest query,
+        CancellationToken cancellationToken) =>
+        await PageResultAsync(query, service, cancellationToken);
+}
+```
+
+标准非分页 CRUD Controller 可复用 List / Get / Create / Update / Delete 的响应包装：
 
 ```csharp
 public sealed class ProviderController(ProviderService service)
@@ -110,8 +130,6 @@ public sealed class ProviderController(ProviderService service)
         await CreateResultAsync(request, service, cancellationToken);
 }
 ```
-
-分页 CRUD Controller 可继承 `PagedCrudControllerBase<TDto, TQuery, TSaveRequest>`，其中 `TQuery` 继承 `PageRequest`，并通过 `PageResultAsync(...)` 包装 `PagedResult<TDto>`。
 
 具体 Controller 仍必须显式声明路由、HTTP Verb、XML 注释和业务服务；`CrudControllerBase` / `PagedCrudControllerBase` 不生成隐式端点。
 
