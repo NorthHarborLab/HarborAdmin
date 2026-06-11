@@ -12,7 +12,7 @@ namespace HarborAdmin.Modules.International.Application.Services;
 /// 国际化 AI 翻译服务。
 /// </summary>
 public sealed class InternationalTranslationService(
-    IInternationalRepository repository,
+    IInternationalEntryRepository repository,
     InternationalPageService pageService,
     InternationalEntryService entryService,
     InternationalCacheCoordinator cacheCoordinator,

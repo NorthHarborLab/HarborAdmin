@@ -1,11 +1,15 @@
+using HarborAdmin.BuildingBlocks.Data;
+using HarborAdmin.Modules.International.Application.Abstractions;
 using HarborAdmin.Modules.International.Domain.Entities;
+using HarborAdmin.Modules.International.Infrastructure.Contexts;
 
 namespace HarborAdmin.Modules.International.Infrastructure.Repositories;
 
 /// <summary>
 /// 基于 FreeSql 的国际化条目仓储实现。
 /// </summary>
-public sealed partial class FreeSqlInternationalRepository
+public sealed class InternationalEntryRepository(IInternationalDbContext db)
+    : FreeSqlModuleRepository<IInternationalDbContext>(db), IInternationalEntryRepository
 {
     /// <inheritdoc />
     public async Task<IReadOnlyList<InternationalEntry>> ListEntriesAsync(long pageId, CancellationToken cancellationToken = default) =>

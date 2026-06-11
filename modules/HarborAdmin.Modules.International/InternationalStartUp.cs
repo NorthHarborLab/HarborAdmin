@@ -1,5 +1,4 @@
 using HarborAdmin.BuildingBlocks.Abstractions.Modules;
-using HarborAdmin.BuildingBlocks.Data;
 using HarborAdmin.Modules.International.Application.Services;
 using HarborAdmin.Modules.International.Application.Abstractions;
 using HarborAdmin.Modules.International.Infrastructure.Contexts;
@@ -26,7 +25,11 @@ public sealed class InternationalStartUp : HarborModuleMetadataBase, IHarborModu
     /// <param name="context">模块注册上下文。</param>
     public void AddModule(IServiceCollection services, HarborModuleRegistrationContext context)
     {
-        services.AddHarborModuleData<IInternationalDbContext, InternationalDbContext, IInternationalRepository, FreeSqlInternationalRepository>();
+        services.AddSingleton<IInternationalDbContext, InternationalDbContext>();
+        services.AddScoped<IInternationalPageRepository, InternationalPageRepository>();
+        services.AddScoped<IInternationalGroupRepository, InternationalGroupRepository>();
+        services.AddScoped<IInternationalEntryRepository, InternationalEntryRepository>();
+        services.AddScoped<IInternationalVersionRepository, InternationalVersionRepository>();
         services.AddScoped<InternationalCacheCoordinator>();
         services.AddScoped<InternationalPageService>();
         services.AddScoped<InternationalEntryService>();

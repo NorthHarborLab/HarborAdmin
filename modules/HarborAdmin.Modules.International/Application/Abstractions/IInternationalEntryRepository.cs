@@ -5,7 +5,7 @@ namespace HarborAdmin.Modules.International.Application.Abstractions;
 /// <summary>
 /// 国际化条目仓储接口。
 /// </summary>
-public partial interface IInternationalRepository
+public interface IInternationalEntryRepository
 {
     /// <summary>
     /// 列出指定页面的条目与翻译。

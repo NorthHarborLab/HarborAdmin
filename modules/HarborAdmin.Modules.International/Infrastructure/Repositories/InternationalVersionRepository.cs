@@ -1,11 +1,15 @@
+using HarborAdmin.BuildingBlocks.Data;
+using HarborAdmin.Modules.International.Application.Abstractions;
 using HarborAdmin.Modules.International.Domain.Entities;
+using HarborAdmin.Modules.International.Infrastructure.Contexts;
 
 namespace HarborAdmin.Modules.International.Infrastructure.Repositories;
 
 /// <summary>
 /// 基于 FreeSql 的国际化版本仓储实现。
 /// </summary>
-public sealed partial class FreeSqlInternationalRepository
+public sealed class InternationalVersionRepository(IInternationalDbContext db)
+    : FreeSqlModuleRepository<IInternationalDbContext>(db), IInternationalVersionRepository
 {
     /// <inheritdoc />
     public async Task<IReadOnlyList<InternationalPage>> ListPageVersionsAsync(CancellationToken cancellationToken = default) =>
@@ -49,13 +53,15 @@ public sealed partial class FreeSqlInternationalRepository
     /// <inheritdoc />
     public async Task IncreasePageVersionAsync(long pageId, CancellationToken cancellationToken = default)
     {
-        var page = await GetPageAsync(pageId, cancellationToken);
+        var page = await FreeSql.Select<InternationalPage>()
+            .Where(p => p.Id == pageId)
+            .FirstAsync(cancellationToken);
         if (page is null)
         {
             return;
         }
 
         page.Version += 1;
-        await UpdatePageAsync(page, cancellationToken);
+        await FreeSql.Update<InternationalPage>().SetSource(page).ExecuteAffrowsAsync(cancellationToken);
     }
 }

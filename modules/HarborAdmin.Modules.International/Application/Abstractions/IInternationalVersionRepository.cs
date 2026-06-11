@@ -5,7 +5,7 @@ namespace HarborAdmin.Modules.International.Application.Abstractions;
 /// <summary>
 /// 国际化版本仓储接口。
 /// </summary>
-public partial interface IInternationalRepository
+public interface IInternationalVersionRepository
 {
     /// <summary>
     /// 列出页面 Key 与页面版本。

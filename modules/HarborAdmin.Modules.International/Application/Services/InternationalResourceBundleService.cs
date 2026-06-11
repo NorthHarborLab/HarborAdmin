@@ -10,7 +10,10 @@ namespace HarborAdmin.Modules.International.Application.Services;
 /// <summary>
 /// 国际化资源包服务。
 /// </summary>
-public sealed class InternationalResourceBundleService(IInternationalRepository repository, IHarborCache cache)
+public sealed class InternationalResourceBundleService(
+    IInternationalPageRepository pageRepository,
+    IInternationalVersionRepository versionRepository,
+    IHarborCache cache)
 {
     /// <summary>
     /// 获取当前国际化版本。
@@ -21,8 +24,8 @@ public sealed class InternationalResourceBundleService(IInternationalRepository 
             .Where(model => model.Id == InternationalCacheKeys.VersionKey)
             .GetOrCreateAsync(async ct =>
             {
-                var version = await repository.GetVersionAsync(ct);
-                var pages = await repository.ListPageVersionsAsync(ct);
+                var version = await versionRepository.GetVersionAsync(ct);
+                var pages = await versionRepository.ListPageVersionsAsync(ct);
                 var pageVersions = pages
                     .Select(page => new InternationalPageVersionDto(page.FullPath, page.Version))
                     .ToList();
@@ -43,7 +46,7 @@ public sealed class InternationalResourceBundleService(IInternationalRepository 
             .Where(model => model.Id == InternationalCacheKeys.BundleKey)
             .GetOrCreateAsync(async ct =>
             {
-                var pages = await repository.ListPagesWithEntriesAsync(ct);
+                var pages = await pageRepository.ListPagesWithEntriesAsync(ct);
                 var messages = new Dictionary<string, object>(StringComparer.Ordinal);
 
                 foreach (var page in pages)
@@ -51,7 +54,7 @@ public sealed class InternationalResourceBundleService(IInternationalRepository 
                     InternationalBundleBuilder.MergePageMessages(messages, page);
                 }
 
-                var version = await repository.GetVersionAsync(ct);
+                var version = await versionRepository.GetVersionAsync(ct);
                 return new InternationalBundleCacheModel
                 {
                     Value = new InternationalBundleDto(version, messages)
@@ -70,7 +73,7 @@ public sealed class InternationalResourceBundleService(IInternationalRepository 
             .Where(model => model.Path == path)
             .GetOrCreateAsync(async ct =>
             {
-                var page = await repository.GetPageWithEntriesByPathAsync(path, ct)
+                var page = await pageRepository.GetPageWithEntriesByPathAsync(path, ct)
                            ?? throw new NotFoundDomainException($"国际化页面 '{path}' 不存在。");
                 var messages = new Dictionary<string, object>(StringComparer.Ordinal);
                 InternationalBundleBuilder.MergePageMessages(messages, page);

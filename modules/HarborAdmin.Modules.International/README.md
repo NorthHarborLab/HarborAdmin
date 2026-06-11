@@ -101,7 +101,7 @@ sequenceDiagram
   participant Api as EntryController
   participant Service as InternationalTranslationService
   participant AI as AI Client
-  participant Repo as IInternationalRepository
+  participant Repo as IInternationalEntryRepository
   participant Cache as CacheCoordinator
 
   Web->>Api: POST /entries/{entryId}/translate
@@ -119,7 +119,7 @@ AI 返回内容会从首个 `{` 到最后一个 `}` 截取 JSON 对象，解析�
 
 ```text
 Application/
-  Abstractions/     # IInternationalRepository
+  Abstractions/     # Page、Group、Entry、Version 窄仓储接口
   Mappings/         # DTO 映射
   Services/         # Page、Entry、ResourceBundle、Translation、CacheCoordinator、BundleBuilder
 Contracts/
@@ -144,8 +144,8 @@ Infrastructure/
 
 | 生命周期      | 服务                                                                                                                                                            |
 |-----------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Singleton | `IInternationalDbContext`、`IInternationalRepository`                                                                                                          |
-| Scoped    | `InternationalCacheCoordinator`、`InternationalPageService`、`InternationalEntryService`、`InternationalResourceBundleService`、`InternationalTranslationService` |
+| Singleton | `IInternationalDbContext`                                                                                                                                       |
+| Scoped    | Page、Group、Entry、Version 窄仓储、`InternationalCacheCoordinator`、页面、条目、资源包与 AI 翻译服务                                                                    |
 
 AI 翻译依赖 `IAiClient`，需要 Host 同时注册 AI Client 相关能力。
 

@@ -5,7 +5,7 @@ namespace HarborAdmin.Modules.International.Application.Abstractions;
 /// <summary>
 /// 国际化资源分组仓储接口。
 /// </summary>
-public partial interface IInternationalRepository
+public interface IInternationalGroupRepository
 {
     /// <summary>
     /// 列出所有国际化资源分组。

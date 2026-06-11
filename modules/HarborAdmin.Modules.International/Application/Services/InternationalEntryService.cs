@@ -11,7 +11,7 @@ namespace HarborAdmin.Modules.International.Application.Services;
 /// 国际化条目管理服务。
 /// </summary>
 public sealed class InternationalEntryService(
-    IInternationalRepository repository,
+    IInternationalEntryRepository repository,
     InternationalPageService pageService,
     InternationalCacheCoordinator cacheCoordinator,
     IHarborMapper mapper)

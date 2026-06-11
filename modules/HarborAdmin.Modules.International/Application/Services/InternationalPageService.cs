@@ -11,7 +11,9 @@ namespace HarborAdmin.Modules.International.Application.Services;
 /// 国际化页面管理服务。
 /// </summary>
 public sealed class InternationalPageService(
-    IInternationalRepository repository,
+    IInternationalPageRepository pageRepository,
+    IInternationalGroupRepository groupRepository,
+    IInternationalVersionRepository versionRepository,
     InternationalCacheCoordinator cacheCoordinator,
     IHarborMapper mapper)
 {
@@ -20,7 +22,7 @@ public sealed class InternationalPageService(
     /// </summary>
     public async Task<IReadOnlyList<InternationalPageDto>> ListPagesAsync(CancellationToken cancellationToken = default)
     {
-        var pages = await repository.ListPagesAsync(cancellationToken);
+        var pages = await pageRepository.ListPagesAsync(cancellationToken);
         return pages.Select(mapper.Map<InternationalPageDto>).ToList();
     }
 
@@ -29,8 +31,8 @@ public sealed class InternationalPageService(
     /// </summary>
     public async Task<IReadOnlyList<InternationalGroupNodeDto>> ListPageTreeAsync(CancellationToken cancellationToken = default)
     {
-        var groups = await repository.ListGroupsAsync(cancellationToken);
-        var pages = (await repository.ListPagesAsync(cancellationToken))
+        var groups = await groupRepository.ListGroupsAsync(cancellationToken);
+        var pages = (await pageRepository.ListPagesAsync(cancellationToken))
             .GroupBy(page => page.GroupId)
             .ToDictionary(group => group.Key ?? 0, group => group.OrderBy(page => page.FullPath, StringComparer.Ordinal).ToList());
         var groupLookup = groups
@@ -56,18 +58,18 @@ public sealed class InternationalPageService(
 
         var parent = request.ParentId is null
             ? null
-            : await repository.GetGroupAsync(request.ParentId.Value, cancellationToken)
+            : await groupRepository.GetGroupAsync(request.ParentId.Value, cancellationToken)
               ?? throw new NotFoundDomainException($"父级分组 '{request.ParentId}' 不存在。");
 
         if (id is null)
         {
             var path = BuildGroupPath(parent?.Path, groupKey);
-            if (await repository.GetGroupByPathAsync(path, cancellationToken) is not null)
+            if (await groupRepository.GetGroupByPathAsync(path, cancellationToken) is not null)
             {
                 throw new ConflictDomainException($"资源分组 '{path}' 已存在。");
             }
 
-            var created = await repository.InsertGroupAsync(new InternationalGroup
+            var created = await groupRepository.InsertGroupAsync(new InternationalGroup
             {
                 ParentId = parent?.Id,
                 Key = groupKey,
@@ -79,14 +81,14 @@ public sealed class InternationalPageService(
             return ToGroupNode(created);
         }
 
-        var group = await repository.GetGroupAsync(id.Value, cancellationToken)
+        var group = await groupRepository.GetGroupAsync(id.Value, cancellationToken)
             ?? throw new NotFoundDomainException($"资源分组 '{id}' 不存在。");
         if (parent?.Id == group.Id)
         {
             throw new ValidationDomainException("父级分组不能选择自身。");
         }
 
-        var allGroups = await repository.ListGroupsAsync(cancellationToken);
+        var allGroups = await groupRepository.ListGroupsAsync(cancellationToken);
         var descendantIds = FindDescendantGroupIds(allGroups, group.Id);
         if (parent is not null && descendantIds.Contains(parent.Id))
         {
@@ -94,7 +96,7 @@ public sealed class InternationalPageService(
         }
 
         var newPath = BuildGroupPath(parent?.Path, groupKey);
-        var existing = await repository.GetGroupByPathAsync(newPath, cancellationToken);
+        var existing = await groupRepository.GetGroupByPathAsync(newPath, cancellationToken);
         if (existing is not null && existing.Id != group.Id)
         {
             throw new ConflictDomainException($"资源分组 '{newPath}' 已存在。");
@@ -114,7 +116,7 @@ public sealed class InternationalPageService(
             changedGroups.Add(child);
         }
 
-        var pages = await repository.ListPagesAsync(cancellationToken);
+        var pages = await pageRepository.ListPagesAsync(cancellationToken);
         var changedPages = pages
             .Where(page => page.GroupId == group.Id || (page.GroupId is not null && descendantIds.Contains(page.GroupId.Value)))
             .ToList();
@@ -124,8 +126,8 @@ public sealed class InternationalPageService(
             page.FullPath = $"{pageGroup.Path}/{page.PageKey}";
         }
 
-        await repository.UpdateGroupsAsync(changedGroups, cancellationToken);
-        await repository.UpdatePagesAsync(changedPages, cancellationToken);
+        await groupRepository.UpdateGroupsAsync(changedGroups, cancellationToken);
+        await pageRepository.UpdatePagesAsync(changedPages, cancellationToken);
         await cacheCoordinator.InvalidateAllAsync(cancellationToken);
         return ToGroupNode(group);
     }
@@ -149,7 +151,7 @@ public sealed class InternationalPageService(
     public async Task DeletePageAsync(long id, CancellationToken cancellationToken = default)
     {
         var page = await RequirePageAsync(id, cancellationToken);
-        await repository.DeletePageAsync(id, cancellationToken);
+        await pageRepository.DeletePageAsync(id, cancellationToken);
         await cacheCoordinator.InvalidatePageAsync(page.Id, page.FullPath, cancellationToken);
     }
 
@@ -158,14 +160,14 @@ public sealed class InternationalPageService(
     /// </summary>
     public async Task<InternationalPageDto> PublishPageVersionAsync(long pageId, CancellationToken cancellationToken = default)
     {
-        await repository.IncreasePageVersionAsync(pageId, cancellationToken);
+        await versionRepository.IncreasePageVersionAsync(pageId, cancellationToken);
         var page = await RequirePageAsync(pageId, cancellationToken);
         await cacheCoordinator.InvalidatePageAsync(page.Id, page.FullPath, cancellationToken);
         return mapper.Map<InternationalPageDto>(page);
     }
 
     internal async Task<InternationalPage> RequirePageAsync(long id, CancellationToken cancellationToken) =>
-        await repository.GetPageAsync(id, cancellationToken)
+        await pageRepository.GetPageAsync(id, cancellationToken)
         ?? throw new NotFoundDomainException($"国际化页面 '{id}' 不存在。");
 
     /// <summary>
@@ -174,7 +176,7 @@ public sealed class InternationalPageService(
     private async Task<InternationalPageDto> CreatePageAsync(SaveInternationalPageRequest request, CancellationToken cancellationToken)
     {
         var pagePath = NormalizePagePath(request.FullPath);
-        var existing = await repository.GetPageByPathAsync(pagePath.FullPath, cancellationToken);
+        var existing = await pageRepository.GetPageByPathAsync(pagePath.FullPath, cancellationToken);
         if (existing is not null)
         {
             throw new ConflictDomainException($"国际化页面 '{pagePath.FullPath}' 已存在。");
@@ -191,7 +193,7 @@ public sealed class InternationalPageService(
             Remark = request.Remark?.Trim()
         };
 
-        var created = await repository.InsertPageAsync(page, cancellationToken);
+        var created = await pageRepository.InsertPageAsync(page, cancellationToken);
         // 新页面会改变全量版本和 bundle 列表，需要失效整个国际化缓存域。
         await cacheCoordinator.InvalidateAllAsync(cancellationToken);
         return mapper.Map<InternationalPageDto>(created);
@@ -206,7 +208,7 @@ public sealed class InternationalPageService(
         var pagePath = NormalizePagePath(request.FullPath);
         if (!string.Equals(page.FullPath, pagePath.FullPath, StringComparison.Ordinal))
         {
-            var existing = await repository.GetPageByPathAsync(pagePath.FullPath, cancellationToken);
+            var existing = await pageRepository.GetPageByPathAsync(pagePath.FullPath, cancellationToken);
             if (existing is not null && existing.Id != page.Id)
             {
                 throw new ConflictDomainException($"国际化页面 '{pagePath.FullPath}' 已存在。");
@@ -221,7 +223,7 @@ public sealed class InternationalPageService(
         page.Name = request.Name.Trim();
         page.Remark = request.Remark?.Trim();
 
-        await repository.UpdatePageAsync(page, cancellationToken);
+        await pageRepository.UpdatePageAsync(page, cancellationToken);
         // FullPath 参与单页面 bundle 缓存 key，改名时旧路径和新路径都必须失效。
         await cacheCoordinator.InvalidatePageAsync(page.Id, oldPath, cancellationToken);
         await cacheCoordinator.InvalidatePageAsync(page.Id, page.FullPath, cancellationToken);
@@ -265,10 +267,10 @@ public sealed class InternationalPageService(
         for (var index = 0; index < groupSegments.Count; index++)
         {
             var path = string.Join('/', groupSegments.Take(index + 1));
-            var group = await repository.GetGroupByPathAsync(path, cancellationToken);
+            var group = await groupRepository.GetGroupByPathAsync(path, cancellationToken);
             if (group is null)
             {
-                group = await repository.InsertGroupAsync(new InternationalGroup
+                group = await groupRepository.InsertGroupAsync(new InternationalGroup
                 {
                     ParentId = parent?.Id,
                     Key = groupSegments[index],
