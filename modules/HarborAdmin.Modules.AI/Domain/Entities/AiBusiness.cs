@@ -6,7 +6,6 @@ namespace HarborAdmin.Modules.AI.Domain.Entities;
 /// <summary>
 /// AI 业务配置。
 /// </summary>
-[DbKey("AdminDb")]
 [Index("ux_ai_business_key", nameof(BusinessKey), true)]
 public sealed class AiBusiness : AuditableEntity
 {

@@ -1,4 +1,4 @@
-using HarborAdmin.BuildingBlocks.Abstractions.Api;
+using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using HarborAdmin.Modules.AI.Application.Services.Release;
 using Microsoft.AspNetCore.Mvc;
 using HarborAdmin.Modules.AI.Contracts.Release.Dto;

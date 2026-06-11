@@ -6,7 +6,6 @@ namespace HarborAdmin.Modules.AI.Domain.Entities;
 /// <summary>
 /// AI 配额窗口桶。
 /// </summary>
-[DbKey("AdminDb")]
 [Index("ux_ai_quota_bucket", $"{nameof(ProviderKey)},{nameof(Model)},{nameof(BusinessKey)},{nameof(ProducerKey)},{nameof(WindowType)},{nameof(WindowStart)}", true)]
 public sealed class AiQuotaBucket : EntityBase
 {

@@ -1,3 +1,4 @@
+using HarborAdmin.BuildingBlocks.Abstractions.Application;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.BuildingBlocks.Mapping;
 using HarborAdmin.Modules.AI.Application.Abstractions;
@@ -11,39 +12,31 @@ namespace HarborAdmin.Modules.AI.Application.Services.Prompt;
 /// <summary>
 /// AI Prompt 管理服务。
 /// </summary>
-public sealed class PromptService(IAiRepository repository, IHarborMapper mapper)
+public sealed class PromptService(IAiPromptRepository repository, IHarborMapper mapper)
+    : HarborApplicationRepositoryService<AiPrompt, AiPromptDto, SaveAiPromptRequest, IAiPromptRepository>(repository)
 {
-    /// <summary>
-    /// 列出 Prompt。
-    /// </summary>
-    public async Task<IReadOnlyList<AiPromptDto>> ListPromptsAsync(CancellationToken cancellationToken = default) =>
-        (await repository.ListPromptsAsync(cancellationToken))
-        .Select(mapper.Map<AiPromptDto>)
-        .ToList();
+    /// <inheritdoc />
+    protected override AiPromptDto MapToDto(AiPrompt entity) => mapper.Map<AiPromptDto>(entity);
+
+    /// <inheritdoc />
+    protected override AiPrompt CreateEntity(SaveAiPromptRequest request) => new() { CreatedAt = UtcNow };
 
     /// <summary>
-    /// 保存 Prompt。
+    /// 将保存请求应用到 Prompt。
     /// </summary>
-    public async Task<AiPromptDto> SavePromptAsync(long? id, SaveAiPromptRequest request, CancellationToken cancellationToken = default)
+    protected override Task ApplySaveAsync(AiPrompt entity, SaveAiPromptRequest request, CancellationToken cancellationToken)
     {
-        var now = DateTimeOffset.UtcNow;
-        var prompt = id is > 0
-            ? await repository.GetPromptAsync(id.Value, cancellationToken) ?? throw new NotFoundDomainException($"AI prompt '{id}' was not found.")
-            : new AiPrompt { CreatedAt = now };
-        prompt.PromptKey = AiNormalizationHelper.NormalizeKey(request.PromptKey, nameof(request.PromptKey));
-        prompt.Name = AiNormalizationHelper.NormalizeRequired(request.Name, nameof(request.Name));
-        prompt.Version = request.Version <= 0 ? 1 : request.Version;
-        prompt.SystemPromptMarkdown = request.SystemPromptMarkdown;
-        prompt.UserPromptMarkdown = request.UserPromptMarkdown;
-        prompt.VariablesJson = AiNormalizationHelper.NormalizeOptional(request.VariablesJson);
-        prompt.Enabled = request.Enabled;
-        prompt.UpdatedAt = now;
-        return mapper.Map<AiPromptDto>(await repository.SavePromptAsync(prompt, cancellationToken));
+        entity.PromptKey = AiNormalizationHelper.NormalizeKey(request.PromptKey, nameof(request.PromptKey));
+        entity.Name = AiNormalizationHelper.NormalizeRequired(request.Name, nameof(request.Name));
+        entity.Version = request.Version <= 0 ? 1 : request.Version;
+        entity.SystemPromptMarkdown = request.SystemPromptMarkdown;
+        entity.UserPromptMarkdown = request.UserPromptMarkdown;
+        entity.VariablesJson = AiNormalizationHelper.NormalizeOptional(request.VariablesJson);
+        entity.Enabled = request.Enabled;
+        entity.UpdatedAt = UtcNow;
+        return Task.CompletedTask;
     }
 
-    /// <summary>
-    /// 删除 Prompt。
-    /// </summary>
-    public Task DeletePromptAsync(long id, CancellationToken cancellationToken = default) =>
-        repository.DeletePromptAsync(id, cancellationToken);
+    /// <inheritdoc />
+    protected override string GetNotFoundMessage(long id) => $"AI prompt '{id}' was not found.";
 }

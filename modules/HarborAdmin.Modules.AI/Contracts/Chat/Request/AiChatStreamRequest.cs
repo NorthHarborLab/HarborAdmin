@@ -15,4 +15,5 @@ public sealed record AiChatStreamRequest(
     string? KnowledgeText = null,
     string? KnowledgeTextMode = null,
     IReadOnlyDictionary<string, string>? Metadata = null,
-    string? Input = null);
+    string? Input = null,
+    long? ConversationId = null);

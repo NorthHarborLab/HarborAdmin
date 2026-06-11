@@ -1,11 +1,14 @@
+using HarborAdmin.BuildingBlocks.Data;
+using HarborAdmin.Modules.AI.Application.Abstractions;
 using HarborAdmin.Modules.AI.Domain.Entities;
+using HarborAdmin.Modules.AI.Infrastructure.Contexts;
 
 namespace HarborAdmin.Modules.AI.Infrastructure.Repositories;
 
 /// <summary>
-/// 基于 FreeSql 的 AI 调用仓储实现 partial。
+/// AI 调用日志 FreeSql 仓储。
 /// </summary>
-public sealed partial class FreeSqlAiRepository
+public sealed class AiInvocationRepository(IAiDbContext db) : FreeSqlModuleRepository<IAiDbContext>(db), IAiInvocationRepository
 {
     /// <inheritdoc />
     public async Task<AiInvocationLog> InsertInvocationLogAsync(AiInvocationLog log, CancellationToken cancellationToken = default)
@@ -20,13 +23,16 @@ public sealed partial class FreeSqlAiRepository
         FreeSql.Update<AiInvocationLog>().SetSource(log).ExecuteAffrowsAsync(cancellationToken);
 
     /// <inheritdoc />
-    public async Task<AiInvocationLog?> GetInvocationByIdempotencyAsync(string businessKey, string producerKey, string idempotencyKey,
+    public async Task<AiInvocationLog?> GetInvocationByIdempotencyAsync(
+        string businessKey,
+        string producerKey,
+        string idempotencyKey,
         CancellationToken cancellationToken = default) =>
         await FreeSql.Select<AiInvocationLog>()
-            .Where(l => l.BusinessKey == businessKey && l.ProducerKey == producerKey && l.IdempotencyKey == idempotencyKey)
+            .Where(log => log.BusinessKey == businessKey && log.ProducerKey == producerKey && log.IdempotencyKey == idempotencyKey)
             .FirstAsync(cancellationToken);
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<AiInvocationLog>> ListInvocationLogsAsync(CancellationToken cancellationToken = default) =>
-        await FreeSql.Select<AiInvocationLog>().OrderByDescending(l => l.CreatedAt).Limit(200).ToListAsync(cancellationToken);
+        await FreeSql.Select<AiInvocationLog>().OrderByDescending(log => log.CreatedAt).Limit(200).ToListAsync(cancellationToken);
 }

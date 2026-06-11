@@ -6,7 +6,6 @@ namespace HarborAdmin.Modules.AI.Domain.Entities;
 /// <summary>
 /// AI 供应商限额。
 /// </summary>
-[DbKey("AdminDb")]
 [Index("ux_ai_provider_quota", $"{nameof(ProviderId)},{nameof(ProducerKey)}", true)]
 public sealed class AiProviderQuota : EntityBase
 {

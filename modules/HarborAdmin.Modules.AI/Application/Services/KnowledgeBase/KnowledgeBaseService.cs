@@ -1,4 +1,4 @@
-using HarborAdmin.BuildingBlocks.Abstractions.Exception;
+using HarborAdmin.BuildingBlocks.Abstractions.Application;
 using HarborAdmin.BuildingBlocks.Mapping;
 using HarborAdmin.Modules.AI.Application.Abstractions;
 using HarborAdmin.Modules.AI.Application.Services.Shared;
@@ -11,39 +11,31 @@ namespace HarborAdmin.Modules.AI.Application.Services.KnowledgeBase;
 /// <summary>
 /// AI 知识库管理服务。
 /// </summary>
-public sealed class KnowledgeBaseService(IAiRepository repository, IHarborMapper mapper)
+public sealed class KnowledgeBaseService(IAiKnowledgeBaseRepository repository, IHarborMapper mapper)
+    : HarborApplicationRepositoryService<AiKnowledgeBase, AiKnowledgeBaseDto, SaveAiKnowledgeBaseRequest, IAiKnowledgeBaseRepository>(repository)
 {
-    /// <summary>
-    /// 列出知识库。
-    /// </summary>
-    public async Task<IReadOnlyList<AiKnowledgeBaseDto>> ListKnowledgeBasesAsync(CancellationToken cancellationToken = default) =>
-        (await repository.ListKnowledgeBasesAsync(cancellationToken))
-        .Select(mapper.Map<AiKnowledgeBaseDto>)
-        .ToList();
+    /// <inheritdoc />
+    protected override AiKnowledgeBaseDto MapToDto(AiKnowledgeBase entity) => mapper.Map<AiKnowledgeBaseDto>(entity);
+
+    /// <inheritdoc />
+    protected override AiKnowledgeBase CreateEntity(SaveAiKnowledgeBaseRequest request) => new() { CreatedAt = UtcNow };
 
     /// <summary>
-    /// 保存知识库。
+    /// 将保存请求应用到知识库。
     /// </summary>
-    public async Task<AiKnowledgeBaseDto> SaveKnowledgeBaseAsync(long? id, SaveAiKnowledgeBaseRequest request, CancellationToken cancellationToken = default)
+    protected override Task ApplySaveAsync(AiKnowledgeBase entity, SaveAiKnowledgeBaseRequest request, CancellationToken cancellationToken)
     {
-        var now = DateTimeOffset.UtcNow;
-        var knowledgeBase = id is > 0
-            ? await repository.GetKnowledgeBaseAsync(id.Value, cancellationToken) ?? throw new NotFoundDomainException($"AI knowledge base '{id}' was not found.")
-            : new AiKnowledgeBase { CreatedAt = now };
-        knowledgeBase.KnowledgeKey = AiNormalizationHelper.NormalizeKey(request.KnowledgeKey, nameof(request.KnowledgeKey));
-        knowledgeBase.Name = AiNormalizationHelper.NormalizeRequired(request.Name, nameof(request.Name));
-        knowledgeBase.ContentMarkdown = request.ContentMarkdown;
-        knowledgeBase.RetrievalType = AiNormalizationHelper.NormalizeRequired(request.RetrievalType, nameof(request.RetrievalType));
-        knowledgeBase.RetrievalOptionsJson = AiNormalizationHelper.NormalizeOptional(request.RetrievalOptionsJson);
-        knowledgeBase.AppendReferences = request.AppendReferences;
-        knowledgeBase.Enabled = request.Enabled;
-        knowledgeBase.UpdatedAt = now;
-        return mapper.Map<AiKnowledgeBaseDto>(await repository.SaveKnowledgeBaseAsync(knowledgeBase, cancellationToken));
+        entity.KnowledgeKey = AiNormalizationHelper.NormalizeKey(request.KnowledgeKey, nameof(request.KnowledgeKey));
+        entity.Name = AiNormalizationHelper.NormalizeRequired(request.Name, nameof(request.Name));
+        entity.ContentMarkdown = request.ContentMarkdown;
+        entity.RetrievalType = AiNormalizationHelper.NormalizeRequired(request.RetrievalType, nameof(request.RetrievalType));
+        entity.RetrievalOptionsJson = AiNormalizationHelper.NormalizeOptional(request.RetrievalOptionsJson);
+        entity.AppendReferences = request.AppendReferences;
+        entity.Enabled = request.Enabled;
+        entity.UpdatedAt = UtcNow;
+        return Task.CompletedTask;
     }
 
-    /// <summary>
-    /// 删除知识库。
-    /// </summary>
-    public Task DeleteKnowledgeBaseAsync(long id, CancellationToken cancellationToken = default) =>
-        repository.DeleteKnowledgeBaseAsync(id, cancellationToken);
+    /// <inheritdoc />
+    protected override string GetNotFoundMessage(long id) => $"AI knowledge base '{id}' was not found.";
 }

@@ -40,7 +40,9 @@ AI 模块不直接执行模型请求；它把运行时所需的配置发布成 `
 | `/api/admin/ai/published?version=0`          | `GET`            | 获取已发布快照，`0` 表示当前激活/最新 |
 | `/api/admin/ai/releases/{version}/rollback`  | `POST`           | 回滚到指定版本               |
 | `/api/admin/ai/invocations`                  | `GET`            | 查看调用日志                |
-| `/api/admin/ai/usage`                        | `GET`            | 查看用量流水                |
+| `/api/admin/ai/usage`                        | `GET`            | 查看用量流水（兼容旧接口）         |
+| `/api/admin/ai/usage/overview`               | `GET`            | 用量概览 KPI                |
+| `/api/admin/ai/usage/summary`                | `GET`            | 用量聚合明细分页                |
 | `/api/admin/ai/chat/stream`                  | `POST`           | 管理端 SSE Chat 调试       |
 
 删除接口返回 `ApiResult.Ok(true)`，保持前端统一响应包约定。`chat/stream` 是 SSE 例外，直接写 `text/event-stream`。
@@ -55,7 +57,8 @@ AI 模块不直接执行模型请求；它把运行时所需的配置发布成 `
 | `AiKnowledgeBase`                                | 知识库内容与检索配置                             |
 | `AiProviderQuota`、`AiModelQuota`、`AiQuotaBucket` | 供应商、模型和运行时桶限额                          |
 | `AiConfigRelease`                                | 已发布 AI 运行时配置快照                         |
-| `AiInvocationLog`、`AiUsageLedger`                | 调用日志与用量流水                              |
+| `AiInvocationLog`、`AiUsageLedger`                | 调用日志与用量流水（`AiUsageLedger` 暂未启用写入）      |
+| `AiQuotaBucket`                                | 运行时配额窗口桶；管理端用量报表从此聚合                 |
 
 AI 模块实体归属模块自身边界；跨模块不要直接引用 Domain / Infrastructure。运行时消费使用发布快照或客户端契约。
 
@@ -107,7 +110,7 @@ sequenceDiagram
 
 ```text
 Application/
-  Abstractions/     # IAiRepository
+  Abstractions/     # IAiProviderRepository、IAiBusinessRepository、IAiReleaseRepository 等窄仓储接口
   Mappings/         # DTO / Snapshot 映射
   Services/
     Provider/       # 供应商与模型
@@ -132,14 +135,18 @@ Infrastructure/
 
 ## 依赖注册
 
-Host 通过 `AddAiModule(configuration)` 注册模块：
+组合根通过 `AddHarborModules(...)` 扫描 `AiStartUp` 注册模块。`AiStartUp` 同时声明模块默认数据库 `AdminDb`：
 
 | 生命周期      | 服务                                                   |
 |-----------|------------------------------------------------------|
-| Singleton | `IAiDbContext`、`IAiRepository`                       |
-| Scoped    | `AiServiceContext`、各子域 Service、`AiChatStreamService` |
+| Singleton | `IAiDbContext`                                       |
+| Scoped    | 各窄领域仓储、各子域 Service、`AiChatStreamService`             |
 
-发布事件依赖 `IEventPublisher`；Chat 调试依赖 `IAiStreamingClient`；供应商密钥校验依赖 `ISecretStore`。
+发布事件依赖 `IEventPublisher`；Chat 调试依赖 `IAiStreamingClient`；供应商密钥校验依赖 `ISecretStore`。AIWorker 通过 `HarborModuleRegistrationContext.HostKind` 跳过 `AiChatStreamService` 注册，避免 Worker 依赖 Host 的 Chat 客户端服务。
+
+## 权限种子
+
+`Infrastructure/Seeds/ai-usage-permissions.sql` 为用量页注册 `overview` / `summary` API，并将筛选项所需的 `GET /api/admin/ai/businesses`、`GET /api/admin/ai/providers` 绑定到 `ai.usage.list`。执行种子后会递增 `AdminSessionVersion`（`VersionKey = 'global'`），**需重启 Host 并重新登录**后权限与字段策略才会生效。
 
 ## 开发注意事项
 

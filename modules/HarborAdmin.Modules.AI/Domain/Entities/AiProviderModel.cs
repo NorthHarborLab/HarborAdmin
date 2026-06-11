@@ -6,7 +6,6 @@ namespace HarborAdmin.Modules.AI.Domain.Entities;
 /// <summary>
 /// AI 供应商模型。
 /// </summary>
-[DbKey("AdminDb")]
 [Index("ux_ai_provider_model", $"{nameof(ProviderId)},{nameof(ModelName)}", true)]
 public sealed class AiProviderModel : AuditableEntity
 {

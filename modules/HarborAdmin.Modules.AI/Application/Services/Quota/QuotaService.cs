@@ -1,3 +1,4 @@
+using HarborAdmin.BuildingBlocks.Abstractions.Application;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.BuildingBlocks.Mapping;
 using HarborAdmin.Modules.AI.Application.Abstractions;
@@ -13,7 +14,12 @@ namespace HarborAdmin.Modules.AI.Application.Services.Quota;
 /// <summary>
 /// AI 限额管理服务。
 /// </summary>
-public sealed class QuotaService(IAiRepository repository, IHarborMapper mapper)
+public sealed class QuotaService(
+    IAiQuotaRepository repository,
+    IAiProviderRepository providerRepository,
+    IAiModelQuotaRepository modelQuotaRepository,
+    IHarborMapper mapper)
+    : HarborApplicationRepositoryService<AiModelQuota, AiModelQuotaDto, SaveAiModelQuotaRequest, IAiModelQuotaRepository>(modelQuotaRepository)
 {
     /// <summary>
     /// 获取供应商限额。
@@ -29,7 +35,7 @@ public sealed class QuotaService(IAiRepository repository, IHarborMapper mapper)
     /// </summary>
     public async Task<AiProviderQuotaDto> SaveProviderQuotaAsync(long providerId, SaveAiProviderQuotaRequest request, CancellationToken cancellationToken = default)
     {
-        _ = await repository.GetProviderAsync(providerId, cancellationToken) ?? throw new NotFoundDomainException($"AI provider '{providerId}' was not found.");
+        _ = await providerRepository.GetAsync(providerId, cancellationToken) ?? throw new NotFoundDomainException($"AI provider '{providerId}' was not found.");
         var producerKey = AiNormalizationHelper.NormalizeOptional(request.ProducerKey);
         var quota = await repository.GetProviderQuotaAsync(providerId, producerKey, cancellationToken) ?? new AiProviderQuota { ProviderId = providerId };
         quota.ProducerKey = producerKey;
@@ -42,40 +48,28 @@ public sealed class QuotaService(IAiRepository repository, IHarborMapper mapper)
         return mapper.Map<AiProviderQuotaDto>(await repository.SaveProviderQuotaAsync(quota, cancellationToken));
     }
 
-    /// <summary>
-    /// 列出模型限额。
-    /// </summary>
-    public async Task<IReadOnlyList<AiModelQuotaDto>> ListModelQuotasAsync(CancellationToken cancellationToken = default) =>
-        (await repository.ListModelQuotasAsync(cancellationToken))
-        .Select(mapper.Map<AiModelQuotaDto>)
-        .ToList();
+    /// <inheritdoc />
+    protected override AiModelQuotaDto MapToDto(AiModelQuota entity) => mapper.Map<AiModelQuotaDto>(entity);
 
     /// <summary>
-    /// 保存模型限额。
+    /// 将保存请求应用到模型限额。
     /// </summary>
-    public async Task<AiModelQuotaDto> SaveModelQuotaAsync(long? id, SaveAiModelQuotaRequest request, CancellationToken cancellationToken = default)
+    protected override Task ApplySaveAsync(AiModelQuota entity, SaveAiModelQuotaRequest request, CancellationToken cancellationToken)
     {
-        var quota = id is > 0
-            ? (await repository.ListModelQuotasAsync(cancellationToken)).FirstOrDefault(q => q.Id == id.Value)
-              ?? throw new NotFoundDomainException($"AI model quota '{id}' was not found.")
-            : new AiModelQuota();
-        quota.ProviderKey = AiNormalizationHelper.NormalizeKey(request.ProviderKey, nameof(request.ProviderKey));
-        quota.ModelName = AiNormalizationHelper.NormalizeOptional(request.ModelName);
-        quota.EndpointKey = AiNormalizationHelper.NormalizeOptional(request.EndpointKey);
-        quota.BusinessKey = AiNormalizationHelper.NormalizeOptional(request.BusinessKey);
-        quota.ProducerKey = AiNormalizationHelper.NormalizeOptional(request.ProducerKey);
-        quota.RequestsPerMinute = request.RequestsPerMinute;
-        quota.TokensPerMinute = request.TokensPerMinute;
-        quota.RequestsPerDay = request.RequestsPerDay;
-        quota.TokensPerDay = request.TokensPerDay;
-        quota.MonthlyBudget = request.MonthlyBudget;
-        quota.Enabled = request.Enabled;
-        return mapper.Map<AiModelQuotaDto>(await repository.SaveModelQuotaAsync(quota, cancellationToken));
+        entity.ProviderKey = AiNormalizationHelper.NormalizeKey(request.ProviderKey, nameof(request.ProviderKey));
+        entity.ModelName = AiNormalizationHelper.NormalizeOptional(request.ModelName);
+        entity.EndpointKey = AiNormalizationHelper.NormalizeOptional(request.EndpointKey);
+        entity.BusinessKey = AiNormalizationHelper.NormalizeOptional(request.BusinessKey);
+        entity.ProducerKey = AiNormalizationHelper.NormalizeOptional(request.ProducerKey);
+        entity.RequestsPerMinute = request.RequestsPerMinute;
+        entity.TokensPerMinute = request.TokensPerMinute;
+        entity.RequestsPerDay = request.RequestsPerDay;
+        entity.TokensPerDay = request.TokensPerDay;
+        entity.MonthlyBudget = request.MonthlyBudget;
+        entity.Enabled = request.Enabled;
+        return Task.CompletedTask;
     }
 
-    /// <summary>
-    /// 删除模型限额。
-    /// </summary>
-    public Task DeleteModelQuotaAsync(long id, CancellationToken cancellationToken = default) =>
-        repository.DeleteModelQuotaAsync(id, cancellationToken);
+    /// <inheritdoc />
+    protected override string GetNotFoundMessage(long id) => $"AI model quota '{id}' was not found.";
 }

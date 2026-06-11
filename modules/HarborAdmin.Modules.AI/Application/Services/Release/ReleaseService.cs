@@ -1,12 +1,12 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using HarborAdmin.BuildingBlocks.Abstractions.Auth;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.BuildingBlocks.EventBus;
 using HarborAdmin.BuildingBlocks.Mapping;
 using HarborAdmin.Modules.AI.Application.Abstractions;
 using HarborAdmin.Modules.AI.Application.Mappings;
-using HarborAdmin.Modules.AI.Application.Services.Shared;
 using HarborAdmin.Modules.AI.Contracts.Release.Dto;
 using HarborAdmin.Modules.AI.Contracts.Release.Request;
 using HarborAdmin.Modules.AI.Contracts.Shared.Constant;
@@ -19,38 +19,43 @@ namespace HarborAdmin.Modules.AI.Application.Services.Release;
 /// <summary>
 /// AI 配置发布服务。
 /// </summary>
-public sealed class ReleaseService(IAiRepository repository, AiServiceContext context, IEventPublisher eventPublisher, IHarborMapper mapper)
+public sealed class ReleaseService(
+    IAiReleaseRepository releaseRepository,
+    IAiQuotaRepository quotaRepository,
+    IAiProviderRepository providerRepository,
+    IAiBusinessRepository businessRepository,
+    IAiPromptRepository promptRepository,
+    IAiKnowledgeBaseRepository knowledgeBaseRepository,
+    IAiModelQuotaRepository modelQuotaRepository,
+    IEventPublisher eventPublisher,
+    IHarborMapper mapper,
+    ICurrentUser currentUser)
 {
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        WriteIndented = false
+    };
+
     /// <summary>
     /// 发布当前 AI 草稿配置。
     /// </summary>
     public async Task<AiReleaseDto> PublishAsync(PublishAiConfigRequest request, CancellationToken cancellationToken = default)
     {
-        var releases = await repository.ListReleasesAsync(cancellationToken);
+        var releases = await releaseRepository.ListReleasesAsync(cancellationToken);
         var version = releases.Count == 0 ? 1 : releases.Max(r => r.Version) + 1;
         var snapshot = await BuildSnapshotAsync(version, cancellationToken);
-        var snapshotJson = JsonSerializer.Serialize(snapshot, AiServiceContext.JsonOptions);
+        var snapshotJson = JsonSerializer.Serialize(snapshot, JsonOptions);
         var release = new AiConfigRelease
         {
             Version = version,
             SnapshotJson = snapshotJson,
             Checksum = Checksum(snapshotJson),
-            PublishedBy = request.PublishedBy?.Trim(),
+            PublishedBy = ResolvePublishedBy(currentUser),
             Remark = request.Remark?.Trim(),
             PublishedAt = DateTimeOffset.UtcNow
         };
 
-        AiConfigRelease created;
-        // 写入发布记录和激活版本必须同事务完成，避免出现多个 Active 版本或无 Active 版本。
-        using var uow = context.UnitOfWorkManager.Begin(context.EntityRegistry.GetDbKey<AiConfigRelease>());
-        using (context.DbContext.Bind(uow.Orm))
-        {
-            created = await repository.InsertReleaseAsync(release, cancellationToken);
-            await repository.ActivateReleaseAsync(created.Id, cancellationToken);
-            created.Active = true;
-        }
-
-        uow.Commit();
+        var created = await releaseRepository.InsertAndActivateReleaseAsync(release, cancellationToken);
         // 事务提交后再通知 Worker，确保订阅方读到的快照已经持久化。
         await PublishConfigChangedAsync(created, cancellationToken);
         return mapper.Map<AiReleaseDto>(created);
@@ -61,16 +66,10 @@ public sealed class ReleaseService(IAiRepository repository, AiServiceContext co
     /// </summary>
     public async Task<AiReleaseDto> RollbackAsync(int version, CancellationToken cancellationToken = default)
     {
-        var release = await repository.GetReleaseByVersionAsync(version, cancellationToken)
+        var release = await releaseRepository.GetReleaseByVersionAsync(version, cancellationToken)
                       ?? throw new NotFoundDomainException($"AI release '{version}' was not found.");
-        using var uow = context.UnitOfWorkManager.Begin(context.EntityRegistry.GetDbKey<AiConfigRelease>());
-        using (context.DbContext.Bind(uow.Orm))
-        {
-            await repository.ActivateReleaseAsync(release.Id, cancellationToken);
-            release.Active = true;
-        }
-
-        uow.Commit();
+        await releaseRepository.ActivateReleaseAsync(release.Id, cancellationToken);
+        release.Active = true;
         await PublishConfigChangedAsync(release, cancellationToken);
         return mapper.Map<AiReleaseDto>(release);
     }
@@ -79,7 +78,7 @@ public sealed class ReleaseService(IAiRepository repository, AiServiceContext co
     /// 列出发布。
     /// </summary>
     public async Task<IReadOnlyList<AiReleaseDto>> ListReleasesAsync(CancellationToken cancellationToken = default) =>
-        (await repository.ListReleasesAsync(cancellationToken))
+        (await releaseRepository.ListReleasesAsync(cancellationToken))
         .Select(mapper.Map<AiReleaseDto>)
         .ToList();
 
@@ -89,8 +88,8 @@ public sealed class ReleaseService(IAiRepository repository, AiServiceContext co
     public async Task<AiPublishedSnapshotDto?> GetPublishedAsync(int version = 0, CancellationToken cancellationToken = default)
     {
         var release = version > 0
-            ? await repository.GetReleaseByVersionAsync(version, cancellationToken)
-            : await repository.GetLatestReleaseAsync(cancellationToken);
+            ? await releaseRepository.GetReleaseByVersionAsync(version, cancellationToken)
+            : await releaseRepository.GetLatestReleaseAsync(cancellationToken);
         return release is null ? null : new AiPublishedSnapshotDto(release.Id, release.Version, release.Checksum, release.SnapshotJson, release.PublishedAt);
     }
 
@@ -99,12 +98,12 @@ public sealed class ReleaseService(IAiRepository repository, AiServiceContext co
     /// </summary>
     private async Task<AiConfigSnapshot> BuildSnapshotAsync(int version, CancellationToken cancellationToken)
     {
-        var providers = (await repository.ListProvidersAsync(cancellationToken)).Where(p => p.Enabled).ToList();
-        var businesses = (await repository.ListBusinessesAsync(cancellationToken)).Where(b => b.Enabled).ToList();
-        var prompts = (await repository.ListPromptsAsync(cancellationToken)).Where(p => p.Enabled).ToList();
-        var knowledgeBases = (await repository.ListKnowledgeBasesAsync(cancellationToken)).Where(k => k.Enabled).ToList();
-        var providerQuotas = (await repository.ListProviderQuotasAsync(cancellationToken)).Where(q => q.Enabled).ToList();
-        var modelQuotas = (await repository.ListModelQuotasAsync(cancellationToken)).Where(q => q.Enabled).ToList();
+        var providers = (await providerRepository.ListAsync(cancellationToken)).Where(p => p.Enabled).ToList();
+        var businesses = (await businessRepository.ListAsync(cancellationToken)).Where(b => b.Enabled).ToList();
+        var prompts = (await promptRepository.ListAsync(cancellationToken)).Where(p => p.Enabled).ToList();
+        var knowledgeBases = (await knowledgeBaseRepository.ListAsync(cancellationToken)).Where(k => k.Enabled).ToList();
+        var providerQuotas = (await quotaRepository.ListProviderQuotasAsync(cancellationToken)).Where(q => q.Enabled).ToList();
+        var modelQuotas = (await modelQuotaRepository.ListAsync(cancellationToken)).Where(q => q.Enabled).ToList();
         var providerKeys = providers.ToDictionary(p => p.Id, p => p.ProviderKey);
         return new AiConfigSnapshot(
             version,
@@ -141,4 +140,22 @@ public sealed class ReleaseService(IAiRepository repository, AiServiceContext co
     /// </summary>
     private static string Checksum(string value) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant();
+
+    /// <summary>
+    /// 解析当前登录用户作为发布人。
+    /// </summary>
+    private static string? ResolvePublishedBy(ICurrentUser currentUser)
+    {
+        if (!string.IsNullOrWhiteSpace(currentUser.DisplayName))
+        {
+            return currentUser.DisplayName.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(currentUser.UserName))
+        {
+            return currentUser.UserName.Trim();
+        }
+
+        return currentUser.Id > 0 ? currentUser.Id.ToString() : null;
+    }
 }

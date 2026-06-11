@@ -2,7 +2,10 @@ using HarborAdmin.Modules.AI.Domain.Entities;
 
 namespace HarborAdmin.Modules.AI.Application.Abstractions;
 
-public partial interface IAiRepository
+/// <summary>
+/// AI 调用日志仓储。
+/// </summary>
+public interface IAiInvocationRepository
 {
     /// <summary>
     /// 插入调用日志。
@@ -17,7 +20,8 @@ public partial interface IAiRepository
     /// <summary>
     /// 按幂等键获取调用日志。
     /// </summary>
-    Task<AiInvocationLog?> GetInvocationByIdempotencyAsync(string businessKey, string producerKey, string idempotencyKey, CancellationToken cancellationToken = default);
+    Task<AiInvocationLog?> GetInvocationByIdempotencyAsync(string businessKey, string producerKey, string idempotencyKey,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 列出调用日志。

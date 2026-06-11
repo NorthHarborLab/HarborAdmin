@@ -6,7 +6,6 @@ namespace HarborAdmin.Modules.AI.Domain.Entities;
 /// <summary>
 /// AI 配置发布快照。
 /// </summary>
-[DbKey("AdminDb")]
 [Index("ux_ai_config_release_version", nameof(Version), true)]
 public sealed class AiConfigRelease : EntityBase
 {

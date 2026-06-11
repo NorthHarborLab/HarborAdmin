@@ -2,12 +2,15 @@ using HarborAdmin.Modules.AI.Domain.Entities;
 
 namespace HarborAdmin.Modules.AI.Application.Abstractions;
 
-public partial interface IAiRepository
+/// <summary>
+/// AI 配置发布仓储。
+/// </summary>
+public interface IAiReleaseRepository
 {
     /// <summary>
-    /// 插入发布。
+    /// 插入发布并激活。
     /// </summary>
-    Task<AiConfigRelease> InsertReleaseAsync(AiConfigRelease release, CancellationToken cancellationToken = default);
+    Task<AiConfigRelease> InsertAndActivateReleaseAsync(AiConfigRelease release, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 列出发布。

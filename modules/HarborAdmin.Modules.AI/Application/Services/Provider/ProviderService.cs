@@ -1,3 +1,4 @@
+using HarborAdmin.BuildingBlocks.Abstractions.Application;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.BuildingBlocks.Abstractions.Secrets;
 using HarborAdmin.BuildingBlocks.Mapping;
@@ -12,58 +13,41 @@ namespace HarborAdmin.Modules.AI.Application.Services.Provider;
 /// <summary>
 /// AI 供应商管理服务。
 /// </summary>
-public sealed class ProviderService(IAiRepository repository, AiServiceContext context, ISecretStore secretStore, IHarborMapper mapper)
+public sealed class ProviderService(IAiProviderRepository repository, ISecretStore secretStore, IHarborMapper mapper)
+    : HarborApplicationRepositoryService<AiProvider, AiProviderDto, SaveAiProviderRequest, IAiProviderRepository>(repository)
 {
-    /// <summary>
-    /// 列出供应商。
-    /// </summary>
-    public async Task<IReadOnlyList<AiProviderDto>> ListProvidersAsync(CancellationToken cancellationToken = default)
-        => (await repository.ListProvidersAsync(cancellationToken))
-            .Select(mapper.Map<AiProviderDto>)
-            .ToList();
+    /// <inheritdoc />
+    protected override AiProviderDto MapToDto(AiProvider entity) => mapper.Map<AiProviderDto>(entity);
+
+    /// <inheritdoc />
+    protected override AiProvider CreateEntity(SaveAiProviderRequest request) => new() { CreatedAt = UtcNow };
 
     /// <summary>
-    /// 保存供应商。
+    /// 将保存请求应用到供应商。
     /// </summary>
-    public async Task<AiProviderDto> SaveProviderAsync(long? id, SaveAiProviderRequest request, CancellationToken cancellationToken = default)
+    protected override async Task ApplySaveAsync(AiProvider entity, SaveAiProviderRequest request, CancellationToken cancellationToken)
     {
-        var now = DateTimeOffset.UtcNow;
-        var provider = id is > 0
-            ? await repository.GetProviderAsync(id.Value, cancellationToken) ?? throw new NotFoundDomainException($"AI provider '{id}' was not found.")
-            : new AiProvider { CreatedAt = now };
-        provider.ProviderKey = AiNormalizationHelper.NormalizeKey(request.ProviderKey, nameof(request.ProviderKey));
-        provider.DisplayName = AiNormalizationHelper.NormalizeRequired(request.DisplayName, nameof(request.DisplayName));
-        provider.AdapterType = AiNormalizationHelper.NormalizeRequired(request.AdapterType, nameof(request.AdapterType));
-        provider.BaseUrl = AiNormalizationHelper.NormalizeRequired(request.BaseUrl, nameof(request.BaseUrl));
-        provider.SecretRef = AiNormalizationHelper.NormalizeOptional(request.SecretRef);
-        provider.SecretVersion = await ResolveSecretVersionAsync(provider.SecretRef, cancellationToken);
-        provider.DefaultHeadersJson = AiNormalizationHelper.NormalizeOptional(request.DefaultHeadersJson);
-        provider.DefaultBodyJson = AiNormalizationHelper.NormalizeOptional(request.DefaultBodyJson);
-        provider.Enabled = request.Enabled;
-        provider.SupportsStreaming = request.SupportsStreaming;
-        provider.TimeoutSeconds = request.TimeoutSeconds <= 0 ? 120 : request.TimeoutSeconds;
-        provider.MaxRetryCount = Math.Max(0, request.MaxRetryCount);
-        provider.CircuitBreakerFailureThreshold = request.CircuitBreakerFailureThreshold <= 0 ? 3 : request.CircuitBreakerFailureThreshold;
-        provider.CircuitBreakerBreakSeconds = request.CircuitBreakerBreakSeconds <= 0 ? 60 : request.CircuitBreakerBreakSeconds;
-        provider.UpdatedAt = now;
-        var models = NormalizeProviderModels(request, provider, now);
-        AiProvider saved;
-        // 供应商和模型列表必须在同一工作单元内保存，避免只更新供应商或只更新模型。
-        using var uow = context.UnitOfWorkManager.Begin(context.EntityRegistry.GetDbKey<AiProvider>());
-        using (context.DbContext.Bind(uow.Orm))
-        {
-            saved = await repository.SaveProviderAsync(provider, models, cancellationToken);
-        }
-
-        uow.Commit();
-        return mapper.Map<AiProviderDto>(saved);
+        var now = UtcNow;
+        entity.ProviderKey = AiNormalizationHelper.NormalizeKey(request.ProviderKey, nameof(request.ProviderKey));
+        entity.DisplayName = AiNormalizationHelper.NormalizeRequired(request.DisplayName, nameof(request.DisplayName));
+        entity.AdapterType = AiNormalizationHelper.NormalizeRequired(request.AdapterType, nameof(request.AdapterType));
+        entity.BaseUrl = AiNormalizationHelper.NormalizeRequired(request.BaseUrl, nameof(request.BaseUrl));
+        entity.SecretRef = AiNormalizationHelper.NormalizeOptional(request.SecretRef);
+        entity.SecretVersion = await ResolveSecretVersionAsync(entity.SecretRef, cancellationToken);
+        entity.DefaultHeadersJson = AiNormalizationHelper.NormalizeOptional(request.DefaultHeadersJson);
+        entity.DefaultBodyJson = AiNormalizationHelper.NormalizeOptional(request.DefaultBodyJson);
+        entity.Enabled = request.Enabled;
+        entity.SupportsStreaming = request.SupportsStreaming;
+        entity.TimeoutSeconds = request.TimeoutSeconds <= 0 ? 120 : request.TimeoutSeconds;
+        entity.MaxRetryCount = Math.Max(0, request.MaxRetryCount);
+        entity.CircuitBreakerFailureThreshold = request.CircuitBreakerFailureThreshold <= 0 ? 3 : request.CircuitBreakerFailureThreshold;
+        entity.CircuitBreakerBreakSeconds = request.CircuitBreakerBreakSeconds <= 0 ? 60 : request.CircuitBreakerBreakSeconds;
+        entity.UpdatedAt = now;
+        entity.Models = NormalizeProviderModels(request, entity, now).ToList();
     }
 
-    /// <summary>
-    /// 删除供应商。
-    /// </summary>
-    public Task DeleteProviderAsync(long id, CancellationToken cancellationToken = default) =>
-        repository.DeleteProviderAsync(id, cancellationToken);
+    /// <inheritdoc />
+    protected override string GetNotFoundMessage(long id) => $"AI provider '{id}' was not found.";
 
     /// <summary>
     /// 校验 Secret 引用并固定当前版本号。

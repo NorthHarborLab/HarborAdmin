@@ -6,7 +6,6 @@ namespace HarborAdmin.Modules.AI.Domain.Entities;
 /// <summary>
 /// AI Prompt。
 /// </summary>
-[DbKey("AdminDb")]
 [Index("ux_ai_prompt_key_version", $"{nameof(PromptKey)},{nameof(Version)}", true)]
 public sealed class AiPrompt : AuditableEntity
 {

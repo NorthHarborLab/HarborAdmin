@@ -1,6 +1,8 @@
+using HarborAdmin.BuildingBlocks.Abstractions.Auth;
 using HarborAdmin.Client.AI.Clients;
 using HarborAdmin.Client.AI.Constants;
 using HarborAdmin.Client.AI.Invocation;
+using HarborAdmin.Modules.AI.Application.Services.Conversation;
 using HarborAdmin.Modules.AI.Contracts.Chat.Request;
 
 namespace HarborAdmin.Modules.AI.Application.Services;
@@ -8,12 +10,17 @@ namespace HarborAdmin.Modules.AI.Application.Services;
 /// <summary>
 /// AI 聊天流服务。
 /// </summary>
-public sealed class AiChatStreamService(IAiStreamingClient streamingClient)
+public sealed class AiChatStreamService(
+    IAiStreamingClient streamingClient,
+    ConversationService conversationService,
+    ICurrentUser currentUser)
 {
     /// <summary>
     /// 中转 AIWorker SSE 聊天流。
     /// </summary>
-    public async IAsyncEnumerable<AiStreamEvent> StreamAsync(AiChatStreamRequest request, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    public async IAsyncEnumerable<AiStreamEvent> StreamAsync(
+        AiChatStreamRequest request,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var invocationId = Guid.NewGuid().ToString("N");
         if (string.IsNullOrWhiteSpace(request.BusinessKey))
@@ -30,7 +37,38 @@ public sealed class AiChatStreamService(IAiStreamingClient streamingClient)
             yield break;
         }
 
-        // 管理端 Chat 是调试入口，复用同一个 invocationId 作为幂等键与关联 ID，方便 Worker 侧追踪。
+        var conversationId = request.ConversationId;
+        var userId = currentUser.Id;
+        var userInput = NormalizeOptional(request.Input);
+        var assistantContent = string.Empty;
+        var streamCompleted = false;
+        var streamErrored = false;
+
+        if (conversationId.HasValue && userId > 0)
+        {
+            var conversation = await conversationService.GetOwnedConversationAsync(userId, conversationId.Value, cancellationToken);
+            if (conversation is null)
+            {
+                yield return new AiStreamEvent(
+                    "error",
+                    invocationId,
+                    invocationId,
+                    1,
+                    0,
+                    ErrorCode: AiErrorCodes.InvalidRequest,
+                    ErrorMessage: "会话不存在或无权访问。");
+                yield break;
+            }
+
+            if (!string.IsNullOrWhiteSpace(userInput))
+            {
+                await conversationService.AppendUserMessageAsync(userId, conversationId.Value, userInput, cancellationToken);
+            }
+        }
+
+        var correlationId = conversationId?.ToString() ?? invocationId;
+
+        // 管理端 Chat 是调试入口，复用同一个 invocationId 作为幂等键，关联 ID 优先使用会话 ID。
         var aiRequest = new AiBusinessRequest(
             request.BusinessKey.Trim(),
             InvocationId: invocationId,
@@ -43,12 +81,76 @@ public sealed class AiChatStreamService(IAiStreamingClient streamingClient)
             KnowledgeText: NormalizeOptional(request.KnowledgeText),
             KnowledgeTextMode: NormalizeOptional(request.KnowledgeTextMode),
             Metadata: request.Metadata,
-            Input: NormalizeOptional(request.Input),
-            CorrelationId: invocationId);
+            Input: userInput,
+            CorrelationId: correlationId);
 
-        await foreach (var item in streamingClient.StreamAsync(aiRequest, cancellationToken))
+        try
         {
-            yield return item;
+            await foreach (var item in streamingClient.StreamAsync(aiRequest, cancellationToken))
+            {
+                if (item.Type is "delta" or "reasoning_delta")
+                {
+                    assistantContent += item.Delta ?? string.Empty;
+                }
+                else if (item.Type == "done")
+                {
+                    streamCompleted = true;
+                }
+                else if (item.Type == "error")
+                {
+                    streamErrored = true;
+                }
+
+                yield return item;
+            }
+        }
+        finally
+        {
+            if (conversationId.HasValue && userId > 0 && !string.IsNullOrWhiteSpace(userInput))
+            {
+                await PersistAssistantMessageAsync(
+                    userId,
+                    conversationId.Value,
+                    assistantContent,
+                    invocationId,
+                    streamCompleted,
+                    streamErrored,
+                    cancellationToken);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 持久化助手消息。
+    /// </summary>
+    private async Task PersistAssistantMessageAsync(
+        long userId,
+        long conversationId,
+        string content,
+        string invocationId,
+        bool streamCompleted,
+        bool streamErrored,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            return;
+        }
+
+        var isError = streamErrored || !streamCompleted;
+        try
+        {
+            await conversationService.AppendAssistantMessageAsync(
+                userId,
+                conversationId,
+                content,
+                invocationId,
+                isError,
+                cancellationToken);
+        }
+        catch
+        {
+            // 持久化失败不影响 SSE 主流程。
         }
     }
 

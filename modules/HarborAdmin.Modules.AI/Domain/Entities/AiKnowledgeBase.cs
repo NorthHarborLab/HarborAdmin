@@ -6,7 +6,6 @@ namespace HarborAdmin.Modules.AI.Domain.Entities;
 /// <summary>
 /// AI 知识库。
 /// </summary>
-[DbKey("AdminDb")]
 [Index("ux_ai_knowledge_key", nameof(KnowledgeKey), true)]
 public sealed class AiKnowledgeBase : AuditableEntity
 {

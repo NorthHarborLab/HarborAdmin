@@ -1,6 +1,6 @@
 using HarborAdmin.Modules.AI.Application.Services.Quota;
 using Microsoft.AspNetCore.Mvc;
-using HarborAdmin.BuildingBlocks.Abstractions.Api;
+using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using HarborAdmin.Modules.AI.Contracts.Provider.Dto;
 using HarborAdmin.Modules.AI.Contracts.Provider.Request;
 
