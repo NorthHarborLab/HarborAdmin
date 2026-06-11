@@ -7,7 +7,7 @@ HarborAdmin 的抽象基础设施项目，放置跨 Host、Worker、业务模块
 - 定义所有模块都可引用的领域基类与标记接口。
 - 定义统一 API 响应、分页请求和分页结果。
 - 定义应用服务通用基类、基础 CRUD 服务契约和 Controller 响应包装。
-- 定义模块元数据契约与模块程序集发现器，供 Host、Data 等组合入口复用。
+- 定义模块元数据、模块启动契约与模块程序集发现器，供 Host、Data 等组合入口复用。
 - 定义当前用户、字段权限、认证要求等跨模块安全抽象。
 - 定义统一领域异常和业务错误码。
 - 定义 Secret 读取相关抽象，避免业务模块直接依赖具体密钥存储实现。
@@ -31,29 +31,36 @@ HarborAdmin.BuildingBlocks.Abstractions/
   Enums/          跨模块通用枚举，例如 CRUD 删除决策
   Exception/      统一领域异常
   ModelResults/   ApiResult、分页请求和分页结果
-  Modules/        模块元数据契约、基类与模块程序集发现器
+  Modules/        模块元数据、模块启动契约、注册上下文与模块程序集发现器
   Repositories/   应用层可依赖的通用仓储契约
   Secrets/        Secret 解析和存储抽象
 ```
 
 目录与命名空间保持一一对应。新增公共类型时，优先放入已有职责目录；只有当概念稳定且跨模块复用时才新增目录。
 
-## 模块元数据
+## 模块启动入口
 
-每个业务模块必须在模块根命名空间定义一个 `{Module}ModuleMetadata`，实现 `IHarborModuleMetadata`，通常继承 `HarborModuleMetadataBase`。
+每个业务模块必须在模块根命名空间定义一个 `{Module}StartUp`，继承 `HarborModuleMetadataBase` 并实现 `IHarborModuleStartup`。该类同时承担模块属性声明和模块 DI 注册入口。
 
 ```csharp
-public sealed class AdminModuleMetadata : HarborModuleMetadataBase
+public sealed class AdminStartUp : HarborModuleMetadataBase, IHarborModuleStartup
 {
     public override string ModuleName => "Admin";
 
     public override string GetDbKey() => "AdminDb";
+
+    public void AddModule(IServiceCollection services, HarborModuleRegistrationContext context)
+    {
+        // 注册模块内 DbContext、Repository、Service、Options 等。
+    }
 }
 ```
 
-`GetDbKey()` 表示模块默认数据库 Key。`HarborAdmin.BuildingBlocks.Data` 会扫描模块 metadata，并按模块默认 DbKey 建立实体到数据库的默认映射。
+`GetDbKey()` 表示模块默认数据库 Key。`HarborAdmin.BuildingBlocks.Data` 会扫描模块启动入口，并按模块默认 DbKey 建立实体到数据库的默认映射。
 
-`HarborModuleAssemblyDiscovery` 统一发现 `HarborAdmin.Modules.*` 程序集，发现顺序为显式追加程序集、当前 AppDomain 已加载程序集、入口程序集引用。Host 的 MVC `ApplicationPart` 注册和 Data 的实体扫描都应复用它，避免两套模块发现规则漂移。
+Host、ConfigCenter、AIWorker 等组合根通过 `AddHarborModules(...)` 扫描 `IHarborModuleStartup` 并调用 `AddModule(...)`。模块可以通过 `HarborModuleRegistrationContext.Configuration` 读取配置，通过 `HostKind` 区分 `Host`、`ConfigCenter`、`AIWorker` 等宿主差异。
+
+`HarborModuleAssemblyDiscovery` 统一发现 `HarborAdmin.Modules.*` 程序集，发现顺序为显式追加程序集、当前 AppDomain 已加载程序集、入口程序集引用。Host 的 MVC `ApplicationPart` 注册、Data 的实体扫描和模块启动注册都应复用它，避免多套模块发现规则漂移。
 
 ### 实体级 DbKey 覆盖
 
@@ -116,18 +123,13 @@ public sealed class ProviderController(ProviderService service)
 - `RequireText(...)`：规范化必填文本并抛出校验异常。
 - `RequireFound(...)`：要求对象存在并抛出未找到异常。
 
-`HarborApplicationService<TDto, TSaveRequest>` 继承 `HarborApplicationService` 并实现 `ICrudApplicationService<TDto, TSaveRequest>`。形态稳定的资源服务如果提供标准 CRUD，应继承该泛型基类并实现：
+`HarborApplicationService` 只提供 Guard、时间等轻量公共能力，不承载 CRUD 方法模板。模块内形态稳定的普通 CRUD 不应重复手写这些方法，应优先使用 Repository 驱动基类。
 
-- `ListAsync(...)`
-- `GetAsync(...)`
-- `SaveAsync(long? id, ...)`
-- `DeleteAsync(...)`
+`Repositories/` 中的 `IHarborCrudRepository<TEntity>` 是应用层可依赖的通用实体仓储契约。普通 CRUD 应用服务优先继承 `HarborApplicationRepositoryService<TEntity, TDto, TSaveRequest, TRepository>`，让基类直接调用仓储完成 `List/Get/Save/Delete`，子类只实现 DTO 映射、请求落实体、保存/删除校验等钩子。
+
+`HarborApplicationPagedRepositoryService<TEntity, TDto, TQuery, TSaveRequest, TRepository>` 继承 Repository CRUD 基类并实现 `IPagedCrudApplicationService<TDto, TQuery, TSaveRequest>`。形态稳定的分页资源服务可继承它；树形、动态查询、发布或带副作用的接口不要为了套分页基类而改变业务形态。
 
 Controller 应直接通过 `CrudControllerBase` 调用这些标准 CRUD 方法，不再为普通 CRUD 保留 `ListProvidersAsync`、`SaveProviderAsync` 这类转发壳。复杂查询、树形资源、权限副作用、发布或流式接口不强行套用该契约。
-
-`HarborPagedApplicationService<TDto, TQuery, TSaveRequest>` 继承普通 CRUD 基类并实现 `IPagedCrudApplicationService<TDto, TQuery, TSaveRequest>`。形态稳定的分页资源服务可继承它并额外实现 `PageAsync(...)`；树形、动态查询、发布或带副作用的接口不要为了套分页基类而改变业务形态。
-
-`Repositories/` 中的 `IHarborCrudRepository<TEntity>` 是应用层可依赖的通用实体仓储契约。普通 CRUD 应用服务优先继承 `HarborRepositoryApplicationService<TEntity, TDto, TSaveRequest, TRepository>`，让基类完成 `List/Get/Save/Delete`，子类只实现 DTO 映射、请求落实体、保存/删除校验等钩子。
 
 应用服务不直接引用 FreeSql、FreeSqlCloud、DbKey 或物理表名。分库由仓储实现根据模块 metadata 与 `[OverrideDbKey]` 自动完成，分表由实体仓储内部钩子决定。
 

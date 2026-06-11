@@ -23,24 +23,3 @@ public abstract class HarborApplicationService
         value ?? throw new NotFoundDomainException(message);
 }
 
-/// <summary>
-/// Harbor 基础 CRUD 应用服务。
-/// </summary>
-/// <typeparam name="TDto">输出 DTO 类型。</typeparam>
-/// <typeparam name="TSaveRequest">保存请求类型。</typeparam>
-public abstract class HarborApplicationService<TDto, TSaveRequest> : HarborApplicationService, ICrudApplicationService<TDto, TSaveRequest>
-{
-    /// <inheritdoc />
-    public abstract Task<IReadOnlyList<TDto>> ListAsync(CancellationToken cancellationToken = default);
-
-    /// <inheritdoc />
-    public abstract Task<TDto> GetAsync(long id, CancellationToken cancellationToken = default);
-
-    /// <inheritdoc />
-    public abstract Task<TDto> SaveAsync(long? id, TSaveRequest request, CancellationToken cancellationToken = default);
-
-    /// <inheritdoc />
-    public abstract Task DeleteAsync(long id, CancellationToken cancellationToken = default);
-}
-
-

@@ -13,7 +13,7 @@ namespace HarborAdmin.BuildingBlocks.Abstractions.Application;
 /// <typeparam name="TSaveRequest">保存请求类型。</typeparam>
 /// <typeparam name="TRepository">实体仓储类型。</typeparam>
 public abstract class HarborApplicationRepositoryService<TEntity, TDto, TSaveRequest, TRepository>
-    : HarborApplicationService<TDto, TSaveRequest>
+    : HarborApplicationService, ICrudApplicationService<TDto, TSaveRequest>
     where TEntity : EntityBase, new()
     where TRepository : IHarborCrudRepository<TEntity>
 {
@@ -32,20 +32,20 @@ public abstract class HarborApplicationRepositoryService<TEntity, TDto, TSaveReq
     protected TRepository Repository { get; }
 
     /// <inheritdoc />
-    public override async Task<IReadOnlyList<TDto>> ListAsync(CancellationToken cancellationToken = default) =>
+    public virtual async Task<IReadOnlyList<TDto>> ListAsync(CancellationToken cancellationToken = default) =>
         (await Repository.ListAsync(cancellationToken))
         .Select(MapToDto)
         .ToList();
 
     /// <inheritdoc />
-    public override async Task<TDto> GetAsync(long id, CancellationToken cancellationToken = default)
+    public virtual async Task<TDto> GetAsync(long id, CancellationToken cancellationToken = default)
     {
         var entity = RequireFound(await Repository.GetAsync(id, cancellationToken), GetNotFoundMessage(id));
         return MapToDto(entity);
     }
 
     /// <inheritdoc />
-    public override async Task<TDto> SaveAsync(long? id, TSaveRequest request, CancellationToken cancellationToken = default)
+    public virtual async Task<TDto> SaveAsync(long? id, TSaveRequest request, CancellationToken cancellationToken = default)
     {
         var isUpdate = id is > 0;
         var entity = isUpdate
@@ -70,7 +70,7 @@ public abstract class HarborApplicationRepositoryService<TEntity, TDto, TSaveReq
     }
 
     /// <inheritdoc />
-    public override async Task DeleteAsync(long id, CancellationToken cancellationToken = default)
+    public virtual async Task DeleteAsync(long id, CancellationToken cancellationToken = default)
     {
         var entity = RequireFound(await Repository.GetAsync(id, cancellationToken), GetNotFoundMessage(id));
         var decision = await CanDeleteAsync(entity, cancellationToken);
