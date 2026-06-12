@@ -7,7 +7,6 @@ using HarborAdmin.Client.ConfigCenter;
 using HarborAdmin.Modules.TaskOrchestration;
 using HarborAdmin.Modules.TaskOrchestration.Application.Abstractions;
 using HarborAdmin.Modules.TaskOrchestration.Application.Execution;
-using HarborAdmin.TaskWorker.Callables;
 using HarborAdmin.TaskWorker.Scheduling;
 using HarborAdmin.TaskWorker.Subscriptions;
 using Quartz;
@@ -34,7 +33,6 @@ builder.Services
 builder.Services.AddHarborMapping(moduleAssemblies.Append(typeof(Program).Assembly).ToArray());
 builder.Services.AddHarborModules(moduleAssemblies, builder.Configuration, HarborHostKinds.TaskWorker);
 builder.Services.AddHttpClient(TaskHttpStepExecutor.HttpClientName);
-builder.Services.AddScoped<ITaskCallableService, TaskWorkerDatabaseProbeCallable>();
 builder.Services.AddScoped<ITaskStepExecutor, TaskHttpStepExecutor>();
 builder.Services.AddScoped<ITaskStepExecutor, TaskCapPublishStepExecutor>();
 builder.Services.AddScoped<ITaskStepExecutor, TaskCallableStepExecutor>();
