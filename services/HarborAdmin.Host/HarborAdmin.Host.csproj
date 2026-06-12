@@ -24,6 +24,7 @@
         <ProjectReference Include="..\..\modules\HarborAdmin.Modules.ConfigCenter\HarborAdmin.Modules.ConfigCenter.csproj" />
         <ProjectReference Include="..\..\modules\HarborAdmin.Modules.International\HarborAdmin.Modules.International.csproj" />
         <ProjectReference Include="..\..\modules\HarborAdmin.Modules.Secrets\HarborAdmin.Modules.Secrets.csproj" />
+        <ProjectReference Include="..\..\modules\HarborAdmin.Modules.TaskOrchestration\HarborAdmin.Modules.TaskOrchestration.csproj" />
     </ItemGroup>
 
 </Project>

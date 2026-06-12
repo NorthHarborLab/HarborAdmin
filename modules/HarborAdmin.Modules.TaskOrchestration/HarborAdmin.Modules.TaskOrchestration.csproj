@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <NoWarn>$(NoWarn);1591</NoWarn>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\buildingBlocks\HarborAdmin.BuildingBlocks.Abstractions\HarborAdmin.BuildingBlocks.Abstractions.csproj" />
+        <ProjectReference Include="..\..\buildingBlocks\HarborAdmin.BuildingBlocks.Data\HarborAdmin.BuildingBlocks.Data.csproj" />
+        <ProjectReference Include="..\..\buildingBlocks\HarborAdmin.BuildingBlocks.EventBus\HarborAdmin.BuildingBlocks.EventBus.csproj" />
+        <ProjectReference Include="..\..\buildingBlocks\HarborAdmin.BuildingBlocks.Mapping\HarborAdmin.BuildingBlocks.Mapping.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Infrastructure\Seeds\" />
+    </ItemGroup>
+
+</Project>
