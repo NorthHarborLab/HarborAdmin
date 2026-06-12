@@ -33,7 +33,11 @@ public sealed class TaskOrchestrationStartUp : HarborModuleMetadataBase, IHarbor
         services.AddScoped<ITaskTemplateRenderer, TaskTemplateRenderer>();
         services.AddScoped<TaskDagValidator>();
         services.AddScoped<TaskConditionEvaluator>();
+        services.AddScoped<ITaskStepExecutor, TaskHttpStepExecutor>();
+        services.AddScoped<ITaskStepExecutor, TaskCapPublishStepExecutor>();
+        services.AddScoped<ITaskStepExecutor, TaskCallableStepExecutor>();
         services.AddScoped<TaskNodeExecutionService>();
+        services.AddScoped<TaskExecutionService>();
         services.AddScoped<TaskOrchestrationService>();
         services.AddScoped<TaskTriggerDispatcher>();
     }

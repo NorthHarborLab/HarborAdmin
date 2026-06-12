@@ -1,4 +1,5 @@
 using HarborAdmin.BuildingBlocks.Abstractions.Modules;
+using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using HarborAdmin.BuildingBlocks.Data;
 using HarborAdmin.BuildingBlocks.Data.Configs;
 using HarborAdmin.BuildingBlocks.EventBus;
@@ -7,6 +8,8 @@ using HarborAdmin.Client.ConfigCenter;
 using HarborAdmin.Modules.TaskOrchestration;
 using HarborAdmin.Modules.TaskOrchestration.Application.Abstractions;
 using HarborAdmin.Modules.TaskOrchestration.Application.Execution;
+using HarborAdmin.Modules.TaskOrchestration.Contracts.Tasks.Dto;
+using HarborAdmin.TaskWorker.Callables;
 using HarborAdmin.TaskWorker.Scheduling;
 using HarborAdmin.TaskWorker.Subscriptions;
 using Quartz;
@@ -32,10 +35,9 @@ builder.Services
 
 builder.Services.AddHarborMapping(moduleAssemblies.Append(typeof(Program).Assembly).ToArray());
 builder.Services.AddHarborModules(moduleAssemblies, builder.Configuration, HarborHostKinds.TaskWorker);
+builder.Services.AddOptions<CallablePluginOptions>().BindConfiguration(CallablePluginOptions.SectionName);
 builder.Services.AddHttpClient(TaskHttpStepExecutor.HttpClientName);
-builder.Services.AddScoped<ITaskStepExecutor, TaskHttpStepExecutor>();
-builder.Services.AddScoped<ITaskStepExecutor, TaskCapPublishStepExecutor>();
-builder.Services.AddScoped<ITaskStepExecutor, TaskCallableStepExecutor>();
+builder.Services.AddSingleton<ITaskCallableRegistry, DynamicTaskCallableRegistry>();
 builder.Services.AddHostedService<TaskQuartzScheduleHostedService>();
 builder.Services.AddQuartz(options =>
 {
@@ -49,6 +51,8 @@ builder.Services.AddHealthChecks();
 var app = builder.Build();
 
 app.MapHealthChecks("/health");
+app.MapGet("/api/admin/task-orchestration/callables", (ITaskCallableRegistry registry, IHarborMapper mapper) =>
+    ApiResult.Ok<IReadOnlyList<TaskCallableDescriptorDto>>(registry.List().Select(mapper.Map<TaskCallableDescriptorDto>).ToArray()));
 
 app.Run();
 

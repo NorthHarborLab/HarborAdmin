@@ -17,11 +17,10 @@ public interface ITaskCallableRegistry
     /// <summary>
     /// 调用指定接口方法
     /// </summary>
-    /// <param name="serviceKey">服务键</param>
-    /// <param name="methodKey">方法键</param>
+    /// <param name="fullClassName">Callable 实现完整类名</param>
     /// <param name="request">请求 JSON</param>
     /// <param name="executionContext">任务执行上下文</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>接口响应 JSON</returns>
-    Task<JsonNode?> InvokeAsync(string serviceKey, string methodKey, JsonNode? request, TaskExecutionContext executionContext, CancellationToken cancellationToken);
+    Task<JsonNode?> InvokeAsync(string fullClassName, JsonNode? request, TaskExecutionContext executionContext, CancellationToken cancellationToken);
 }

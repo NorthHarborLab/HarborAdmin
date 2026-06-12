@@ -28,9 +28,13 @@ public sealed class TaskCallableStepExecutor(ITaskCallableRegistry registry, ITa
     public Task<JsonNode?> ExecuteAsync(TaskNodeExecutionContext context, CancellationToken cancellationToken)
     {
         var config = JsonSerializer.Deserialize<CallableNodeConfig>(context.ConfigJson ?? "{}", JsonOptions) ?? new CallableNodeConfig();
+        if (string.IsNullOrWhiteSpace(config.FullClassName))
+        {
+            throw new InvalidOperationException("Callable 节点必须配置 fullClassName。");
+        }
+
         var requestText = renderer.Render(config.RequestJson ?? "{}", context.ExecutionContext);
         var request = JsonNode.Parse(string.IsNullOrWhiteSpace(requestText) ? "{}" : requestText);
-        var serviceKey = config.FullClassName ?? config.ClassName ?? config.TypeName ?? config.ServiceKey ?? string.Empty;
-        return registry.InvokeAsync(serviceKey, config.MethodKey ?? string.Empty, request, context.ExecutionContext, cancellationToken);
+        return registry.InvokeAsync(config.FullClassName.Trim(), request, context.ExecutionContext, cancellationToken);
     }
 }
