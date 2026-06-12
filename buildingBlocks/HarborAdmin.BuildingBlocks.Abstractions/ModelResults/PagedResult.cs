@@ -14,11 +14,17 @@ public sealed class PagedResult<T>
     /// <summary>
     /// 总记录数
     /// </summary>
-    public int Total { get; init; }
+    public long Total { get; init; }
 
     /// <summary>
     /// 从列表构建分页结果
     /// </summary>
-    public static PagedResult<T> From(IReadOnlyList<T> items, int total) =>
+    public static PagedResult<T> From(IReadOnlyList<T> items, long total) =>
+        new() { Items = items, Total = total };
+    
+    /// <summary>
+    /// 从列表构建分页结果
+    /// </summary>
+    public static PagedResult<T> Ok(IReadOnlyList<T> items, long total) =>
         new() { Items = items, Total = total };
 }

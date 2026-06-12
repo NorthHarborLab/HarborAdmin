@@ -1,3 +1,5 @@
+using HarborAdmin.BuildingBlocks.Abstractions.Repository;
+
 namespace HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 
 /// <summary>
@@ -45,4 +47,19 @@ public class PageRequest
     /// 跳过的记录数
     /// </summary>
     public int Skip => (Page - 1) * PageSize;
+
+    /// <summary>
+    /// 排序字段
+    /// </summary>
+    public string? SortField { get; set; }
+
+    /// <summary>
+    /// 排序方向
+    /// </summary>
+    public string? SortOrder { get; set; }
+
+    /// <summary>
+    /// 动态筛选条件
+    /// </summary>
+    public IReadOnlyList<PageFilterRule>? Filters { get; set; }
 }
