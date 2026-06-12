@@ -1,5 +1,5 @@
 using System.Text.Json.Nodes;
-using HarborAdmin.Modules.TaskOrchestration.Contracts.TaskContext;
+using HarborAdmin.Modules.TaskOrchestration.Contracts.Tasks.Context;
 
 namespace HarborAdmin.Modules.TaskOrchestration.Application.Abstractions;
 

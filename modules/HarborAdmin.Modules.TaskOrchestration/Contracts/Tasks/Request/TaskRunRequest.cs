@@ -1,4 +1,4 @@
-namespace HarborAdmin.Modules.TaskOrchestration.Contracts.TaskContext;
+namespace HarborAdmin.Modules.TaskOrchestration.Contracts.Tasks.Request;
 
 /// <summary>
 /// 任务运行请求

@@ -1,4 +1,4 @@
-namespace HarborAdmin.Modules.TaskOrchestration.Contracts.TaskContext;
+namespace HarborAdmin.Modules.TaskOrchestration.Contracts.Tasks.Context;
 
 /// <summary>
 /// 可调用接口方法描述

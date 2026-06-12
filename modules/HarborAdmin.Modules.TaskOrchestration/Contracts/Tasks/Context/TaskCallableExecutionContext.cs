@@ -1,6 +1,6 @@
 using System.Text.Json.Nodes;
 
-namespace HarborAdmin.Modules.TaskOrchestration.Contracts.TaskContext;
+namespace HarborAdmin.Modules.TaskOrchestration.Contracts.Tasks.Context;
 
 /// <summary>
 /// 任务内部接口调用上下文

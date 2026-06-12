@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
+using HarborAdmin.Modules.TaskOrchestration.Contracts.Tasks.Result;
 
-namespace HarborAdmin.Modules.TaskOrchestration.Contracts.TaskContext;
+namespace HarborAdmin.Modules.TaskOrchestration.Contracts.Tasks.Context;
 
 /// <summary>
 /// 任务执行上下文
