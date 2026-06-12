@@ -54,7 +54,7 @@ public sealed class TaskExecutionService(
 
         try
         {
-            var context = new TaskExecutionContext { Params = ParseJson(run.ParamsJson) };
+            var context = new TaskExecutionContext { Params = string.IsNullOrWhiteSpace(run.ParamsJson) ? new JsonObject() : JsonNode.Parse(run.ParamsJson)};
             var nodes = task.Nodes.Where(node => node.Enabled).ToDictionary(node => node.NodeCode, StringComparer.OrdinalIgnoreCase);
             var incoming = task.Edges.Where(edge => edge.Enabled)
                 .GroupBy(edge => edge.TargetNodeCode, StringComparer.OrdinalIgnoreCase)
@@ -172,13 +172,7 @@ public sealed class TaskExecutionService(
             }
         }
     }
-
-    /// <summary>
-    /// 解析 JSON 文本为空对象
-    /// </summary>
-    private static JsonNode? ParseJson(string? json) =>
-        string.IsNullOrWhiteSpace(json) ? new JsonObject() : JsonNode.Parse(json);
-
+    
     /// <summary>
     /// 合并任务默认参数与运行时参数
     /// </summary>

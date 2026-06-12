@@ -1,3 +1,4 @@
+using HarborAdmin.BuildingBlocks.Abstractions.Enums;
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using HarborAdmin.BuildingBlocks.Data;
 using HarborAdmin.Modules.TaskOrchestration.Application.Abstractions;
@@ -14,6 +15,27 @@ namespace HarborAdmin.Modules.TaskOrchestration.Infrastructure.Repositories;
 public sealed class TaskRunRepository(ITaskOrchestrationDbContext db)
     : FreeSqlModuleRepository<ITaskOrchestrationDbContext>(db), ITaskRunRepository
 {
+    private static readonly IReadOnlyDictionary<string, PageDynamicField> RunFilterFields =
+        new Dictionary<string, PageDynamicField>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["taskId"] = new("taskId", nameof(OrchestrationTaskRun.TaskId), typeof(long)),
+            ["taskCode"] = new("taskCode", nameof(OrchestrationTaskRun.TaskCode), typeof(string), [PageFilterOperator.Contains, PageFilterOperator.Eq]),
+            ["status"] = new("status", nameof(OrchestrationTaskRun.Status), typeof(OrchestrationRunStatus)),
+            ["triggerType"] = new("triggerType", nameof(OrchestrationTaskRun.TriggerType), typeof(string)),
+            ["correlationId"] = new("correlationId", nameof(OrchestrationTaskRun.CorrelationId), typeof(string), [PageFilterOperator.Contains, PageFilterOperator.Eq]),
+            ["createdAt"] = new("createdAt", nameof(OrchestrationTaskRun.CreatedAt), typeof(DateTimeOffset), [PageFilterOperator.Between, PageFilterOperator.Gte, PageFilterOperator.Lte]),
+        };
+
+    private static readonly IReadOnlyDictionary<string, string> RunSortFields =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["id"] = nameof(OrchestrationTaskRun.Id),
+            ["createdAt"] = nameof(OrchestrationTaskRun.CreatedAt),
+            ["finishedAt"] = nameof(OrchestrationTaskRun.FinishedAt),
+            ["status"] = nameof(OrchestrationTaskRun.Status),
+            ["triggerType"] = nameof(OrchestrationTaskRun.TriggerType),
+        };
+
     /// <inheritdoc />
     public Task<bool> HasRunningTaskAsync(long taskId, CancellationToken cancellationToken) =>
         FreeSql.Select<OrchestrationTaskRun>()
@@ -79,37 +101,12 @@ public sealed class TaskRunRepository(ITaskOrchestrationDbContext db)
         {
             query = query.Where(run => run.TaskId == request.TaskId.Value);
         }
-        if (!string.IsNullOrWhiteSpace(request.TaskCode))
-        {
-            var taskCode = request.TaskCode.Trim();
-            query = query.Where(run => run.TaskCode.Contains(taskCode));
-        }
-        if (request.Status.HasValue)
-        {
-            query = query.Where(run => run.Status == request.Status.Value);
-        }
-        if (!string.IsNullOrWhiteSpace(request.TriggerType))
-        {
-            var triggerType = request.TriggerType.Trim();
-            query = query.Where(run => run.TriggerType == triggerType);
-        }
-        if (!string.IsNullOrWhiteSpace(request.CorrelationId))
-        {
-            var correlationId = request.CorrelationId.Trim();
-            query = query.Where(run => run.CorrelationId != null && run.CorrelationId.Contains(correlationId));
-        }
-        if (request.CreatedFrom.HasValue)
-        {
-            query = query.Where(run => run.CreatedAt >= request.CreatedFrom.Value);
-        }
-        if (request.CreatedTo.HasValue)
-        {
-            query = query.Where(run => run.CreatedAt <= request.CreatedTo.Value);
-        }
+
+        query = query.ApplyDynamicFilters(request, RunFilterFields);
 
         var total = (int)await query.CountAsync(cancellationToken);
         var items = await query
-            .OrderByDescending(run => run.CreatedAt)
+            .ApplyDynamicSorting(request, RunSortFields, static current => current.OrderByDescending(run => run.CreatedAt))
             .Skip(request.Skip)
             .Take(request.PageSize)
             .ToListAsync(cancellationToken);

@@ -32,6 +32,8 @@ public sealed record DynamicFieldSchemaDto(
     AdminFeatureFieldDataType DataType,
     bool Required,
     bool Readonly,
+    bool Sortable,
+    bool Exportable,
     int Order,
     int? Width,
     string? DictCode,

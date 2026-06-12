@@ -75,6 +75,16 @@ public sealed class AdminFeatureField : AuditableEntity
     public bool SearchVisible { get; set; }
 
     /// <summary>
+    /// 是否允许排序。
+    /// </summary>
+    public bool Sortable { get; set; }
+
+    /// <summary>
+    /// 是否允许导出。
+    /// </summary>
+    public bool Exportable { get; set; }
+
+    /// <summary>
     /// 是否在创建表单中展示。
     /// </summary>
     public bool CreateVisible { get; set; }

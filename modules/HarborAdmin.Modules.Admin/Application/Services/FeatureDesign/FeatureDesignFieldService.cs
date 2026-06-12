@@ -144,6 +144,8 @@ public sealed class FeatureDesignFieldService
         field.DataType = request.DataType;
         field.ListVisible = request.ListVisible;
         field.SearchVisible = request.SearchVisible;
+        field.Sortable = request.Sortable;
+        field.Exportable = request.Exportable;
         field.CreateVisible = request.CreateVisible;
         field.UpdateVisible = request.UpdateVisible;
         field.Readonly = request.Readonly;

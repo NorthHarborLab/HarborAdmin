@@ -162,7 +162,7 @@ public sealed class SessionService(
         var hasPolicy = policyMap.TryGetValue($"{featureCode}\u001F{field.FieldCode}", out var policy);
         var visible = isSuperAdmin || hasPolicy && policy!.Visible;
         var editable = isSuperAdmin || hasPolicy && policy!.Editable;
-        var exportable = isSuperAdmin || hasPolicy && policy!.Exportable;
+        var exportable = field.Exportable && (isSuperAdmin || hasPolicy && policy!.Exportable);
         var masked = !isSuperAdmin && hasPolicy && policy!.Masked;
         return new FeatureResourceFieldDto(
             field.FieldCode,
@@ -178,6 +178,7 @@ public sealed class SessionService(
             field.Width,
             field.ListVisible,
             field.SearchVisible,
+            field.Sortable,
             field.CreateVisible,
             field.UpdateVisible,
             visible,

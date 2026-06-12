@@ -57,6 +57,16 @@ public sealed class SaveAdminFeatureFieldRequest
     public bool SearchVisible { get; set; }
 
     /// <summary>
+    /// 是否允许排序。
+    /// </summary>
+    public bool Sortable { get; set; }
+
+    /// <summary>
+    /// 是否允许导出。
+    /// </summary>
+    public bool Exportable { get; set; }
+
+    /// <summary>
     /// 新建是否可见。
     /// </summary>
     public bool CreateVisible { get; set; }

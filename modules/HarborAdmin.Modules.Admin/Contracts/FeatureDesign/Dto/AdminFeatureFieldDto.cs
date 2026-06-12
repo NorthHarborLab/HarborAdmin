@@ -15,6 +15,8 @@ public sealed record AdminFeatureFieldDto(
     AdminFeatureFieldDataType DataType,
     bool ListVisible,
     bool SearchVisible,
+    bool Sortable,
+    bool Exportable,
     bool CreateVisible,
     bool UpdateVisible,
     bool Readonly,

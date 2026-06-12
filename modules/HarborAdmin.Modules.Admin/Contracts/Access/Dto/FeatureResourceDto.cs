@@ -42,6 +42,7 @@ public sealed record FeatureResourceDto(
 /// <param name="Width">列表宽度。</param>
 /// <param name="ListVisible">是否在列表中展示。</param>
 /// <param name="SearchVisible">是否在查询表单中展示。</param>
+/// <param name="Sortable">是否允许排序。</param>
 /// <param name="CreateVisible">是否在新增表单中展示。</param>
 /// <param name="UpdateVisible">是否在更新表单中展示。</param>
 /// <param name="Visible">当前用户是否可见。</param>
@@ -65,6 +66,7 @@ public sealed record FeatureResourceFieldDto(
     int? Width,
     bool ListVisible,
     bool SearchVisible,
+    bool Sortable,
     bool CreateVisible,
     bool UpdateVisible,
     bool Visible,

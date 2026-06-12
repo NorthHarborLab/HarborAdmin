@@ -76,6 +76,8 @@ public sealed class AdminMetadataService(AccessCacheService accessCache, AdminFi
             field.DataType,
             field.Required,
             field.Readonly,
+            field.Sortable,
+            field.Exportable,
             field.SortOrder,
             field.Width,
             field.DictCode,

@@ -89,6 +89,8 @@ public sealed record FeatureFieldCacheItem(
     int? Width,
     bool ListVisible,
     bool SearchVisible,
+    bool Sortable,
+    bool Exportable,
     bool CreateVisible,
     bool UpdateVisible,
     bool Enabled,

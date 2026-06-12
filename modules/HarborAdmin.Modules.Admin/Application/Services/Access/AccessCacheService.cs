@@ -306,6 +306,8 @@ public sealed class AccessCacheService(
                         field.Width,
                         field.ListVisible,
                         field.SearchVisible,
+                        field.Sortable,
+                        field.Exportable,
                         field.CreateVisible,
                         field.UpdateVisible,
                         field.Enabled,
