@@ -1,7 +1,7 @@
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using HarborAdmin.Client.AI.Invocation;
-using HarborAdmin.BuildingBlocks.Abstractions.Controllers;
+using HarborAdmin.BuildingBlocks.AspNetCore.Controllers;
 using HarborAdmin.Modules.AI.Application.Services;
 using HarborAdmin.Modules.AI.Application.Services.Business;
 using Microsoft.AspNetCore.Http;

@@ -1,5 +1,5 @@
 using System.ComponentModel.DataAnnotations;
-using HarborAdmin.BuildingBlocks.Abstractions.Controllers;
+using HarborAdmin.BuildingBlocks.AspNetCore.Controllers;
 using HarborAdmin.Modules.Admin.Application.Services.FeatureDesign;
 using HarborAdmin.Modules.Admin.Contracts.FeatureDesign.Dto;
 using HarborAdmin.Modules.Admin.Contracts.FeatureDesign.Request;

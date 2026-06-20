@@ -1,6 +1,6 @@
 using HarborAdmin.Modules.AI.Application.Services.Business;
 using Microsoft.AspNetCore.Mvc;
-using HarborAdmin.BuildingBlocks.Abstractions.Controllers;
+using HarborAdmin.BuildingBlocks.AspNetCore.Controllers;
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using HarborAdmin.Modules.AI.Contracts.Business.Dto;
 using HarborAdmin.Modules.AI.Contracts.Business.Request;

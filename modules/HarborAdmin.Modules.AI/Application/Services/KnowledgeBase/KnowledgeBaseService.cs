@@ -1,4 +1,4 @@
-using HarborAdmin.BuildingBlocks.Abstractions.Application;
+using HarborAdmin.BuildingBlocks.Application;
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using HarborAdmin.BuildingBlocks.Abstractions.Repositories;
 using HarborAdmin.BuildingBlocks.Mapping;

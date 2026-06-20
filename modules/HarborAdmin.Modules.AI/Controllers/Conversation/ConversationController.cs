@@ -1,5 +1,5 @@
 using HarborAdmin.BuildingBlocks.Abstractions.Auth;
-using HarborAdmin.BuildingBlocks.Abstractions.Controllers;
+using HarborAdmin.BuildingBlocks.AspNetCore.Controllers;
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using HarborAdmin.Modules.AI.Application.Services.Conversation;
 using HarborAdmin.Modules.AI.Contracts.Conversation.Dto;

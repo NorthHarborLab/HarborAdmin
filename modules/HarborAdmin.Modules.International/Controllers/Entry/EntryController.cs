@@ -1,7 +1,7 @@
 using HarborAdmin.Modules.International.Application.Services;
 using HarborAdmin.Client.AI.Invocation;
 using Microsoft.AspNetCore.Mvc;
-using HarborAdmin.BuildingBlocks.Abstractions.Controllers;
+using HarborAdmin.BuildingBlocks.AspNetCore.Controllers;
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using HarborAdmin.Modules.International.Contracts.Entry.Dto;
 using HarborAdmin.Modules.International.Contracts.Entry.Request;

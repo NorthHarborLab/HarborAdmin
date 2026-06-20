@@ -1,6 +1,8 @@
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 
-namespace HarborAdmin.BuildingBlocks.Abstractions.Application;
+using HarborAdmin.BuildingBlocks.Abstractions.Application;
+
+namespace HarborAdmin.BuildingBlocks.Application;
 
 /// <summary>
 /// Harbor 应用服务通用能力。

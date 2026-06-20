@@ -1,9 +1,10 @@
 using HarborAdmin.BuildingBlocks.Abstractions.Domain;
+using HarborAdmin.BuildingBlocks.Abstractions.Application;
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using HarborAdmin.BuildingBlocks.Abstractions.Repositories;
 using HarborAdmin.BuildingBlocks.Abstractions.Repositories.Models;
 
-namespace HarborAdmin.BuildingBlocks.Abstractions.Application;
+namespace HarborAdmin.BuildingBlocks.Application;
 
 /// <summary>
 /// Harbor Repository 驱动的查询应用服务。

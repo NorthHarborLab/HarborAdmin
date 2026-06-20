@@ -1,4 +1,4 @@
-using HarborAdmin.BuildingBlocks.Abstractions.Controllers;
+using HarborAdmin.BuildingBlocks.AspNetCore.Controllers;
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using Microsoft.AspNetCore.Mvc;
 using HarborAdmin.Modules.ConfigCenter.Contracts.Item.Dto;

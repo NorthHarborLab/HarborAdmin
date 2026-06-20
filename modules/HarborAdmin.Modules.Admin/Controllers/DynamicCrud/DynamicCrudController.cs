@@ -1,6 +1,6 @@
 using HarborAdmin.Modules.Admin.Application.Services.DynamicCrud;
 using Microsoft.AspNetCore.Mvc;
-using HarborAdmin.BuildingBlocks.Abstractions.Controllers;
+using HarborAdmin.BuildingBlocks.AspNetCore.Controllers;
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using HarborAdmin.Modules.Admin.Contracts.DynamicCrud.Dto;
 using HarborAdmin.Modules.Admin.Contracts.DynamicCrud.Request;

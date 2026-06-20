@@ -9,6 +9,7 @@
     <ItemGroup>
         <PackageReference Include="DotNetCore.CAP" />
         <ProjectReference Include="..\..\buildingBlocks\HarborAdmin.BuildingBlocks.Abstractions\HarborAdmin.BuildingBlocks.Abstractions.csproj" />
+        <ProjectReference Include="..\..\buildingBlocks\HarborAdmin.BuildingBlocks.AspNetCore\HarborAdmin.BuildingBlocks.AspNetCore.csproj" />
         <ProjectReference Include="..\..\buildingBlocks\HarborAdmin.BuildingBlocks.Caching\HarborAdmin.BuildingBlocks.Caching.csproj" />
         <ProjectReference Include="..\..\buildingBlocks\HarborAdmin.BuildingBlocks.Data\HarborAdmin.BuildingBlocks.Data.csproj" />
         <ProjectReference Include="..\..\buildingBlocks\HarborAdmin.BuildingBlocks.Mapping\HarborAdmin.BuildingBlocks.Mapping.csproj" />

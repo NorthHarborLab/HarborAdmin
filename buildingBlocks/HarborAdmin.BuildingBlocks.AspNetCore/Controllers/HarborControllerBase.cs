@@ -1,7 +1,7 @@
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace HarborAdmin.BuildingBlocks.Abstractions.Controllers;
+namespace HarborAdmin.BuildingBlocks.AspNetCore.Controllers;
 
 /// <summary>
 /// Harbor Controller 通用响应包装基类。

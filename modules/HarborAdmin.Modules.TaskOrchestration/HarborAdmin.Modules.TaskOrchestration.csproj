@@ -10,6 +10,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\..\buildingBlocks\HarborAdmin.BuildingBlocks.Abstractions\HarborAdmin.BuildingBlocks.Abstractions.csproj" />
+        <ProjectReference Include="..\..\buildingBlocks\HarborAdmin.BuildingBlocks.AspNetCore\HarborAdmin.BuildingBlocks.AspNetCore.csproj" />
         <ProjectReference Include="..\..\buildingBlocks\HarborAdmin.BuildingBlocks.Data\HarborAdmin.BuildingBlocks.Data.csproj" />
         <ProjectReference Include="..\..\buildingBlocks\HarborAdmin.BuildingBlocks.EventBus\HarborAdmin.BuildingBlocks.EventBus.csproj" />
         <ProjectReference Include="..\..\buildingBlocks\HarborAdmin.BuildingBlocks.Mapping\HarborAdmin.BuildingBlocks.Mapping.csproj" />

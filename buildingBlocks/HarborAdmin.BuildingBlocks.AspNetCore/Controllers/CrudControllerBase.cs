@@ -1,7 +1,7 @@
 using HarborAdmin.BuildingBlocks.Abstractions.Application;
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 
-namespace HarborAdmin.BuildingBlocks.Abstractions.Controllers;
+namespace HarborAdmin.BuildingBlocks.AspNetCore.Controllers;
 
 /// <summary>
 /// 基础 CRUD Controller 响应包装。

@@ -1,5 +1,5 @@
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
-using HarborAdmin.BuildingBlocks.Abstractions.Controllers;
+using HarborAdmin.BuildingBlocks.AspNetCore.Controllers;
 using HarborAdmin.Modules.International.Application.Services;
 using HarborAdmin.Modules.International.Contracts.Page.Dto;
 using HarborAdmin.Modules.International.Contracts.Page.Request;

@@ -1,6 +1,6 @@
 using HarborAdmin.Modules.AI.Application.Services.Observability;
 using Microsoft.AspNetCore.Mvc;
-using HarborAdmin.BuildingBlocks.Abstractions.Controllers;
+using HarborAdmin.BuildingBlocks.AspNetCore.Controllers;
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using HarborAdmin.Modules.AI.Contracts.Observability.Dto;
 using HarborAdmin.Modules.AI.Contracts.Observability.Request;

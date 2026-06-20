@@ -2,7 +2,7 @@ using HarborAdmin.BuildingBlocks.Abstractions.Attributes;
 using HarborAdmin.Modules.Admin.Application.Services.Access;
 using HarborAdmin.Modules.Admin.Application.Services.Metadata;
 using HarborAdmin.BuildingBlocks.Abstractions.Auth;
-using HarborAdmin.BuildingBlocks.Abstractions.Controllers;
+using HarborAdmin.BuildingBlocks.AspNetCore.Controllers;
 using Microsoft.AspNetCore.Mvc;
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using HarborAdmin.Modules.Admin.Contracts.DynamicCrud.Dto;

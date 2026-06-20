@@ -3,7 +3,7 @@ using HarborAdmin.Modules.Admin.Application.Services.Auth;
 using HarborAdmin.Modules.Admin.Application.Services.Access;
 using HarborAdmin.Modules.Admin.Contracts.Access.Dto;
 using HarborAdmin.BuildingBlocks.Abstractions.Auth;
-using HarborAdmin.BuildingBlocks.Abstractions.Controllers;
+using HarborAdmin.BuildingBlocks.AspNetCore.Controllers;
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using Microsoft.AspNetCore.Mvc;
 

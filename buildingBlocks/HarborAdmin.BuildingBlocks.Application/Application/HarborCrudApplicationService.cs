@@ -1,10 +1,11 @@
+using HarborAdmin.BuildingBlocks.Abstractions.Application;
 using HarborAdmin.BuildingBlocks.Abstractions.Domain;
 using HarborAdmin.BuildingBlocks.Abstractions.Enums;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using HarborAdmin.BuildingBlocks.Abstractions.Repositories;
 
-namespace HarborAdmin.BuildingBlocks.Abstractions.Application;
+namespace HarborAdmin.BuildingBlocks.Application;
 
 /// <summary>
 /// Harbor Repository 驱动的 CRUD 应用服务。
