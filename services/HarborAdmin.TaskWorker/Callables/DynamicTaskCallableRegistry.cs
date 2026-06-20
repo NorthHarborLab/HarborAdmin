@@ -2,7 +2,6 @@ using System.Reflection;
 using System.Text.Json.Nodes;
 using HarborAdmin.Modules.TaskOrchestration.Application.Abstractions;
 using HarborAdmin.Modules.TaskOrchestration.Contracts.Tasks.Context;
-using HarborAdmin.Modules.TaskOrchestration.Infrastructure.Contexts;
 using Microsoft.Extensions.Options;
 
 namespace HarborAdmin.TaskWorker.Callables;
@@ -64,9 +63,8 @@ public sealed class DynamicTaskCallableRegistry : ITaskCallableRegistry, IDispos
         }
 
         using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<ITaskOrchestrationDbContext>();
         var service = (ITaskCallableService)ActivatorUtilities.CreateInstance(scope.ServiceProvider, entry.ImplementationType);
-        return await service.ExecuteAsync(new TaskCallableExecutionContext(request, executionContext, db.Orm, scope.ServiceProvider), cancellationToken);
+        return await service.ExecuteAsync(new TaskCallableExecutionContext(request, executionContext, scope.ServiceProvider), cancellationToken);
     }
 
     /// <summary>

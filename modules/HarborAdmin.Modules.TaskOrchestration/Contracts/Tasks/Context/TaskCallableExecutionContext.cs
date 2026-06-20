@@ -7,6 +7,5 @@ namespace HarborAdmin.Modules.TaskOrchestration.Contracts.Tasks.Context;
 /// </summary>
 /// <param name="Request">请求 JSON</param>
 /// <param name="ExecutionContext">任务执行上下文</param>
-/// <param name="FreeSql">当前任务模块数据库 ORM</param>
-/// <param name="ServiceProvider">当前作用域服务提供器</param>
-public sealed record TaskCallableExecutionContext(JsonNode? Request, TaskExecutionContext ExecutionContext, IFreeSql FreeSql, IServiceProvider ServiceProvider);
+/// <param name="ServiceProvider">当前作用域服务提供器，用于解析业务服务或仓储接口</param>
+public sealed record TaskCallableExecutionContext(JsonNode? Request, TaskExecutionContext ExecutionContext, IServiceProvider ServiceProvider);
