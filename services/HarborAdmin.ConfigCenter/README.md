@@ -96,7 +96,7 @@ services/HarborAdmin.ConfigCenter/
 {
   "ConfigCenter": {
     "Host": "0.0.0.0",
-    "Port": 50000
+    "Port": 18100
   },
   "Harbor": {
     "YitterWorkId": 1,

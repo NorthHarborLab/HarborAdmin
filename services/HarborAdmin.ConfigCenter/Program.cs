@@ -1,7 +1,6 @@
-// HarborAdmin.ConfigCenter 服务入口：FreeSql 快照读取 + TCP JSON 监听（默认端口 50000）。
+// HarborAdmin.ConfigCenter 服务入口：FreeSql 快照读取 + TCP JSON 监听（默认端口 18100）。
 
 using HarborAdmin.BuildingBlocks.Abstractions.Modules;
-using HarborAdmin.BuildingBlocks.Data;
 using HarborAdmin.BuildingBlocks.Data.Configs;
 using HarborAdmin.BuildingBlocks.Mapping;
 using HarborAdmin.BuildingBlocks.Secrets.DependencyInjection;
@@ -9,6 +8,7 @@ using HarborAdmin.ConfigCenter.Tcp;
 using HarborAdmin.Modules.ConfigCenter;
 using HarborAdmin.Modules.Secrets;
 using System.Text.RegularExpressions;
+using HarborAdmin.BuildingBlocks.Data.Extends;
 
 var builder = Host.CreateApplicationBuilder(args);
 
