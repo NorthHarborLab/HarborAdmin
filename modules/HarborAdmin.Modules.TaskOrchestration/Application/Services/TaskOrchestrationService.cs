@@ -1,5 +1,7 @@
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
+using HarborAdmin.BuildingBlocks.Abstractions.Repositories;
+using HarborAdmin.BuildingBlocks.Abstractions.Repositories.Models;
 using HarborAdmin.BuildingBlocks.EventBus;
 using HarborAdmin.BuildingBlocks.Mapping;
 using HarborAdmin.Modules.TaskOrchestration.Application.Abstractions;
@@ -102,7 +104,7 @@ public sealed class TaskOrchestrationService(
     /// <summary>
     /// 查询指定任务运行日志
     /// </summary>
-    public async Task<PagedResult<OrchestrationTaskRunDto>> ListRunsAsync(long taskId, PageRequest request, CancellationToken cancellationToken)
+    public async Task<PagedResult<OrchestrationTaskRunDto>> ListRunsAsync(long taskId, HarborQueryOptions request, CancellationToken cancellationToken)
     {
         var total = await runRepository.CountRunsAsync(taskId, cancellationToken);
         var runs = await runRepository.ListRunsAsync(taskId, request.Skip, request.PageSize, cancellationToken);

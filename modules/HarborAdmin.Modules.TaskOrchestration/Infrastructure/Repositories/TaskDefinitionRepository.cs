@@ -1,5 +1,7 @@
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
+using HarborAdmin.BuildingBlocks.Abstractions.Repositories;
 using HarborAdmin.BuildingBlocks.Data;
+using HarborAdmin.BuildingBlocks.Data.Repositories;
 using HarborAdmin.Modules.TaskOrchestration.Application.Abstractions;
 using HarborAdmin.Modules.TaskOrchestration.Contracts.Tasks.Request;
 using HarborAdmin.Modules.TaskOrchestration.Domain.Entities;
@@ -12,8 +14,8 @@ namespace HarborAdmin.Modules.TaskOrchestration.Infrastructure.Repositories;
 /// <summary>
 /// FreeSql 任务定义仓储
 /// </summary>
-public sealed class TaskDefinitionRepository(ITaskOrchestrationDbContext db)
-    : FreeSqlModuleRepository<ITaskOrchestrationDbContext>(db), ITaskDefinitionRepository
+public sealed class TaskDefinitionRepository(ITaskOrchestrationDbContext db, UnitOfWorkManagerCloud unitOfWorkManager)
+    : HarborRepository<ITaskOrchestrationDbContext>(db, unitOfWorkManager), ITaskDefinitionRepository
 {
     /// <inheritdoc />
     public async Task<PagedResult<OrchestrationTask>> QueryTasksAsync(QueryOrchestrationTaskRequest request, CancellationToken cancellationToken)

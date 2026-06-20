@@ -1,4 +1,5 @@
 using HarborAdmin.BuildingBlocks.Data;
+using HarborAdmin.BuildingBlocks.Data.Repositories;
 using HarborAdmin.Modules.AI.Application.Abstractions;
 using HarborAdmin.Modules.AI.Domain.Entities;
 using HarborAdmin.Modules.AI.Infrastructure.Contexts;
@@ -9,20 +10,18 @@ namespace HarborAdmin.Modules.AI.Infrastructure.Repositories;
 /// AI 配置发布 FreeSql 仓储。
 /// </summary>
 public sealed class AiReleaseRepository(IAiDbContext db, UnitOfWorkManagerCloud unitOfWorkManager)
-    : FreeSqlModuleRepository<IAiDbContext>(db), IAiReleaseRepository
+    : HarborRepository<IAiDbContext>(db, unitOfWorkManager), IAiReleaseRepository
 {
     /// <inheritdoc />
     public async Task<AiConfigRelease> InsertAndActivateReleaseAsync(AiConfigRelease release, CancellationToken cancellationToken = default)
     {
-        using var uow = unitOfWorkManager.Begin(DbContext.DbKey);
-        using (DbContext.Bind(DbContext.DbKey, uow.Orm))
+        await ExecuteInUnitOfWorkAsync(async ct =>
         {
-            await InsertReleaseCoreAsync(release, cancellationToken);
-            await ActivateReleaseCoreAsync(release.Id, cancellationToken);
+            await InsertReleaseCoreAsync(release, ct);
+            await ActivateReleaseCoreAsync(release.Id, ct);
             release.Active = true;
-        }
+        }, cancellationToken);
 
-        uow.Commit();
         return release;
     }
 
@@ -46,13 +45,10 @@ public sealed class AiReleaseRepository(IAiDbContext db, UnitOfWorkManagerCloud 
     /// <inheritdoc />
     public async Task ActivateReleaseAsync(long releaseId, CancellationToken cancellationToken = default)
     {
-        using var uow = unitOfWorkManager.Begin(DbContext.DbKey);
-        using (DbContext.Bind(DbContext.DbKey, uow.Orm))
+        await ExecuteInUnitOfWorkAsync(async ct =>
         {
-            await ActivateReleaseCoreAsync(releaseId, cancellationToken);
-        }
-
-        uow.Commit();
+            await ActivateReleaseCoreAsync(releaseId, ct);
+        }, cancellationToken);
     }
 
     /// <summary>

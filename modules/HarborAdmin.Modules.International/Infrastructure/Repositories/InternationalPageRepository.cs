@@ -1,4 +1,5 @@
 using HarborAdmin.BuildingBlocks.Data;
+using HarborAdmin.BuildingBlocks.Data.Repositories;
 using HarborAdmin.Modules.International.Application.Abstractions;
 using HarborAdmin.Modules.International.Domain.Entities;
 using HarborAdmin.Modules.International.Infrastructure.Contexts;
@@ -8,8 +9,8 @@ namespace HarborAdmin.Modules.International.Infrastructure.Repositories;
 /// <summary>
 /// 基于 FreeSql 的国际化页面仓储实现。
 /// </summary>
-public sealed class InternationalPageRepository(IInternationalDbContext db)
-    : FreeSqlModuleRepository<IInternationalDbContext>(db), IInternationalPageRepository
+public sealed class InternationalPageRepository(IInternationalDbContext db, UnitOfWorkManagerCloud unitOfWorkManager)
+    : HarborRepository<IInternationalDbContext>(db, unitOfWorkManager), IInternationalPageRepository
 {
     /// <inheritdoc />
     public async Task<IReadOnlyList<InternationalPage>> ListPagesAsync(CancellationToken cancellationToken = default) =>

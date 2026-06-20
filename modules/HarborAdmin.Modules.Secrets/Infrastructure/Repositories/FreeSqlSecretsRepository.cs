@@ -1,4 +1,5 @@
 using HarborAdmin.BuildingBlocks.Data;
+using HarborAdmin.BuildingBlocks.Data.Repositories;
 using HarborAdmin.Modules.Secrets.Application.Abstractions;
 using HarborAdmin.Modules.Secrets.Domain.Entities;
 using HarborAdmin.Modules.Secrets.Infrastructure.Contexts;
@@ -9,7 +10,7 @@ namespace HarborAdmin.Modules.Secrets.Infrastructure.Repositories;
 /// 基于 FreeSql 的 Secrets 仓储实现。
 /// </summary>
 public sealed class FreeSqlSecretsRepository(ISecretsDbContext db, UnitOfWorkManagerCloud unitOfWorkManager)
-    : FreeSqlModuleRepository<ISecretsDbContext>(db), ISecretsRepository
+    : HarborRepository<ISecretsDbContext>(db, unitOfWorkManager), ISecretsRepository
 {
     /// <inheritdoc />
     public async Task<IReadOnlyList<HarborSecret>> ListOrderedByRefAsync(CancellationToken cancellationToken = default) =>
@@ -59,55 +60,55 @@ public sealed class FreeSqlSecretsRepository(ISecretsDbContext db, UnitOfWorkMan
     /// <inheritdoc />
     public async Task<HarborSecret> SaveRotationAsync(string secretRef, string displayName, string cipherText, CancellationToken cancellationToken = default)
     {
-        using var uow = unitOfWorkManager.Begin(DbContext.DbKey);
-        var fsql = uow.Orm;
-        var now = DateTimeOffset.UtcNow;
-        var existing = await fsql.Select<HarborSecret>()
-            .Where(item => item.SecretRef == secretRef)
-            .FirstAsync(cancellationToken);
-        var latestVersion = await fsql.Select<HarborSecretVersion>()
-            .Where(item => item.SecretRef == secretRef)
-            .MaxAsync(item => item.Version, cancellationToken);
-        // 当前表和历史表都可能是版本来源，取两者最大值再递增可兼容历史数据修复场景。
-        var nextVersion = Math.Max(existing?.Version ?? 0, latestVersion) + 1;
-
-        // 先写历史版本，再写当前指针；两步在同一个 UoW 内提交，避免只留下半次轮换。
-        await fsql.Insert(new HarborSecretVersion
+        return await ExecuteInUnitOfWorkAsync(async ct =>
         {
-            SecretRef = secretRef,
-            Version = nextVersion,
-            CipherText = cipherText,
-            CreatedAt = now
-        }).ExecuteAffrowsAsync(cancellationToken);
+            var now = DateTimeOffset.UtcNow;
+            var existing = await FreeSql.Select<HarborSecret>()
+                .Where(item => item.SecretRef == secretRef)
+                .FirstAsync(ct);
+            var latestVersion = await FreeSql.Select<HarborSecretVersion>()
+                .Where(item => item.SecretRef == secretRef)
+                .MaxAsync(item => item.Version, ct);
+            // 当前表和历史表都可能是版本来源，取两者最大值再递增可兼容历史数据修复场景。
+            var nextVersion = Math.Max(existing?.Version ?? 0, latestVersion) + 1;
 
-        HarborSecret saved;
-        if (existing is null)
-        {
-            saved = new HarborSecret
+            // 先写历史版本，再写当前指针；两步在同一个 UoW 内提交，避免只留下半次轮换。
+            await FreeSql.Insert(new HarborSecretVersion
             {
                 SecretRef = secretRef,
-                DisplayName = displayName,
-                CipherText = cipherText,
                 Version = nextVersion,
-                Enabled = true,
-                CreatedAt = now,
-                UpdatedAt = now
-            };
-            var inserted = await fsql.Insert(saved).ExecuteInsertedAsync(cancellationToken);
-            saved.Id = inserted.FirstOrDefault()?.Id ?? saved.Id;
-        }
-        else
-        {
-            existing.DisplayName = displayName;
-            existing.CipherText = cipherText;
-            existing.Version = nextVersion;
-            existing.Enabled = true;
-            existing.UpdatedAt = now;
-            await fsql.Update<HarborSecret>().SetSource(existing).ExecuteAffrowsAsync(cancellationToken);
-            saved = existing;
-        }
+                CipherText = cipherText,
+                CreatedAt = now
+            }).ExecuteAffrowsAsync(ct);
 
-        uow.Commit();
-        return saved;
+            HarborSecret saved;
+            if (existing is null)
+            {
+                saved = new HarborSecret
+                {
+                    SecretRef = secretRef,
+                    DisplayName = displayName,
+                    CipherText = cipherText,
+                    Version = nextVersion,
+                    Enabled = true,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                };
+                var inserted = await FreeSql.Insert(saved).ExecuteInsertedAsync(ct);
+                saved.Id = inserted.FirstOrDefault()?.Id ?? saved.Id;
+            }
+            else
+            {
+                existing.DisplayName = displayName;
+                existing.CipherText = cipherText;
+                existing.Version = nextVersion;
+                existing.Enabled = true;
+                existing.UpdatedAt = now;
+                await FreeSql.Update<HarborSecret>().SetSource(existing).ExecuteAffrowsAsync(ct);
+                saved = existing;
+            }
+
+            return saved;
+        }, cancellationToken);
     }
 }

@@ -1,5 +1,7 @@
 using HarborAdmin.BuildingBlocks.Abstractions.Controllers;
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
+using HarborAdmin.BuildingBlocks.Abstractions.Repositories;
+using HarborAdmin.BuildingBlocks.Abstractions.Repositories.Models;
 using HarborAdmin.Modules.TaskOrchestration.Application.Services;
 using HarborAdmin.Modules.TaskOrchestration.Contracts.Tasks.Dto;
 using HarborAdmin.Modules.TaskOrchestration.Contracts.Tasks.Request;
@@ -18,10 +20,10 @@ public sealed class TaskRunLogController(TaskOrchestrationService service) : Har
     /// 查询指定任务运行日志
     /// </summary>
     /// <param name="taskId">任务 ID</param>
-    /// <param name="request">分页请求</param>
+    /// <param name="request">查询选项</param>
     /// <returns>任务运行日志分页结果</returns>
     [HttpPost("tasks/{taskId:long}/runs")]
-    public Task<ApiResult<PagedResult<OrchestrationTaskRunDto>>> ListRuns(long taskId, [FromBody] PageRequest request) =>
+    public Task<ApiResult<PagedResult<OrchestrationTaskRunDto>>> ListRuns(long taskId, [FromBody] HarborQueryOptions request) =>
         OkResultAsync(service.ListRunsAsync(taskId, request, Request.HttpContext.RequestAborted));
 
     /// <summary>

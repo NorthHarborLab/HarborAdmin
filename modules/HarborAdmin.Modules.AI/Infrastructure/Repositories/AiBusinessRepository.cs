@@ -1,5 +1,7 @@
 using FreeSql;
 using HarborAdmin.BuildingBlocks.Data;
+using HarborAdmin.BuildingBlocks.Data.Configs;
+using HarborAdmin.BuildingBlocks.Data.Repositories;
 using HarborAdmin.Modules.AI.Application.Abstractions;
 using HarborAdmin.Modules.AI.Domain.Entities;
 using HarborAdmin.Modules.AI.Infrastructure.Contexts;
@@ -10,16 +12,8 @@ namespace HarborAdmin.Modules.AI.Infrastructure.Repositories;
 /// AI 业务实体 CRUD 仓储。
 /// </summary>
 public sealed class AiBusinessRepository(IAiDbContext db, DbEntityRegistry entityRegistry, UnitOfWorkManagerCloud unitOfWorkManager)
-    : FreeSqlEntityRepository<AiBusiness, IAiDbContext>(db, entityRegistry), IAiBusinessRepository
+    : FreeSqlCrudRepository<AiBusiness, IAiDbContext>(db, entityRegistry, unitOfWorkManager), IAiBusinessRepository
 {
-    /// <inheritdoc />
-    protected override ISelect<AiBusiness> BuildListQuery(ISelect<AiBusiness> query) =>
-        query.IncludeMany(business => business.Routes).OrderBy(business => business.BusinessKey);
-
-    /// <inheritdoc />
-    protected override ISelect<AiBusiness> BuildDetailQuery(ISelect<AiBusiness> query) =>
-        query.IncludeMany(business => business.Routes);
-
     /// <inheritdoc />
     public async Task<AiBusiness?> GetBusinessByKeyAsync(string businessKey, CancellationToken cancellationToken = default) =>
         await FreeSql.Select<AiBusiness>()
@@ -30,43 +24,36 @@ public sealed class AiBusinessRepository(IAiDbContext db, DbEntityRegistry entit
     /// <inheritdoc />
     public override async Task<AiBusiness> InsertAsync(AiBusiness entity, CancellationToken cancellationToken = default)
     {
-        using var uow = unitOfWorkManager.Begin(DbKey);
-        using (DbContext.Bind(DbKey, uow.Orm))
+        await ExecuteInUnitOfWorkAsync(async ct =>
         {
-            await base.InsertAsync(entity, cancellationToken);
-            await SaveRoutesAsync(entity, cancellationToken);
-        }
+            await base.InsertAsync(entity, ct);
+            await SaveRoutesAsync(entity, ct);
+        }, cancellationToken);
 
-        uow.Commit();
         return entity;
     }
 
     /// <inheritdoc />
     public override async Task<AiBusiness> UpdateAsync(AiBusiness entity, CancellationToken cancellationToken = default)
     {
-        using var uow = unitOfWorkManager.Begin(DbKey);
-        using (DbContext.Bind(DbKey, uow.Orm))
+        await ExecuteInUnitOfWorkAsync(async ct =>
         {
-            await base.UpdateAsync(entity, cancellationToken);
-            await FreeSql.Delete<AiBusinessProviderRoute>().Where(route => route.BusinessId == entity.Id).ExecuteAffrowsAsync(cancellationToken);
-            await SaveRoutesAsync(entity, cancellationToken);
-        }
+            await base.UpdateAsync(entity, ct);
+            await FreeSql.Delete<AiBusinessProviderRoute>().Where(route => route.BusinessId == entity.Id).ExecuteAffrowsAsync(ct);
+            await SaveRoutesAsync(entity, ct);
+        }, cancellationToken);
 
-        uow.Commit();
         return entity;
     }
 
     /// <inheritdoc />
     public override async Task DeleteAsync(long id, CancellationToken cancellationToken = default)
     {
-        using var uow = unitOfWorkManager.Begin(DbKey);
-        using (DbContext.Bind(DbKey, uow.Orm))
+        await ExecuteInUnitOfWorkAsync(async ct =>
         {
-            await FreeSql.Delete<AiBusinessProviderRoute>().Where(route => route.BusinessId == id).ExecuteAffrowsAsync(cancellationToken);
-            await base.DeleteAsync(id, cancellationToken);
-        }
-
-        uow.Commit();
+            await FreeSql.Delete<AiBusinessProviderRoute>().Where(route => route.BusinessId == id).ExecuteAffrowsAsync(ct);
+            await base.DeleteAsync(id, ct);
+        }, cancellationToken);
     }
 
     /// <summary>

@@ -1,5 +1,7 @@
 using FreeSql;
 using HarborAdmin.BuildingBlocks.Data;
+using HarborAdmin.BuildingBlocks.Data.Configs;
+using HarborAdmin.BuildingBlocks.Data.Repositories;
 using HarborAdmin.Modules.ConfigCenter.Infrastructure.Contexts;
 
 namespace HarborAdmin.Modules.ConfigCenter.Infrastructure.Repositories;
@@ -7,13 +9,12 @@ namespace HarborAdmin.Modules.ConfigCenter.Infrastructure.Repositories;
 /// <summary>
 /// 配置中心应用实体仓储。
 /// </summary>
-public sealed class ConfigApplicationRepository(IConfigCenterDbContext db, DbEntityRegistry entityRegistry)
-    : FreeSqlEntityRepository<ConfigApplication, IConfigCenterDbContext>(db, entityRegistry), IConfigApplicationRepository
+public sealed class ConfigApplicationRepository(
+    IConfigCenterDbContext db,
+    DbEntityRegistry entityRegistry,
+    UnitOfWorkManagerCloud unitOfWorkManager)
+    : FreeSqlCrudRepository<ConfigApplication, IConfigCenterDbContext>(db, entityRegistry, unitOfWorkManager), IConfigApplicationRepository
 {
-    /// <inheritdoc />
-    protected override ISelect<ConfigApplication> BuildListQuery(ISelect<ConfigApplication> query) =>
-        query.OrderBy(application => application.AppId);
-
     /// <inheritdoc />
     public async Task<ConfigApplication?> GetByAppIdAsync(string appId, CancellationToken cancellationToken = default) =>
         await FreeSql.Select<ConfigApplication>().Where(application => application.AppId == appId).FirstAsync(cancellationToken);

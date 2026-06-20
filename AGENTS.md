@@ -92,7 +92,7 @@ HarborAdmin.Modules.{ModuleName}/
 | 应用服务         | `{Area}Service`，`sealed`，主构造函数                            | `UserService`、`ProviderService`                        |
 | 服务上下文       | `{Module}ServiceContext` 或 `{Area}ServiceContext`               | `AdminServiceContext`、`SystemServiceContext`           |
 | 实体仓储接口     | `I{Entity}Repository` 或 `I{Module}{Domain}Repository`           | `IAiProviderRepository`、`IAdminUserRepository`         |
-| 复杂领域仓储实现 | `{Domain}Repository`，继承 `FreeSqlModuleRepository<TDbContext>` | `AdminAccessRepository`、`AdminFeatureDesignRepository` |
+| 复杂领域仓储实现 | `{Domain}Repository`，继承 `HarborRepository<TDbContext>` | `AdminAccessRepository`、`AdminFeatureDesignRepository` |
 | DbContext        | `I{Module}DbContext` / `{Module}DbContext`                       | `IAdminDbContext`                                       |
 | 模块启动入口     | `{Module}StartUp`                                                | `AdminStartUp`                                          |
 | Controller       | `{Resource}Controller`，无模块前缀                               | `UserController`、`ProviderController`                  |
@@ -265,7 +265,7 @@ public async Task<SystemUserDto> SaveUserAsync(long currentUserId, long? id, Sav
 
 形态稳定的普通 CRUD Service 优先继承 `HarborApplicationRepositoryService<TEntity, TDto, TSaveRequest, TRepository>`，其中 `TRepository` 实现 `IHarborCrudRepository<TEntity>`。基类直接调用实体仓储完成 `List/Get/Save/Delete`；子类只覆盖 `MapToDto`、`CreateEntity`、`ApplySaveAsync`、`ValidateCreateAsync`、`ValidateUpdateAsync`、`CanDeleteAsync`、`AfterSaveAsync`、`AfterDeleteAsync` 等业务钩子。
 
-Service 不传 DbKey、TableName 或路由对象；分库由仓储根据模块 metadata / `[OverrideDbKey]` 决定，分表由实体仓储内部钩子决定。Controller 直接通过 `CrudControllerBase` 调用这些标准方法，不再保留 `SaveProviderAsync` 这类普通 CRUD 转发入口；确有业务语义差异的方法再单独命名。
+Service 不传 DbKey 或底层路由对象；分库由仓储根据模块 metadata / `[OverrideDbKey]` 决定。Controller 直接通过 `CrudControllerBase` 调用这些标准方法，不再保留 `SaveProviderAsync` 这类普通 CRUD 转发入口；确有业务语义差异的方法再单独命名。
 
 ---
 
@@ -279,20 +279,20 @@ public interface IAdminUserRepository
 }
 
 // Infrastructure/Repositories/AdminUserRepository.cs
-public sealed class AdminUserRepository(IAdminDbContext db)
-    : FreeSqlModuleRepository<IAdminDbContext>(db), IAdminUserRepository
+public sealed class AdminUserRepository(IAdminDbContext db, UnitOfWorkManagerCloud unitOfWorkManager)
+    : HarborRepository<IAdminDbContext>(db, unitOfWorkManager), IAdminUserRepository
 {
 }
 ```
 
 | 规则          | 说明                                                                                               |
 | ------------- | -------------------------------------------------------------------------------------------------- |
-| 标准实体 CRUD | 接口继承 `IHarborCrudRepository<TEntity>`，实现继承 `FreeSqlEntityRepository<TEntity, TDbContext>` |
+| 标准实体 CRUD | 接口继承 `IHarborCrudRepository<TEntity>`，实现继承 `FreeSqlCrudRepository<TEntity, TDbContext>` |
 | 复杂领域仓储  | 使用窄接口，例如 `IAdminAccessRepository`、`IAdminFeatureDesignRepository`                         |
 | 模块总仓储    | 不再默认创建 `I{Module}Repository`；只有确有跨领域聚合且无法拆小时才允许                           |
 | 生命周期      | DbContext 通常 `Singleton`；实体/领域仓储通常 `Scoped`                                             |
 
-标准实体 CRUD 可新增实体级仓储并继承 `FreeSqlEntityRepository<TEntity, TDbContext>`；复杂聚合查询、发布快照、多表业务操作放入按领域命名的窄仓储。不要用一个巨型 `IAdminRepository` / `FreeSqlAdminRepository` 收纳所有方法。实体级仓储内部可以覆盖分表钩子，但不要把 DbKey、TableName 或底层路由传到 Service / Controller。
+标准实体 CRUD 可新增实体级仓储并继承 `FreeSqlCrudRepository<TEntity, TDbContext>`；复杂聚合查询、发布快照、多表业务操作放入按领域命名的窄仓储。不要用一个巨型 `IAdminRepository` / `FreeSqlAdminRepository` 收纳所有方法，不要把 DbKey 或底层路由传到 Service / Controller。
 
 ---
 
@@ -335,7 +335,7 @@ public sealed class UserController(UserService userService, ICurrentUser current
 | 路由参数 | 使用约束，如 `{id:long}`、`{featureCode}`                                                                                                                                     |
 | 流式例外 | `AiChatController` 等 SSE 端点可不返回 `ApiResult<T>`                                                                                                                         |
 
-标准可分页 CRUD Controller 优先继承 `PagedCrudControllerBase<TDto, TQuery, TSaveRequest>`，Service 继承 `HarborApplicationPagedRepositoryService<...>` 并实现 `IPagedCrudApplicationService<TDto, TQuery, TSaveRequest>`，其中 `TQuery` 继承 `PageRequest`。标准非分页 CRUD 继承 `CrudControllerBase<TDto, TSaveRequest>` 并让 Service 实现 `ICrudApplicationService<TDto, TSaveRequest>`。父资源、业务键、当前用户、树、发布、动态元数据、副作用或流式接口不强行套 CRUD 模板，但必须继承 `HarborControllerBase` 并复用统一包装方法。具体 Controller 仍必须显式声明路由、HTTP Verb、XML 注释和需要的业务服务。
+标准可分页 CRUD Controller 优先继承 `PagedCrudControllerBase<TDto, TQuery, TSaveRequest>`，Service 继承 `HarborApplicationPagedRepositoryService<...>` 并实现 `IPagedCrudApplicationService<TDto, TQuery, TSaveRequest>`，其中 `TQuery` 继承 `PageRequest`；Service 内部再转换为仓储使用的 `HarborQueryOptions`。标准非分页 CRUD 继承 `CrudControllerBase<TDto, TSaveRequest>` 并让 Service 实现 `ICrudApplicationService<TDto, TSaveRequest>`。父资源、业务键、当前用户、树、发布、动态元数据、副作用或流式接口不强行套 CRUD 模板，但必须继承 `HarborControllerBase` 并复用统一包装方法。具体 Controller 仍必须显式声明路由、HTTP Verb、XML 注释和需要的业务服务。
 
 ---
 

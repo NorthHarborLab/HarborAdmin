@@ -3,6 +3,8 @@ using System.Text;
 using System.Text.Json;
 using HarborAdmin.BuildingBlocks.Abstractions.Auth;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
+using HarborAdmin.BuildingBlocks.Abstractions.Repositories;
+using HarborAdmin.BuildingBlocks.Abstractions.Repositories.Models;
 using HarborAdmin.BuildingBlocks.EventBus;
 using HarborAdmin.BuildingBlocks.Mapping;
 using HarborAdmin.Modules.AI.Application.Abstractions;
@@ -98,12 +100,12 @@ public sealed class ReleaseService(
     /// </summary>
     private async Task<AiConfigSnapshot> BuildSnapshotAsync(int version, CancellationToken cancellationToken)
     {
-        var providers = (await providerRepository.ListAsync(cancellationToken)).Where(p => p.Enabled).ToList();
-        var businesses = (await businessRepository.ListAsync(cancellationToken)).Where(b => b.Enabled).ToList();
-        var prompts = (await promptRepository.ListAsync(cancellationToken)).Where(p => p.Enabled).ToList();
-        var knowledgeBases = (await knowledgeBaseRepository.ListAsync(cancellationToken)).Where(k => k.Enabled).ToList();
+        var providers = (await providerRepository.ListAsync(HarborQueryOptions.Empty, cancellationToken)).Where(p => p.Enabled).ToList();
+        var businesses = (await businessRepository.ListAsync(HarborQueryOptions.Empty, cancellationToken)).Where(b => b.Enabled).ToList();
+        var prompts = (await promptRepository.ListAsync(HarborQueryOptions.Empty, cancellationToken)).Where(p => p.Enabled).ToList();
+        var knowledgeBases = (await knowledgeBaseRepository.ListAsync(HarborQueryOptions.Empty, cancellationToken)).Where(k => k.Enabled).ToList();
         var providerQuotas = (await quotaRepository.ListProviderQuotasAsync(cancellationToken)).Where(q => q.Enabled).ToList();
-        var modelQuotas = (await modelQuotaRepository.ListAsync(cancellationToken)).Where(q => q.Enabled).ToList();
+        var modelQuotas = (await modelQuotaRepository.ListAsync(HarborQueryOptions.Empty, cancellationToken)).Where(q => q.Enabled).ToList();
         var providerKeys = providers.ToDictionary(p => p.Id, p => p.ProviderKey);
         return new AiConfigSnapshot(
             version,

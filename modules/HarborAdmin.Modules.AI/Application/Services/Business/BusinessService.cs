@@ -1,5 +1,7 @@
 using HarborAdmin.BuildingBlocks.Abstractions.Application;
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
+using HarborAdmin.BuildingBlocks.Abstractions.Repositories;
+using HarborAdmin.BuildingBlocks.Abstractions.Repositories.Models;
 using HarborAdmin.BuildingBlocks.Mapping;
 using HarborAdmin.Modules.AI.Application.Abstractions;
 using HarborAdmin.Modules.AI.Application.Services.Shared;
@@ -80,7 +82,7 @@ public sealed class BusinessService(IAiBusinessRepository repository, IHarborMap
     /// </summary>
     public async Task<IReadOnlyList<AiChatBusinessOptionDto>> ListChatOptionsAsync(CancellationToken cancellationToken = default)
     {
-        var items = await Repository.ListAsync(cancellationToken);
+        var items = await Repository.ListAsync(HarborQueryOptions.Empty, cancellationToken);
         return items
             .Where(item => item.Enabled && item.EnableStreaming)
             .OrderBy(item => item.BusinessKey, StringComparer.Ordinal)

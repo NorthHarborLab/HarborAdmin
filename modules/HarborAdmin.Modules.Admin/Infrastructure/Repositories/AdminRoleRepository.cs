@@ -1,6 +1,8 @@
 using FreeSql;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.BuildingBlocks.Data;
+using HarborAdmin.BuildingBlocks.Data.Configs;
+using HarborAdmin.BuildingBlocks.Data.Repositories;
 using HarborAdmin.Modules.Admin.Application.Abstractions;
 using HarborAdmin.Modules.Admin.Domain.Entities;
 using HarborAdmin.Modules.Admin.Infrastructure.Contexts;
@@ -11,61 +13,42 @@ namespace HarborAdmin.Modules.Admin.Infrastructure.Repositories;
 /// Admin 角色实体 CRUD 仓储。
 /// </summary>
 public sealed class AdminRoleRepository(IAdminDbContext db, DbEntityRegistry entityRegistry, UnitOfWorkManagerCloud unitOfWorkManager)
-    : FreeSqlEntityRepository<AdminRole, IAdminDbContext>(db, entityRegistry), IAdminRoleRepository
+    : FreeSqlCrudRepository<AdminRole, IAdminDbContext>(db, entityRegistry, unitOfWorkManager), IAdminRoleRepository
 {
-    /// <inheritdoc />
-    protected override ISelect<AdminRole> BuildListQuery(ISelect<AdminRole> query) =>
-        BuildDetailQuery(query).OrderBy(role => role.Id);
-
-    /// <inheritdoc />
-    protected override ISelect<AdminRole> BuildDetailQuery(ISelect<AdminRole> query) =>
-        query
-            .IncludeMany(role => role.RoleMenus)
-            .IncludeMany(role => role.RolePermissions)
-            .IncludeMany(role => role.FieldPermissions)
-            .IncludeMany(role => role.DataScopes);
-
     /// <inheritdoc />
     public override async Task<AdminRole> InsertAsync(AdminRole entity, CancellationToken cancellationToken = default)
     {
-        using var uow = unitOfWorkManager.Begin(DbKey);
-        using (DbContext.Bind(DbKey, uow.Orm))
+        await ExecuteInUnitOfWorkAsync(async ct =>
         {
-            await base.InsertAsync(entity, cancellationToken);
-            await SaveChildrenAsync(entity, cancellationToken);
-        }
+            await base.InsertAsync(entity, ct);
+            await SaveChildrenAsync(entity, ct);
+        }, cancellationToken);
 
-        uow.Commit();
         return entity;
     }
 
     /// <inheritdoc />
     public override async Task<AdminRole> UpdateAsync(AdminRole entity, CancellationToken cancellationToken = default)
     {
-        using var uow = unitOfWorkManager.Begin(DbKey);
-        using (DbContext.Bind(DbKey, uow.Orm))
+        await ExecuteInUnitOfWorkAsync(async ct =>
         {
-            await base.UpdateAsync(entity, cancellationToken);
-            await DeleteChildrenAsync(entity.Id, cancellationToken);
-            await SaveChildrenAsync(entity, cancellationToken);
-        }
+            await base.UpdateAsync(entity, ct);
+            await DeleteChildrenAsync(entity.Id, ct);
+            await SaveChildrenAsync(entity, ct);
+        }, cancellationToken);
 
-        uow.Commit();
         return entity;
     }
 
     /// <inheritdoc />
     public override async Task DeleteAsync(long id, CancellationToken cancellationToken = default)
     {
-        using var uow = unitOfWorkManager.Begin(DbKey);
-        using (DbContext.Bind(DbKey, uow.Orm))
+        await ExecuteInUnitOfWorkAsync(async ct =>
         {
-            await DeleteChildrenAsync(id, cancellationToken);
-            await FreeSql.Delete<AdminUserRole>().Where(link => link.RoleId == id).ExecuteAffrowsAsync(cancellationToken);
-            await base.DeleteAsync(id, cancellationToken);
-        }
-
-        uow.Commit();
+            await DeleteChildrenAsync(id, ct);
+            await FreeSql.Delete<AdminUserRole>().Where(link => link.RoleId == id).ExecuteAffrowsAsync(ct);
+            await base.DeleteAsync(id, ct);
+        }, cancellationToken);
     }
 
     /// <inheritdoc />

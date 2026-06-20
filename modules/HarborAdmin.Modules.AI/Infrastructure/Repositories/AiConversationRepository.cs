@@ -1,4 +1,5 @@
 using HarborAdmin.BuildingBlocks.Data;
+using HarborAdmin.BuildingBlocks.Data.Repositories;
 using HarborAdmin.Modules.AI.Application.Abstractions;
 using HarborAdmin.Modules.AI.Domain.Entities;
 using HarborAdmin.Modules.AI.Infrastructure.Contexts;
@@ -8,8 +9,8 @@ namespace HarborAdmin.Modules.AI.Infrastructure.Repositories;
 /// <summary>
 /// AI 会话 FreeSql 仓储。
 /// </summary>
-public sealed class AiConversationRepository(IAiDbContext db)
-    : FreeSqlModuleRepository<IAiDbContext>(db), IAiConversationRepository
+public sealed class AiConversationRepository(IAiDbContext db, UnitOfWorkManagerCloud unitOfWorkManager)
+    : HarborRepository<IAiDbContext>(db, unitOfWorkManager), IAiConversationRepository
 {
     /// <inheritdoc />
     public async Task<(IReadOnlyList<AiConversation> Items, long Total)> ListConversationsAsync(

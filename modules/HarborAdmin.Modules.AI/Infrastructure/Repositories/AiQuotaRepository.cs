@@ -1,5 +1,6 @@
 using System.Data;
 using HarborAdmin.BuildingBlocks.Data;
+using HarborAdmin.BuildingBlocks.Data.Repositories;
 using HarborAdmin.Modules.AI.Application.Abstractions;
 using HarborAdmin.Modules.AI.Domain.Entities;
 using HarborAdmin.Modules.AI.Infrastructure.Contexts;
@@ -10,18 +11,12 @@ namespace HarborAdmin.Modules.AI.Infrastructure.Repositories;
 /// AI 限额与用量桶 FreeSql 仓储。
 /// </summary>
 public sealed class AiQuotaRepository(IAiDbContext db, UnitOfWorkManagerCloud unitOfWorkManager)
-    : FreeSqlModuleRepository<IAiDbContext>(db), IAiQuotaRepository
+    : HarborRepository<IAiDbContext>(db, unitOfWorkManager), IAiQuotaRepository
 {
     /// <inheritdoc />
     public async Task ExecuteSerializableAsync(Func<CancellationToken, Task> action, CancellationToken cancellationToken = default)
     {
-        using var uow = unitOfWorkManager.Begin(DbContext.DbKey, isolationLevel: IsolationLevel.Serializable);
-        using (DbContext.Bind(uow.Orm))
-        {
-            await action(cancellationToken);
-        }
-
-        uow.Commit();
+        await ExecuteInUnitOfWorkAsync(action, cancellationToken, isolationLevel: IsolationLevel.Serializable);
     }
 
     /// <inheritdoc />

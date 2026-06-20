@@ -1,4 +1,5 @@
 using HarborAdmin.BuildingBlocks.Data;
+using HarborAdmin.BuildingBlocks.Data.Repositories;
 using HarborAdmin.Modules.Admin.Application.Abstractions;
 using HarborAdmin.Modules.Admin.Domain.Entities;
 using HarborAdmin.Modules.Admin.Infrastructure.Contexts;
@@ -8,7 +9,8 @@ namespace HarborAdmin.Modules.Admin.Infrastructure.Repositories;
 /// <summary>
 /// Admin 用户聚合 FreeSql 仓储。
 /// </summary>
-public sealed class AdminUserRepository(IAdminDbContext db) : FreeSqlModuleRepository<IAdminDbContext>(db), IAdminUserRepository
+public sealed class AdminUserRepository(IAdminDbContext db, UnitOfWorkManagerCloud unitOfWorkManager)
+    : HarborRepository<IAdminDbContext>(db, unitOfWorkManager), IAdminUserRepository
 {
     /// <inheritdoc />
     public async Task<AdminUser?> GetUserAggregateAsync(long userId, CancellationToken cancellationToken = default) =>

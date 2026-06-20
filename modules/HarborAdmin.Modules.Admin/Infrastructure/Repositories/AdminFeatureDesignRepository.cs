@@ -1,5 +1,6 @@
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.BuildingBlocks.Data;
+using HarborAdmin.BuildingBlocks.Data.Repositories;
 using HarborAdmin.Modules.Admin.Application.Abstractions;
 using HarborAdmin.Modules.Admin.Contracts.FeatureDesign;
 using HarborAdmin.Modules.Admin.Domain.Entities;
@@ -10,7 +11,8 @@ namespace HarborAdmin.Modules.Admin.Infrastructure.Repositories;
 /// <summary>
 /// Admin 功能设计 FreeSql 仓储。
 /// </summary>
-public sealed class AdminFeatureDesignRepository(IAdminDbContext db) : FreeSqlModuleRepository<IAdminDbContext>(db), IAdminFeatureDesignRepository
+public sealed class AdminFeatureDesignRepository(IAdminDbContext db, UnitOfWorkManagerCloud unitOfWorkManager)
+    : HarborRepository<IAdminDbContext>(db, unitOfWorkManager), IAdminFeatureDesignRepository
 {
     /// <inheritdoc />
     public async Task<IReadOnlyList<AdminFeature>> ListFeatureTreeNodesAsync(CancellationToken cancellationToken = default) =>

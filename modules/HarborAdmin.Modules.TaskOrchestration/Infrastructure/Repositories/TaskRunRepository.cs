@@ -1,6 +1,9 @@
 using HarborAdmin.BuildingBlocks.Abstractions.Enums;
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
+using HarborAdmin.BuildingBlocks.Abstractions.Repositories;
 using HarborAdmin.BuildingBlocks.Data;
+using HarborAdmin.BuildingBlocks.Data.Extends;
+using HarborAdmin.BuildingBlocks.Data.Repositories;
 using HarborAdmin.Modules.TaskOrchestration.Application.Abstractions;
 using HarborAdmin.Modules.TaskOrchestration.Contracts.Tasks.Request;
 using HarborAdmin.Modules.TaskOrchestration.Domain.Entities;
@@ -12,8 +15,8 @@ namespace HarborAdmin.Modules.TaskOrchestration.Infrastructure.Repositories;
 /// <summary>
 /// FreeSql 任务运行仓储
 /// </summary>
-public sealed class TaskRunRepository(ITaskOrchestrationDbContext db)
-    : FreeSqlModuleRepository<ITaskOrchestrationDbContext>(db), ITaskRunRepository
+public sealed class TaskRunRepository(ITaskOrchestrationDbContext db, UnitOfWorkManagerCloud unitOfWorkManager)
+    : HarborRepository<ITaskOrchestrationDbContext>(db, unitOfWorkManager), ITaskRunRepository
 {
     private static readonly IReadOnlyDictionary<string, PageDynamicField> RunFilterFields =
         new Dictionary<string, PageDynamicField>(StringComparer.OrdinalIgnoreCase)

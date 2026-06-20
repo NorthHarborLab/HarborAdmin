@@ -1,5 +1,7 @@
 using FreeSql;
 using HarborAdmin.BuildingBlocks.Data;
+using HarborAdmin.BuildingBlocks.Data.Configs;
+using HarborAdmin.BuildingBlocks.Data.Repositories;
 using HarborAdmin.Modules.AI.Application.Abstractions;
 using HarborAdmin.Modules.AI.Domain.Entities;
 using HarborAdmin.Modules.AI.Infrastructure.Contexts;
@@ -10,16 +12,8 @@ namespace HarborAdmin.Modules.AI.Infrastructure.Repositories;
 /// AI 供应商实体 CRUD 仓储。
 /// </summary>
 public sealed class AiProviderRepository(IAiDbContext db, DbEntityRegistry entityRegistry, UnitOfWorkManagerCloud unitOfWorkManager)
-    : FreeSqlEntityRepository<AiProvider, IAiDbContext>(db, entityRegistry), IAiProviderRepository
+    : FreeSqlCrudRepository<AiProvider, IAiDbContext>(db, entityRegistry, unitOfWorkManager), IAiProviderRepository
 {
-    /// <inheritdoc />
-    protected override ISelect<AiProvider> BuildListQuery(ISelect<AiProvider> query) =>
-        query.IncludeMany(provider => provider.Models).OrderBy(provider => provider.ProviderKey);
-
-    /// <inheritdoc />
-    protected override ISelect<AiProvider> BuildDetailQuery(ISelect<AiProvider> query) =>
-        query.IncludeMany(provider => provider.Models);
-
     /// <inheritdoc />
     public async Task<AiProvider?> GetProviderByKeyAsync(string providerKey, CancellationToken cancellationToken = default) =>
         await FreeSql.Select<AiProvider>()
@@ -30,44 +24,37 @@ public sealed class AiProviderRepository(IAiDbContext db, DbEntityRegistry entit
     /// <inheritdoc />
     public override async Task<AiProvider> InsertAsync(AiProvider entity, CancellationToken cancellationToken = default)
     {
-        using var uow = unitOfWorkManager.Begin(DbKey);
-        using (DbContext.Bind(DbKey, uow.Orm))
+        await ExecuteInUnitOfWorkAsync(async ct =>
         {
-            await base.InsertAsync(entity, cancellationToken);
-            await SaveModelsAsync(entity, cancellationToken);
-        }
+            await base.InsertAsync(entity, ct);
+            await SaveModelsAsync(entity, ct);
+        }, cancellationToken);
 
-        uow.Commit();
         return entity;
     }
 
     /// <inheritdoc />
     public override async Task<AiProvider> UpdateAsync(AiProvider entity, CancellationToken cancellationToken = default)
     {
-        using var uow = unitOfWorkManager.Begin(DbKey);
-        using (DbContext.Bind(DbKey, uow.Orm))
+        await ExecuteInUnitOfWorkAsync(async ct =>
         {
-            await base.UpdateAsync(entity, cancellationToken);
-            await FreeSql.Delete<AiProviderModel>().Where(model => model.ProviderId == entity.Id).ExecuteAffrowsAsync(cancellationToken);
-            await SaveModelsAsync(entity, cancellationToken);
-        }
+            await base.UpdateAsync(entity, ct);
+            await FreeSql.Delete<AiProviderModel>().Where(model => model.ProviderId == entity.Id).ExecuteAffrowsAsync(ct);
+            await SaveModelsAsync(entity, ct);
+        }, cancellationToken);
 
-        uow.Commit();
         return entity;
     }
 
     /// <inheritdoc />
     public override async Task DeleteAsync(long id, CancellationToken cancellationToken = default)
     {
-        using var uow = unitOfWorkManager.Begin(DbKey);
-        using (DbContext.Bind(DbKey, uow.Orm))
+        await ExecuteInUnitOfWorkAsync(async ct =>
         {
-            await FreeSql.Delete<AiProviderModel>().Where(model => model.ProviderId == id).ExecuteAffrowsAsync(cancellationToken);
-            await FreeSql.Delete<AiProviderQuota>().Where(quota => quota.ProviderId == id).ExecuteAffrowsAsync(cancellationToken);
-            await base.DeleteAsync(id, cancellationToken);
-        }
-
-        uow.Commit();
+            await FreeSql.Delete<AiProviderModel>().Where(model => model.ProviderId == id).ExecuteAffrowsAsync(ct);
+            await FreeSql.Delete<AiProviderQuota>().Where(quota => quota.ProviderId == id).ExecuteAffrowsAsync(ct);
+            await base.DeleteAsync(id, ct);
+        }, cancellationToken);
     }
 
     /// <summary>

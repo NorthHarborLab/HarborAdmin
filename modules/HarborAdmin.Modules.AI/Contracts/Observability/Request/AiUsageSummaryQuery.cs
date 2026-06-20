@@ -1,11 +1,12 @@
-using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
+using HarborAdmin.BuildingBlocks.Abstractions.Repositories;
+using HarborAdmin.BuildingBlocks.Abstractions.Repositories.Models;
 
 namespace HarborAdmin.Modules.AI.Contracts.Observability.Request;
 
 /// <summary>
 /// AI 用量汇总查询。
 /// </summary>
-public sealed class AiUsageSummaryQuery : PageRequest
+public sealed class AiUsageSummaryQuery : HarborQueryOptions
 {
     /// <summary>
     /// 区间开始（含）。

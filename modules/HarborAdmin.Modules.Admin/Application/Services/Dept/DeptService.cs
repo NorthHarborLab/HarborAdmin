@@ -1,6 +1,8 @@
 using HarborAdmin.BuildingBlocks.Abstractions.Application;
 using HarborAdmin.BuildingBlocks.Abstractions.Enums;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
+using HarborAdmin.BuildingBlocks.Abstractions.Repositories;
+using HarborAdmin.BuildingBlocks.Abstractions.Repositories.Models;
 using HarborAdmin.BuildingBlocks.Mapping;
 using HarborAdmin.Modules.Admin.Application.Abstractions;
 using HarborAdmin.Modules.Admin.Application.Services.Shared;
@@ -26,7 +28,7 @@ public sealed class DeptService(
     /// </summary>
     public override async Task<IReadOnlyList<SystemDeptDto>> ListAsync(CancellationToken cancellationToken = default)
     {
-        var depts = await Repository.ListAsync(cancellationToken);
+        var depts = await Repository.ListAsync(HarborQueryOptions.Empty, cancellationToken);
         return BuildDepartmentTree(depts);
     }
 
@@ -120,7 +122,7 @@ public sealed class DeptService(
             throw new ValidationDomainException("上级部门不能选择当前部门。");
         }
 
-        var departments = await Repository.ListAsync(cancellationToken);
+        var departments = await Repository.ListAsync(HarborQueryOptions.Empty, cancellationToken);
         if (departments.All(dept => dept.Id != parentId.Value))
         {
             throw new NotFoundDomainException("上级部门不存在。");

@@ -1,4 +1,5 @@
 using HarborAdmin.BuildingBlocks.Data;
+using HarborAdmin.BuildingBlocks.Data.Repositories;
 using HarborAdmin.Modules.International.Application.Abstractions;
 using HarborAdmin.Modules.International.Domain.Entities;
 using HarborAdmin.Modules.International.Infrastructure.Contexts;
@@ -8,8 +9,8 @@ namespace HarborAdmin.Modules.International.Infrastructure.Repositories;
 /// <summary>
 /// 基于 FreeSql 的国际化资源分组仓储实现。
 /// </summary>
-public sealed class InternationalGroupRepository(IInternationalDbContext db)
-    : FreeSqlModuleRepository<IInternationalDbContext>(db), IInternationalGroupRepository
+public sealed class InternationalGroupRepository(IInternationalDbContext db, UnitOfWorkManagerCloud unitOfWorkManager)
+    : HarborRepository<IInternationalDbContext>(db, unitOfWorkManager), IInternationalGroupRepository
 {
     /// <inheritdoc />
     public async Task<IReadOnlyList<InternationalGroup>> ListGroupsAsync(CancellationToken cancellationToken = default) =>

@@ -1,4 +1,5 @@
 using HarborAdmin.BuildingBlocks.Data;
+using HarborAdmin.BuildingBlocks.Data.DbContext;
 
 namespace HarborAdmin.Modules.AI.Infrastructure.Contexts;
 

@@ -1,4 +1,5 @@
 using HarborAdmin.BuildingBlocks.Data;
+using HarborAdmin.BuildingBlocks.Data.Repositories;
 using HarborAdmin.Modules.AI.Application.Abstractions;
 using HarborAdmin.Modules.AI.Domain.Entities;
 using HarborAdmin.Modules.AI.Infrastructure.Contexts;
@@ -8,7 +9,8 @@ namespace HarborAdmin.Modules.AI.Infrastructure.Repositories;
 /// <summary>
 /// AI 调用日志 FreeSql 仓储。
 /// </summary>
-public sealed class AiInvocationRepository(IAiDbContext db) : FreeSqlModuleRepository<IAiDbContext>(db), IAiInvocationRepository
+public sealed class AiInvocationRepository(IAiDbContext db, UnitOfWorkManagerCloud unitOfWorkManager)
+    : HarborRepository<IAiDbContext>(db, unitOfWorkManager), IAiInvocationRepository
 {
     /// <inheritdoc />
     public async Task<AiInvocationLog> InsertInvocationLogAsync(AiInvocationLog log, CancellationToken cancellationToken = default)

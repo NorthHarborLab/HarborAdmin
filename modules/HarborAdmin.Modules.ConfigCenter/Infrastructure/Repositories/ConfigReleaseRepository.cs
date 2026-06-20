@@ -1,4 +1,5 @@
 using HarborAdmin.BuildingBlocks.Data;
+using HarborAdmin.BuildingBlocks.Data.Repositories;
 using HarborAdmin.Modules.ConfigCenter.Application.Abstractions;
 using HarborAdmin.Modules.ConfigCenter.Infrastructure.Contexts;
 
@@ -8,7 +9,7 @@ namespace HarborAdmin.Modules.ConfigCenter.Infrastructure.Repositories;
 /// 基于 FreeSql 的配置中心发布仓储实现。
 /// </summary>
 public sealed class ConfigReleaseRepository(IConfigCenterDbContext db, UnitOfWorkManagerCloud unitOfWorkManager)
-    : FreeSqlModuleRepository<IConfigCenterDbContext>(db), IConfigReleaseRepository
+    : HarborRepository<IConfigCenterDbContext>(db, unitOfWorkManager), IConfigReleaseRepository
 {
     /// <inheritdoc />
     public async Task<IReadOnlyList<ConfigRelease>> ListReleasesAsync(string appId, CancellationToken cancellationToken = default) =>
@@ -45,26 +46,24 @@ public sealed class ConfigReleaseRepository(IConfigCenterDbContext db, UnitOfWor
         IReadOnlyList<ConfigReleaseItem> items,
         CancellationToken cancellationToken = default)
     {
-        using var uow = unitOfWorkManager.Begin(DbContext.DbKey);
-        using (DbContext.Bind(DbContext.DbKey, uow.Orm))
+        await ExecuteInUnitOfWorkAsync(async ct =>
         {
-            var inserted = await FreeSql.Insert(release).ExecuteInsertedAsync(cancellationToken);
+            var inserted = await FreeSql.Insert(release).ExecuteInsertedAsync(ct);
             release.Id = inserted.First().Id;
             if (release.Id == 0)
             {
                 release.Id = await FreeSql.Select<ConfigRelease>()
                     .Where(r => r.AppId == release.AppId && r.Version == release.Version)
-                    .FirstAsync(r => r.Id, cancellationToken);
+                    .FirstAsync(r => r.Id, ct);
             }
 
             foreach (var item in items)
             {
                 item.ReleaseId = release.Id;
-                await FreeSql.Insert(item).ExecuteAffrowsAsync(cancellationToken);
+                await FreeSql.Insert(item).ExecuteAffrowsAsync(ct);
             }
-        }
+        }, cancellationToken);
 
-        uow.Commit();
         return release;
     }
 }

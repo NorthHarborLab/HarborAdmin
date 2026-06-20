@@ -1,5 +1,6 @@
 using HarborAdmin.BuildingBlocks.Caching.Abstractions;
 using HarborAdmin.BuildingBlocks.Data;
+using HarborAdmin.BuildingBlocks.Data.Repositories;
 using HarborAdmin.Modules.Admin.Application.Abstractions;
 using HarborAdmin.Modules.Admin.Domain.Entities;
 using HarborAdmin.Modules.Admin.Infrastructure.Caching;
@@ -10,8 +11,12 @@ namespace HarborAdmin.Modules.Admin.Infrastructure.Repositories;
 /// <summary>
 /// Admin 运行时状态 FreeSql 仓储。
 /// </summary>
-public sealed class AdminRuntimeStateRepository(IAdminDbContext db, IHarborCache cache, IHarborCacheInvalidator cacheInvalidator)
-    : FreeSqlModuleRepository<IAdminDbContext>(db), IAdminRuntimeStateRepository
+public sealed class AdminRuntimeStateRepository(
+    IAdminDbContext db,
+    IHarborCache cache,
+    IHarborCacheInvalidator cacheInvalidator,
+    UnitOfWorkManagerCloud unitOfWorkManager)
+    : HarborRepository<IAdminDbContext>(db, unitOfWorkManager), IAdminRuntimeStateRepository
 {
     private const string SessionVersionKey = "global";
 

@@ -1,4 +1,5 @@
 using HarborAdmin.BuildingBlocks.Data;
+using HarborAdmin.BuildingBlocks.Data.Repositories;
 using HarborAdmin.Modules.Admin.Application.Abstractions;
 using HarborAdmin.Modules.Admin.Domain.Entities;
 using HarborAdmin.Modules.Admin.Infrastructure.Contexts;
@@ -8,7 +9,8 @@ namespace HarborAdmin.Modules.Admin.Infrastructure.Repositories;
 /// <summary>
 /// Admin 字典 FreeSql 仓储。
 /// </summary>
-public sealed class AdminDictionaryRepository(IAdminDbContext db) : FreeSqlModuleRepository<IAdminDbContext>(db), IAdminDictionaryRepository
+public sealed class AdminDictionaryRepository(IAdminDbContext db, UnitOfWorkManagerCloud unitOfWorkManager)
+    : HarborRepository<IAdminDbContext>(db, unitOfWorkManager), IAdminDictionaryRepository
 {
     /// <inheritdoc />
     public async Task<IReadOnlyList<AdminDictionary>> ListDictionariesAsync(string? keyword, CancellationToken cancellationToken = default)

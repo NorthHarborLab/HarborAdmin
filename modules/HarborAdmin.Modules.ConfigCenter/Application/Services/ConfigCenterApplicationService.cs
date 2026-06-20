@@ -1,3 +1,5 @@
+using HarborAdmin.BuildingBlocks.Abstractions.Repositories;
+using HarborAdmin.BuildingBlocks.Abstractions.Repositories.Models;
 using HarborAdmin.BuildingBlocks.Mapping;
 using HarborAdmin.Modules.ConfigCenter.Contracts.Application.Dto;
 using HarborAdmin.Modules.ConfigCenter.Contracts.Application.Request;
@@ -13,7 +15,7 @@ public sealed class ConfigCenterApplicationService(IConfigApplicationRepository 
     /// 列出所有应用。
     /// </summary>
     public async Task<IReadOnlyList<ConfigApplicationDto>> ListApplicationsAsync(CancellationToken cancellationToken = default) =>
-        (await repository.ListAsync(cancellationToken))
+        (await repository.ListAsync(HarborQueryOptions.Empty, cancellationToken))
         .Select(mapper.Map<ConfigApplicationDto>)
         .ToList();
 
