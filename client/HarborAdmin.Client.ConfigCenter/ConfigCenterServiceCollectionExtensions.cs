@@ -50,6 +50,12 @@ public static class ConfigCenterServiceCollectionExtensions
         {
             // Host 等管理进程可选择不因 ConfigCenter 暂不可用而阻断启动,后台服务会继续重连。
         }
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            throw new InvalidOperationException(
+                $"Failed to load required Harbor ConfigCenter configuration for AppId '{options.AppId}' from {options.Host}:{options.Port}.",
+                ex);
+        }
 
         return source;
     }

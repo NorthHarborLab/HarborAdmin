@@ -18,7 +18,7 @@ public sealed class ConfigCenterOptions
     /// <summary>
     /// ConfigCenter TCP 端口。
     /// </summary>
-    public int Port { get; set; } = 50000;
+    public int Port { get; set; } = 18100;
 
     /// <summary>
     /// 本应用在配置中心注册的应用标识

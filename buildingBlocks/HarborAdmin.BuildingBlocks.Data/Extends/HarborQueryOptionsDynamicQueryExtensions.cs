@@ -3,37 +3,34 @@ using System.Text.Json;
 using FreeSql;
 using FreeSql.Internal.Model;
 using HarborAdmin.BuildingBlocks.Abstractions.Enums;
-using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
-using HarborAdmin.BuildingBlocks.Abstractions.Repository;
+using HarborAdmin.BuildingBlocks.Abstractions.Repositories.Models;
 
-namespace HarborAdmin.BuildingBlocks.Data;
+namespace HarborAdmin.BuildingBlocks.Data.Extends;
 
 /// <summary>
-/// 分页请求动态查询扩展
+/// Harbor 查询选项动态查询扩展
 /// </summary>
-public static class PageRequestDynamicQueryExtensions
+public static class HarborQueryOptionsDynamicQueryExtensions
 {
     /// <summary>
     /// 按白名单应用动态筛选
     /// </summary>
     /// <typeparam name="TEntity">实体类型</typeparam>
     /// <param name="query">查询对象</param>
-    /// <param name="request">分页请求</param>
+    /// <param name="options">查询选项</param>
     /// <param name="fields">允许筛选字段</param>
     /// <returns>已应用筛选的查询对象</returns>
-    public static ISelect<TEntity> ApplyDynamicFilters<TEntity>(
-        this ISelect<TEntity> query,
-        PageRequest request,
+    public static ISelect<TEntity> ApplyDynamicFilters<TEntity>(this ISelect<TEntity> query, HarborQueryOptions options,
         IReadOnlyDictionary<string, PageDynamicField> fields)
         where TEntity : class
     {
-        if (request.Filters is null || request.Filters.Count == 0)
+        if (options.Filters is null || options.Filters.Count == 0)
         {
             return query;
         }
 
         var filters = new List<DynamicFilterInfo>();
-        foreach (var rule in request.Filters)
+        foreach (var rule in options.Filters)
         {
             if (!fields.TryGetValue(rule.Field, out var field) || !field.Allows(rule.Operator))
             {
@@ -61,20 +58,17 @@ public static class PageRequestDynamicQueryExtensions
     /// </summary>
     /// <typeparam name="TEntity">实体类型</typeparam>
     /// <param name="query">查询对象</param>
-    /// <param name="request">分页请求</param>
+    /// <param name="options">查询选项</param>
     /// <param name="sortFields">允许排序字段</param>
     /// <param name="defaultSort">默认排序</param>
     /// <returns>已应用排序的查询对象</returns>
-    public static ISelect<TEntity> ApplyDynamicSorting<TEntity>(
-        this ISelect<TEntity> query,
-        PageRequest request,
-        IReadOnlyDictionary<string, string> sortFields,
-        Func<ISelect<TEntity>, ISelect<TEntity>> defaultSort)
+    public static ISelect<TEntity> ApplyDynamicSorting<TEntity>(this ISelect<TEntity> query, HarborQueryOptions options,
+        IReadOnlyDictionary<string, string> sortFields, Func<ISelect<TEntity>, ISelect<TEntity>> defaultSort)
         where TEntity : class
     {
-        var sortField = request.SortField?.Trim();
-        var ascending = string.Equals(request.SortOrder, "asc", StringComparison.OrdinalIgnoreCase);
-        var descending = string.Equals(request.SortOrder, "desc", StringComparison.OrdinalIgnoreCase);
+        var sortField = options.SortField?.Trim();
+        var ascending = string.Equals(options.SortOrder, "asc", StringComparison.OrdinalIgnoreCase);
+        var descending = string.Equals(options.SortOrder, "desc", StringComparison.OrdinalIgnoreCase);
         if (string.IsNullOrWhiteSpace(sortField) || (!ascending && !descending))
         {
             return defaultSort(query);
@@ -111,10 +105,7 @@ public static class PageRequestDynamicQueryExtensions
     /// <param name="field">字段映射</param>
     /// <param name="operator">FreeSql 操作符</param>
     /// <returns>FreeSql 动态筛选条件</returns>
-    private static DynamicFilterInfo? CreateSingleValueFilter(
-        PageFilterRule rule,
-        PageDynamicField field,
-        DynamicFilterOperator @operator)
+    private static DynamicFilterInfo? CreateSingleValueFilter(PageFilterRule rule, PageDynamicField field, DynamicFilterOperator @operator)
     {
         if (!TryConvertValue(rule.Value, field.ValueType, out var value) || IsEmpty(value))
         {

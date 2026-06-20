@@ -2,6 +2,7 @@
 using HarborAdmin.BuildingBlocks.Abstractions.Enums;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.BuildingBlocks.Abstractions.Repositories;
+using HarborAdmin.BuildingBlocks.Abstractions.Repositories.Models;
 
 namespace HarborAdmin.BuildingBlocks.Abstractions.Application;
 
@@ -33,7 +34,7 @@ public abstract class HarborApplicationRepositoryService<TEntity, TDto, TSaveReq
 
     /// <inheritdoc />
     public virtual async Task<IReadOnlyList<TDto>> ListAsync(CancellationToken cancellationToken = default) =>
-        (await Repository.ListAsync(cancellationToken))
+        (await Repository.ListAsync(HarborQueryOptions.Empty, cancellationToken))
         .Select(MapToDto)
         .ToList();
 

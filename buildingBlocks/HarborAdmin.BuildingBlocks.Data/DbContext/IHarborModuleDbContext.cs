@@ -1,4 +1,4 @@
-namespace HarborAdmin.BuildingBlocks.Data;
+namespace HarborAdmin.BuildingBlocks.Data.DbContext;
 
 /// <summary>
 /// Harbor 模块数据库上下文。

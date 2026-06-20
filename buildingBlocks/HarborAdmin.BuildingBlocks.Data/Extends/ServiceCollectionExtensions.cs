@@ -9,7 +9,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
-namespace HarborAdmin.BuildingBlocks.Data;
+namespace HarborAdmin.BuildingBlocks.Data.Extends;
 
 /// <summary>
 /// FreeSql 依赖注入扩展

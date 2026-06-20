@@ -1,6 +1,7 @@
 using HarborAdmin.BuildingBlocks.Abstractions.Modules;
+using HarborAdmin.BuildingBlocks.Data.Configs;
 
-namespace HarborAdmin.BuildingBlocks.Data;
+namespace HarborAdmin.BuildingBlocks.Data.DbContext;
 
 /// <summary>
 /// Harbor 模块数据库上下文基类。

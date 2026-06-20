@@ -1,6 +1,7 @@
+using HarborAdmin.BuildingBlocks.Data.DbContext;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace HarborAdmin.BuildingBlocks.Data;
+namespace HarborAdmin.BuildingBlocks.Data.Extends;
 
 /// <summary>
 /// Harbor 模块通用依赖注入扩展。

@@ -11,7 +11,7 @@ HarborLab 配置中心客户端 NuGet 包：通过 TCP JSON 拉取配置并接�
   "Harbor": {
     "ConfigCenter": {
       "Host": "127.0.0.1",
-      "Port": 50000,
+      "Port": 18100,
       "AppId": "my-service",
       "Required": true
     }

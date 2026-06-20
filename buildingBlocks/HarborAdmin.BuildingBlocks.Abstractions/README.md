@@ -101,7 +101,7 @@ public sealed class AdminAuditLog : EntityBase
 
 - `HarborControllerBase`：所有非标准 Controller 的最小基类，继承 ASP.NET Core `ControllerBase`，提供 `OkResult(...)`、`OkResultAsync(...)`、`ListResultAsync(...)`、`PageResultAsync(...)`、`CreateResultAsync(...)`、`UpdateResultAsync(...)`、`DeleteResultAsync(...)`。
 - `CrudControllerBase<TDto, TSaveRequest>`：标准非分页 CRUD 基类，服务实现 `ICrudApplicationService<TDto, TSaveRequest>`。
-- `PagedCrudControllerBase<TDto, TQuery, TSaveRequest>`：标准分页 CRUD 基类，服务实现 `IPagedCrudApplicationService<TDto, TQuery, TSaveRequest>`，其中 `TQuery` 继承 `PageRequest`。
+- `PagedCrudControllerBase<TDto, TQuery, TSaveRequest>`：标准分页 CRUD 基类，服务实现 `IPagedCrudApplicationService<TDto, TQuery, TSaveRequest>`，其中 `TQuery` 继承 `PageRequest`，服务层负责转换为仓储使用的 `HarborQueryOptions`。
 
 标准可分页 CRUD Controller 优先使用分页基类：
 
@@ -143,13 +143,13 @@ public sealed class ProviderController(ProviderService service)
 
 `HarborApplicationService` 只提供 Guard、时间等轻量公共能力，不承载 CRUD 方法模板。模块内形态稳定的普通 CRUD 不应重复手写这些方法，应优先使用 Repository 驱动基类。
 
-`Repositories/` 中的 `IHarborCrudRepository<TEntity>` 是应用层可依赖的通用实体仓储契约。普通 CRUD 应用服务优先继承 `HarborApplicationRepositoryService<TEntity, TDto, TSaveRequest, TRepository>`，让基类直接调用仓储完成 `List/Get/Save/Delete`，子类只实现 DTO 映射、请求落实体、保存/删除校验等钩子。
+`Repositories/` 中的 `IHarborRepository` / `IHarborRepository<TEntity>` 是仓储根契约，`IHarborQueryRepository<TEntity>` 与 `IHarborCrudRepository<TEntity>` 分别承载标准查询和 CRUD 能力。普通 CRUD 应用服务优先继承 `HarborApplicationRepositoryService<TEntity, TDto, TSaveRequest, TRepository>`，让基类直接调用仓储完成 `List/Get/Save/Delete`，子类只实现 DTO 映射、请求落实体、保存/删除校验等钩子。
 
 `HarborApplicationPagedRepositoryService<TEntity, TDto, TQuery, TSaveRequest, TRepository>` 继承 Repository CRUD 基类并实现 `IPagedCrudApplicationService<TDto, TQuery, TSaveRequest>`。形态稳定的分页资源服务可继承它；树形、动态查询、发布或带副作用的接口不要为了套分页基类而改变业务形态。
 
 Controller 应直接通过 `CrudControllerBase` 调用这些标准 CRUD 方法，不再为普通 CRUD 保留 `ListProvidersAsync`、`SaveProviderAsync` 这类转发壳。复杂查询、树形资源、权限副作用、发布或流式接口不强行套用该契约。
 
-应用服务不直接引用 FreeSql、FreeSqlCloud、DbKey 或物理表名。分库由仓储实现根据模块 metadata 与 `[OverrideDbKey]` 自动完成，分表由实体仓储内部钩子决定。
+应用服务不直接引用 FreeSql、FreeSqlCloud 或 DbKey。分库由仓储实现根据模块 metadata 与 `[OverrideDbKey]` 自动完成。
 
 ## 领域异常
 

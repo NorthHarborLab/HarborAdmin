@@ -45,8 +45,9 @@ HarborAdmin.BuildingBlocks.Data/
   HarborFreeSqlOptions.cs                  Registration options, DbModuleRegistry, DbEntityRegistry
   HarborModuleDbContext.cs                 Module DbContext base class
   HarborModuleServiceCollectionExtensions.cs Common module DI registration extensions
-  FreeSqlEntityRepository.cs               Entity CRUD repository base with hidden database/table routing
-  FreeSqlModuleRepository.cs               Module repository base class
+  Repositories/HarborRepository.cs         Shared repository base and entity DbKey resolution
+  Repositories/FreeSqlQueryRepository.cs   Entity query repository base
+  Repositories/FreeSqlCrudRepository.cs    Entity CRUD repository base
   IHarborFreeSqlPreSyncHook.cs             Pre-CodeFirst sync hook
   ServiceCollectionExtensions.cs
   UnitOfWorkManagerCloud.cs                Multi-database unit-of-work manager
@@ -95,7 +96,7 @@ services.AddScoped<IAiBusinessRepository, AiBusinessRepository>();
 services.AddScoped<IAiReleaseRepository, AiReleaseRepository>();
 ```
 
-DbContext is Singleton, and repositories are usually Scoped. Standard entity CRUD repositories inherit `FreeSqlEntityRepository<TEntity, TDbContext>`; complex aggregate, release, snapshot, tree, or version repositories inherit `FreeSqlModuleRepository<TDbContext>`, but their interfaces should still stay scoped to a domain boundary.
+DbContext is Singleton, and repositories are usually Scoped. Standard entity CRUD repositories inherit `FreeSqlCrudRepository<TEntity, TDbContext>`; complex aggregate, release, snapshot, tree, or version repositories inherit `HarborRepository<TDbContext>`, but their interfaces should still stay scoped to a domain boundary.
 
 `AddHarborModuleData(...)` is only suitable for simple modules with one context and one repository. The current five business modules use explicit registration to avoid reintroducing module-wide repositories.
 
@@ -272,11 +273,11 @@ The module DbContext `DbKey` represents the module default database. When openin
 
 ## Entity CRUD repositories
 
-Ordinary entity CRUD repositories can inherit `FreeSqlEntityRepository<TEntity, TDbContext>`. The base class resolves the entity's effective database through `DbEntityRegistry.GetDbKey<TEntity>()`:
+Ordinary entity CRUD repositories can inherit `FreeSqlCrudRepository<TEntity, TDbContext>`. The base class resolves the entity's effective database through `DbEntityRegistry.GetDbKey<TEntity>()`:
 
 ```csharp
 public sealed class AiProviderRepository(IAiDbContext db, DbEntityRegistry entityRegistry, UnitOfWorkManagerCloud unitOfWorkManager)
-    : FreeSqlEntityRepository<AiProvider, IAiDbContext>(db, entityRegistry), IAiProviderRepository
+    : FreeSqlCrudRepository<AiProvider, IAiDbContext>(db, entityRegistry, unitOfWorkManager), IAiProviderRepository
 {
 }
 ```
@@ -287,9 +288,15 @@ Database routing is not part of service or controller method signatures:
 - Entities marked with `[OverrideDbKey("...")]` use the override DbKey.
 - Repositories resolve the entity's effective DbKey per operation and do not keep a long-lived `IBaseRepository<TEntity>` field.
 
-Table sharding is also hidden inside the entity repository. Override protected hooks such as `ResolveListTableNameAsync(...)`, `ResolveGetTableNameAsync(...)`, and `ResolveInsertTableNameAsync(...)` to return a physical table name; the default is no table sharding. Services do not pass DbKey, TableName, or route objects.
+Complex aggregate saves can override `InsertAsync` / `UpdateAsync` and use the repository base `ExecuteInUnitOfWorkAsync` to save the root entity plus child collections inside one unit of work.
 
-Complex aggregate saves can override `InsertAsync` / `UpdateAsync` and save the root entity plus child collections inside one `UnitOfWorkManagerCloud.Begin(DbKey)`.
+```csharp
+await ExecuteInUnitOfWorkAsync(async ct =>
+{
+    await base.InsertAsync(entity, ct);
+    // Save child collections
+}, cancellationToken);
+```
 
 ## FreeSql registration behavior
 
@@ -358,7 +365,7 @@ This avoids column type inconsistencies across driver versions or default mappin
 
 ## UnitOfWorkManagerCloud
 
-Multi-database unit-of-work entry:
+Low-level multi-database unit-of-work entry. Module repositories should prefer `HarborRepository.ExecuteInUnitOfWorkAsync(...)`; direct calls are mainly for repository bases or low-level infrastructure:
 
 ```csharp
 using var uow = unitOfWorkManagerCloud.Begin("AdminDb");

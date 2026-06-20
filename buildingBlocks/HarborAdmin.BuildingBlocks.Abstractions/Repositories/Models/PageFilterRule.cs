@@ -1,6 +1,6 @@
 using HarborAdmin.BuildingBlocks.Abstractions.Enums;
 
-namespace HarborAdmin.BuildingBlocks.Abstractions.Repository;
+namespace HarborAdmin.BuildingBlocks.Abstractions.Repositories.Models;
 
 /// <summary>
 /// 分页动态筛选条件

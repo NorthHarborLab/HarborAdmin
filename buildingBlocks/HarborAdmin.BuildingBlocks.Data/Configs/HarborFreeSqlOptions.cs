@@ -1,7 +1,8 @@
 using System.Reflection;
 using HarborAdmin.BuildingBlocks.Abstractions.Modules;
+using HarborAdmin.BuildingBlocks.Data.Extends;
 
-namespace HarborAdmin.BuildingBlocks.Data;
+namespace HarborAdmin.BuildingBlocks.Data.Configs;
 
 /// <summary>
 /// <see cref="ServiceCollectionExtensions.AddHarborFreeSql"/> 注册选项
@@ -77,8 +78,7 @@ public sealed class DbModuleRegistry
     /// <summary>
     /// 获取模块元数据类型对应的数据库键。
     /// </summary>
-    public string GetDbKey<TMetadata>()
-        where TMetadata : IHarborModuleMetadata =>
+    public string GetDbKey<TMetadata>() where TMetadata : IHarborModuleMetadata =>
         GetDbKey(typeof(TMetadata));
 
     /// <summary>

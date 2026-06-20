@@ -46,8 +46,9 @@ HarborAdmin.BuildingBlocks.Data/
   IHarborModuleDbContext.cs                模块 DbContext 公共契约
   HarborModuleDbContext.cs                 模块 DbContext 基类
   HarborModuleServiceCollectionExtensions.cs 模块通用 DI 注册扩展
-  FreeSqlEntityRepository.cs               实体 CRUD 仓储基类，隐藏分库分表路由
-  FreeSqlModuleRepository.cs               模块仓储基类
+  Repositories/HarborRepository.cs         仓储复用基类、实体 DbKey 解析
+  Repositories/FreeSqlQueryRepository.cs   实体查询仓储基类
+  Repositories/FreeSqlCrudRepository.cs    实体 CRUD 仓储基类
   IHarborFreeSqlPreSyncHook.cs             CodeFirst 同步前钩子
   ServiceCollectionExtensions.cs
   UnitOfWorkManagerCloud.cs                多库工作单元管理器
@@ -99,7 +100,7 @@ builder.Services.AddHarborFreeSql(builder.Configuration.GetSection(DbConfig.Sect
 
 `Orm` 只代表模块默认库。如果仓储操作的实体声明了 `[OverrideDbKey("...")]`，不能直接假设 `Orm` 就是该实体所在库，应通过 `DbEntityRegistry.GetDbKey<TEntity>()` 获取实体最终 DbKey，再调用 `GetOrm(dbKey)`。
 
-标准实体 CRUD 仓储应优先继承 `FreeSqlEntityRepository<TEntity, TDbContext>`，由基类自动完成实体最终 DbKey 选择。只有模块级复杂聚合仓储才需要自己处理 `DbEntityRegistry`。
+标准实体 CRUD 仓储应优先继承 `FreeSqlCrudRepository<TEntity, TDbContext>`，由基类自动完成实体最终 DbKey 选择。只有模块级复杂聚合仓储才需要自己处理 `DbEntityRegistry`。
 
 ### 模块数据注册
 
@@ -112,7 +113,7 @@ services.AddScoped<IAiBusinessRepository, AiBusinessRepository>();
 services.AddScoped<IAiReleaseRepository, AiReleaseRepository>();
 ```
 
-DbContext 使用 Singleton，仓储通常使用 Scoped。标准实体 CRUD 仓储继承 `FreeSqlEntityRepository<TEntity, TDbContext>`；复杂聚合或发布、快照、树、版本等仓储继承 `FreeSqlModuleRepository<TDbContext>`，但接口仍应按领域边界拆小。
+DbContext 使用 Singleton，仓储通常使用 Scoped。标准实体 CRUD 仓储继承 `FreeSqlCrudRepository<TEntity, TDbContext>`；复杂聚合或发布、快照、树、版本等仓储继承 `HarborRepository<TDbContext>`，但接口仍应按领域边界拆小。
 
 `AddHarborModuleData(...)` 仅适合单一仓储、单一上下文的简单模块。当前五个业务模块已采用显式注册，避免重新聚合出模块级大仓储。
 
@@ -295,11 +296,11 @@ var fsql = cloud.Use(dbKey);
 
 ## 实体 CRUD 仓储
 
-普通实体 CRUD 仓储可继承 `FreeSqlEntityRepository<TEntity, TDbContext>`，由基类根据 `DbEntityRegistry.GetDbKey<TEntity>()` 自动选择实体最终数据库：
+普通实体 CRUD 仓储可继承 `FreeSqlCrudRepository<TEntity, TDbContext>`，由基类根据 `DbEntityRegistry.GetDbKey<TEntity>()` 自动选择实体最终数据库：
 
 ```csharp
 public sealed class AiProviderRepository(IAiDbContext db, DbEntityRegistry entityRegistry, UnitOfWorkManagerCloud unitOfWorkManager)
-    : FreeSqlEntityRepository<AiProvider, IAiDbContext>(db, entityRegistry), IAiProviderRepository
+    : FreeSqlCrudRepository<AiProvider, IAiDbContext>(db, entityRegistry, unitOfWorkManager), IAiProviderRepository
 {
 }
 ```
@@ -310,45 +311,31 @@ public sealed class AiProviderRepository(IAiDbContext db, DbEntityRegistry entit
 - 标注 `[OverrideDbKey("...")]` 的实体使用覆盖 DbKey。
 - Repository 每次操作按实体最终 DbKey 获取 ORM，不长期缓存 `IBaseRepository<TEntity>`。
 
-分表规则也隐藏在实体仓储内部。需要分表时覆盖 `ResolveListTableNameAsync(...)`、`ResolvePageTableNameAsync(...)`、`ResolveGetTableNameAsync(...)`、`ResolveInsertTableNameAsync(...)`、`ResolveUpdateTableNameAsync(...)`、`ResolveDeleteTableNameAsync(...)` 等 protected 钩子返回物理表名；默认返回空表示不分表。Service 不传 DbKey、TableName 或路由对象。
-
-`ApplyTable(...)` 是基类内部把物理表名应用到 FreeSql `Select` / `Insert` / `Update` / `Delete` 的统一入口：
-
-- 钩子返回空：继续使用实体默认表。
-- 钩子返回表名：通过 FreeSql `AsTable(...)` 切到指定物理表。
-
-如果某个操作无法从请求、实体或业务上下文推导出唯一物理表，实体仓储应抛出明确的领域异常，要求业务层提供足够业务条件；不要把 DbKey、TableName 或通用路由对象暴露给 Service / Controller。
-
-复杂聚合保存可以覆盖 `InsertAsync` / `UpdateAsync`，在同一个 `UnitOfWorkManagerCloud.Begin(DbKey)` 中保存主实体和子集合。
-
-事务内要让仓储基类使用同一个 ORM，应临时绑定当前 DbKey：
+复杂聚合保存可以覆盖 `InsertAsync` / `UpdateAsync`，通过仓储基类的 `ExecuteInUnitOfWorkAsync` 在同一个工作单元中保存主实体和子集合。
 
 ```csharp
-using var uow = unitOfWorkManager.Begin(DbKey);
-using (DbContext.Bind(DbKey, uow.Orm))
+await ExecuteInUnitOfWorkAsync(async ct =>
 {
-    await base.InsertAsync(entity, cancellationToken);
+    await base.InsertAsync(entity, ct);
     // 保存子集合
-}
-
-uow.Commit();
+}, cancellationToken);
 ```
 
-## 模块仓储基类
+## 仓储复用基类
 
-`FreeSqlModuleRepository<TDbContext>` 面向模块级复杂查询和聚合操作，例如跨多张模块内表的读取、发布快照、权限聚合等。它提供：
+`HarborRepository<TDbContext>` 是底层仓储复用基类，提供模块 `DbContext`、默认 `FreeSql`、实体仓储获取、插入并回填 ID、实体 DbKey 解析和工作单元入口。
 
 - `DbContext`：模块数据库上下文。
 - `FreeSql`：模块默认数据库的 ORM。
 - `GetRepository<TEntity>(cascadeSave)`：从模块默认数据库创建 FreeSql 仓储。
-- `InsertAndFillIdAsync(...)`：插入并回填雪花 ID。
+- `InsertAndFillIdAsync(..., cancellationToken)`：插入并回填雪花 ID。
+- `ExecuteInUnitOfWorkAsync(...)`：在当前仓储 DbKey 中开启工作单元并绑定事务 ORM。
 
 使用边界：
 
-- 适合操作模块默认库内的实体。
-- 不自动处理 `[OverrideDbKey]` 实体。
-- 如果模块级仓储必须操作覆盖库实体，应注入 `DbEntityRegistry`，通过 `DbEntityRegistry.GetDbKey<TEntity>()` 获取实体最终 DbKey，再调用 `DbContext.GetOrm(dbKey)`。
-- 形态稳定的单实体 CRUD 优先使用 `FreeSqlEntityRepository<TEntity, TDbContext>`，不要在模块仓储里重复写基础 CRUD。
+- 适合复杂聚合查询、发布快照、权限聚合等窄接口仓储。
+- 未注入 `DbEntityRegistry` 时默认操作模块默认库；注入后可通过实体类型解析最终 DbKey。
+- 形态稳定的单实体 CRUD 优先使用 `FreeSqlCrudRepository<TEntity, TDbContext>`，不要在模块仓储里重复写基础 CRUD。
 
 ## FreeSql 注册行为
 
@@ -417,7 +404,7 @@ timestamp with time zone
 
 ## UnitOfWorkManagerCloud
 
-多库工作单元入口：
+多库工作单元底层入口。模块仓储优先使用 `HarborRepository.ExecuteInUnitOfWorkAsync(...)`，只有仓储基类或极少数底层基础设施需要直接调用：
 
 ```csharp
 using var uow = unitOfWorkManagerCloud.Begin("AdminDb");
