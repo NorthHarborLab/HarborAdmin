@@ -20,7 +20,7 @@ public sealed class RoleService(
     IAdminRoleRepository roleRepository,
     IAdminMenuRepository menuRepository,
     IHarborMapper mapper)
-    : HarborApplicationPagedRepositoryService<AdminRole, SystemRoleDto, PageRequest, SaveSystemRoleRequest, IAdminRoleRepository>(roleRepository)
+    : HarborCrudApplicationService<AdminRole, SystemRoleDto, PageRequest, SaveSystemRoleRequest, IAdminRoleRepository>(roleRepository)
 {
     /// <inheritdoc />
     protected override SystemRoleDto MapToDto(AdminRole entity) => mapper.Map<SystemRoleDto>(entity);

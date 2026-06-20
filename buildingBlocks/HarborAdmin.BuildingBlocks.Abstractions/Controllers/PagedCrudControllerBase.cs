@@ -8,18 +8,35 @@ namespace HarborAdmin.BuildingBlocks.Abstractions.Controllers;
 /// </summary>
 /// <typeparam name="TDto">输出 DTO 类型。</typeparam>
 /// <typeparam name="TQuery">分页查询请求类型。</typeparam>
-/// <typeparam name="TSaveRequest">保存请求类型。</typeparam>
-public abstract class PagedCrudControllerBase<TDto, TQuery, TSaveRequest> : CrudControllerBase<TDto, TSaveRequest>
+public abstract class PagedCrudControllerBase<TDto, TQuery> : HarborControllerBase
     where TQuery : PageRequest
 {
+    /// <summary>
+    /// 执行列表查询并包装统一响应。
+    /// </summary>
+    protected static async Task<ApiResult<IReadOnlyList<TDto>>> ListResultAsync(IHarborQueryApplicationService<TDto, TQuery> service,
+        CancellationToken cancellationToken)
+    {
+        return await ListResultAsync(cancellationToken, service.ListAsync);
+    }
+
+    /// <summary>
+    /// 执行详情查询并包装统一响应。
+    /// </summary>
+    protected static async Task<ApiResult<TDto>> GetResultAsync(long id, IHarborQueryApplicationService<TDto, TQuery> service,
+        CancellationToken cancellationToken)
+    {
+        return await OkResultAsync(service.GetAsync(id, cancellationToken));
+    }
+
     /// <summary>
     /// 执行分页查询并包装统一响应。
     /// </summary>
     /// <param name="query">分页查询请求。</param>
-    /// <param name="service">分页 CRUD 应用服务。</param>
+    /// <param name="service">查询应用服务。</param>
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>统一分页响应。</returns>
-    protected static async Task<ApiResult<PagedResult<TDto>>> PageResultAsync(TQuery query, IPagedCrudApplicationService<TDto, TQuery, TSaveRequest> service,
+    protected static async Task<ApiResult<PagedResult<TDto>>> PageResultAsync(TQuery query, IHarborQueryApplicationService<TDto, TQuery> service,
         CancellationToken cancellationToken)
     {
         return await OkResultAsync(service.PageAsync(query, cancellationToken));

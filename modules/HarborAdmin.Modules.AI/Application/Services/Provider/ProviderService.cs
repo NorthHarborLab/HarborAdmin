@@ -16,7 +16,7 @@ namespace HarborAdmin.Modules.AI.Application.Services.Provider;
 /// AI 供应商管理服务。
 /// </summary>
 public sealed class ProviderService(IAiProviderRepository repository, ISecretStore secretStore, IHarborMapper mapper)
-    : HarborApplicationPagedRepositoryService<AiProvider, AiProviderDto, PageRequest, SaveAiProviderRequest, IAiProviderRepository>(repository)
+    : HarborCrudApplicationService<AiProvider, AiProviderDto, PageRequest, SaveAiProviderRequest, IAiProviderRepository>(repository)
 {
     /// <inheritdoc />
     protected override AiProviderDto MapToDto(AiProvider entity) => mapper.Map<AiProviderDto>(entity);

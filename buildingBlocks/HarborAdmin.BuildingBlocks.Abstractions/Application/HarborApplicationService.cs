@@ -5,7 +5,7 @@ namespace HarborAdmin.BuildingBlocks.Abstractions.Application;
 /// <summary>
 /// Harbor 应用服务通用能力。
 /// </summary>
-public abstract class HarborApplicationService
+public abstract class HarborApplicationService : IHarborApplicationService
 {
     /// <summary>
     /// 当前 UTC 时间。

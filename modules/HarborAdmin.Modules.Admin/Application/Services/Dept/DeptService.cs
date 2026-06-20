@@ -1,6 +1,7 @@
 using HarborAdmin.BuildingBlocks.Abstractions.Application;
 using HarborAdmin.BuildingBlocks.Abstractions.Enums;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
+using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using HarborAdmin.BuildingBlocks.Abstractions.Repositories;
 using HarborAdmin.BuildingBlocks.Abstractions.Repositories.Models;
 using HarborAdmin.BuildingBlocks.Mapping;
@@ -19,7 +20,7 @@ public sealed class DeptService(
     AdminServiceContext context,
     IAdminDepartmentRepository repository,
     IHarborMapper mapper)
-    : HarborApplicationRepositoryService<AdminDepartment, SystemDeptDto, SaveSystemDeptRequest, IAdminDepartmentRepository>(repository)
+    : HarborCrudApplicationService<AdminDepartment, SystemDeptDto, PageRequest, SaveSystemDeptRequest, IAdminDepartmentRepository>(repository)
 {
     private string? _deleteRejectedMessage;
 

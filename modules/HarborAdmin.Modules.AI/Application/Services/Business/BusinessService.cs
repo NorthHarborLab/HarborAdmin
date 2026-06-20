@@ -16,7 +16,7 @@ namespace HarborAdmin.Modules.AI.Application.Services.Business;
 /// AI 业务管理服务。
 /// </summary>
 public sealed class BusinessService(IAiBusinessRepository repository, IHarborMapper mapper)
-    : HarborApplicationPagedRepositoryService<AiBusiness, AiBusinessDto, PageRequest, SaveAiBusinessRequest, IAiBusinessRepository>(repository)
+    : HarborCrudApplicationService<AiBusiness, AiBusinessDto, PageRequest, SaveAiBusinessRequest, IAiBusinessRepository>(repository)
 {
     /// <inheritdoc />
     protected override AiBusinessDto MapToDto(AiBusiness entity) => mapper.Map<AiBusinessDto>(entity);

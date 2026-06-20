@@ -15,7 +15,7 @@ namespace HarborAdmin.Modules.AI.Application.Services.Prompt;
 /// AI Prompt 管理服务。
 /// </summary>
 public sealed class PromptService(IAiPromptRepository repository, IHarborMapper mapper)
-    : HarborApplicationPagedRepositoryService<AiPrompt, AiPromptDto, PageRequest, SaveAiPromptRequest, IAiPromptRepository>(repository)
+    : HarborCrudApplicationService<AiPrompt, AiPromptDto, PageRequest, SaveAiPromptRequest, IAiPromptRepository>(repository)
 {
     /// <inheritdoc />
     protected override AiPromptDto MapToDto(AiPrompt entity) => mapper.Map<AiPromptDto>(entity);

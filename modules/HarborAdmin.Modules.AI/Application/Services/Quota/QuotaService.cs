@@ -21,7 +21,7 @@ public sealed class QuotaService(
     IAiProviderRepository providerRepository,
     IAiModelQuotaRepository modelQuotaRepository,
     IHarborMapper mapper)
-    : HarborApplicationPagedRepositoryService<AiModelQuota, AiModelQuotaDto, PageRequest, SaveAiModelQuotaRequest, IAiModelQuotaRepository>(modelQuotaRepository)
+    : HarborCrudApplicationService<AiModelQuota, AiModelQuotaDto, PageRequest, SaveAiModelQuotaRequest, IAiModelQuotaRepository>(modelQuotaRepository)
 {
     /// <summary>
     /// 获取供应商限额。

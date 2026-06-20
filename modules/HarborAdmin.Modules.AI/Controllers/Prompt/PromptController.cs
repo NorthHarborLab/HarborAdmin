@@ -12,7 +12,7 @@ namespace HarborAdmin.Modules.AI.Controllers.Prompt;
 /// </summary>
 [ApiController]
 [Route("api/admin/ai/prompts")]
-public sealed class PromptController(PromptService service) : PagedCrudControllerBase<AiPromptDto, PageRequest, SaveAiPromptRequest>
+public sealed class PromptController(PromptService service) : CrudControllerBase<AiPromptDto, PageRequest, SaveAiPromptRequest>
 {
     /// <summary>
     /// 列出 Prompt。
