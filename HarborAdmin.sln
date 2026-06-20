@@ -44,6 +44,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HarborAdmin.Modules.TaskOrc
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HarborAdmin.TaskWorker", "services\HarborAdmin.TaskWorker\HarborAdmin.TaskWorker.csproj", "{743C6E23-5872-4B08-A5F6-9CFFA1A910CD}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HarborAdmin.BuildingBlocks.Application", "buildingBlocks\HarborAdmin.BuildingBlocks.Application\HarborAdmin.BuildingBlocks.Application.csproj", "{F1907DEF-400F-42EA-9EF9-586F2CCFC38C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HarborAdmin.BuildingBlocks.AspNetCore", "buildingBlocks\HarborAdmin.BuildingBlocks.AspNetCore\HarborAdmin.BuildingBlocks.AspNetCore.csproj", "{C8E0ADE0-3D15-453B-9052-BE71FD1E6DFA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -250,6 +254,30 @@ Global
 		{743C6E23-5872-4B08-A5F6-9CFFA1A910CD}.Release|x64.Build.0 = Release|Any CPU
 		{743C6E23-5872-4B08-A5F6-9CFFA1A910CD}.Release|x86.ActiveCfg = Release|Any CPU
 		{743C6E23-5872-4B08-A5F6-9CFFA1A910CD}.Release|x86.Build.0 = Release|Any CPU
+		{F1907DEF-400F-42EA-9EF9-586F2CCFC38C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F1907DEF-400F-42EA-9EF9-586F2CCFC38C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F1907DEF-400F-42EA-9EF9-586F2CCFC38C}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{F1907DEF-400F-42EA-9EF9-586F2CCFC38C}.Debug|x64.Build.0 = Debug|Any CPU
+		{F1907DEF-400F-42EA-9EF9-586F2CCFC38C}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{F1907DEF-400F-42EA-9EF9-586F2CCFC38C}.Debug|x86.Build.0 = Debug|Any CPU
+		{F1907DEF-400F-42EA-9EF9-586F2CCFC38C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F1907DEF-400F-42EA-9EF9-586F2CCFC38C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F1907DEF-400F-42EA-9EF9-586F2CCFC38C}.Release|x64.ActiveCfg = Release|Any CPU
+		{F1907DEF-400F-42EA-9EF9-586F2CCFC38C}.Release|x64.Build.0 = Release|Any CPU
+		{F1907DEF-400F-42EA-9EF9-586F2CCFC38C}.Release|x86.ActiveCfg = Release|Any CPU
+		{F1907DEF-400F-42EA-9EF9-586F2CCFC38C}.Release|x86.Build.0 = Release|Any CPU
+		{C8E0ADE0-3D15-453B-9052-BE71FD1E6DFA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C8E0ADE0-3D15-453B-9052-BE71FD1E6DFA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C8E0ADE0-3D15-453B-9052-BE71FD1E6DFA}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{C8E0ADE0-3D15-453B-9052-BE71FD1E6DFA}.Debug|x64.Build.0 = Debug|Any CPU
+		{C8E0ADE0-3D15-453B-9052-BE71FD1E6DFA}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{C8E0ADE0-3D15-453B-9052-BE71FD1E6DFA}.Debug|x86.Build.0 = Debug|Any CPU
+		{C8E0ADE0-3D15-453B-9052-BE71FD1E6DFA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C8E0ADE0-3D15-453B-9052-BE71FD1E6DFA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C8E0ADE0-3D15-453B-9052-BE71FD1E6DFA}.Release|x64.ActiveCfg = Release|Any CPU
+		{C8E0ADE0-3D15-453B-9052-BE71FD1E6DFA}.Release|x64.Build.0 = Release|Any CPU
+		{C8E0ADE0-3D15-453B-9052-BE71FD1E6DFA}.Release|x86.ActiveCfg = Release|Any CPU
+		{C8E0ADE0-3D15-453B-9052-BE71FD1E6DFA}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -273,5 +301,7 @@ Global
 		{1F692DA6-F6E2-4F27-9EFB-6268EFCCD5C8} = {4EE6AE32-729D-471C-B2F6-A873E7936186}
 		{00521496-5F29-466C-A8DF-B16984C10229} = {4EE6AE32-729D-471C-B2F6-A873E7936186}
 		{743C6E23-5872-4B08-A5F6-9CFFA1A910CD} = {B8E4F1A2-6C3D-4E5F-9A1B-2D7C8E9F0A1B}
+		{F1907DEF-400F-42EA-9EF9-586F2CCFC38C} = {C7D8E9F0-A1B2-4C5D-8E9F-0A1B2C3D4E5F}
+		{C8E0ADE0-3D15-453B-9052-BE71FD1E6DFA} = {C7D8E9F0-A1B2-4C5D-8E9F-0A1B2C3D4E5F}
 	EndGlobalSection
 EndGlobal
