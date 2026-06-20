@@ -6,4 +6,5 @@ namespace HarborAdmin.Modules.AI.Contracts.Chat.Dto;
 public sealed record AiChatBusinessOptionDto(
     string BusinessKey,
     string Name,
-    string? AllowedProducerKeys);
+    string? AllowedProducerKeys,
+    bool EnableStreaming);

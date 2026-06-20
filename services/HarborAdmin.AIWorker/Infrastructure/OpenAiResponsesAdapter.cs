@@ -37,7 +37,8 @@ public sealed class OpenAiResponsesAdapter(HttpClient httpClient) : IAiProviderA
             response.Headers.TryGetValues("x-request-id", out var values) ? values.FirstOrDefault() : OpenAiChatCompletionsAdapter.GetString(root, "id"),
             OpenAiChatCompletionsAdapter.GetString(root, "status"),
             null,
-            CountToolCalls(root));
+            CountToolCalls(root),
+            ExtractReasoningText(root));
     }
 
     /// <inheritdoc />
@@ -94,6 +95,15 @@ public sealed class OpenAiResponsesAdapter(HttpClient httpClient) : IAiProviderA
                 if (!string.IsNullOrEmpty(delta))
                 {
                     yield return new AiStreamEvent("delta", request.InvocationId, request.CorrelationId, 0, request.ReleaseVersion, Delta: delta,
+                        ProviderKey: request.Provider.ProviderKey, Model: request.Model);
+                }
+            }
+            else if (IsReasoningDelta(type))
+            {
+                var delta = OpenAiChatCompletionsAdapter.GetString(root, "delta") ?? OpenAiChatCompletionsAdapter.GetString(root, "text");
+                if (!string.IsNullOrEmpty(delta))
+                {
+                    yield return new AiStreamEvent("reasoning_delta", request.InvocationId, request.CorrelationId, 0, request.ReleaseVersion, Delta: delta,
                         ProviderKey: request.Provider.ProviderKey, Model: request.Model);
                 }
             }
@@ -261,6 +271,99 @@ public sealed class OpenAiResponsesAdapter(HttpClient httpClient) : IAiProviderA
         }
 
         return builder.ToString();
+    }
+
+    /// <summary>
+    /// 从 Responses 响应中提取思考文本。
+    /// </summary>
+    private static string? ExtractReasoningText(JsonElement root)
+    {
+        var direct = OpenAiChatCompletionsAdapter.GetString(root, "reasoning_content");
+        if (!string.IsNullOrWhiteSpace(direct))
+        {
+            return direct;
+        }
+
+        if (root.TryGetProperty("reasoning", out var reasoning))
+        {
+            if (reasoning.ValueKind == JsonValueKind.String)
+            {
+                return reasoning.GetString();
+            }
+
+            var reasoningBuilder = new StringBuilder();
+            AppendTextFragments(reasoningBuilder, reasoning, "summary");
+            AppendTextFragments(reasoningBuilder, reasoning, "content");
+            AppendStringProperty(reasoningBuilder, reasoning, "text");
+            if (reasoningBuilder.Length > 0)
+            {
+                return reasoningBuilder.ToString();
+            }
+        }
+
+        if (!root.TryGetProperty("output", out var output) || output.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        var builder = new StringBuilder();
+        foreach (var item in output.EnumerateArray())
+        {
+            var type = OpenAiChatCompletionsAdapter.GetString(item, "type");
+            if (type?.Contains("reasoning", StringComparison.OrdinalIgnoreCase) != true)
+            {
+                continue;
+            }
+
+            AppendTextFragments(builder, item, "summary");
+            AppendTextFragments(builder, item, "content");
+            AppendStringProperty(builder, item, "text");
+        }
+
+        return builder.Length == 0 ? null : builder.ToString();
+    }
+
+    /// <summary>
+    /// 判断 Responses 事件是否为思考增量。
+    /// </summary>
+    private static bool IsReasoningDelta(string? type) =>
+        type?.Contains("reasoning", StringComparison.OrdinalIgnoreCase) == true &&
+        (type.EndsWith(".delta", StringComparison.OrdinalIgnoreCase) ||
+         type.Contains("summary_text.delta", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// 拼接数组属性中的文本片段。
+    /// </summary>
+    private static void AppendTextFragments(StringBuilder builder, JsonElement element, string property)
+    {
+        if (!element.TryGetProperty(property, out var fragments) || fragments.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        foreach (var fragment in fragments.EnumerateArray())
+        {
+            if (fragment.ValueKind == JsonValueKind.String)
+            {
+                builder.Append(fragment.GetString());
+            }
+            else
+            {
+                AppendStringProperty(builder, fragment, "text");
+            }
+        }
+    }
+
+    /// <summary>
+    /// 拼接字符串属性。
+    /// </summary>
+    private static void AppendStringProperty(StringBuilder builder, JsonElement element, string property)
+    {
+        var value = OpenAiChatCompletionsAdapter.GetString(element, property);
+        if (!string.IsNullOrEmpty(value))
+        {
+            builder.Append(value);
+        }
     }
 
     /// <summary>

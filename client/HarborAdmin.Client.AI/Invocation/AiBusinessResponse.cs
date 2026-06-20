@@ -16,4 +16,5 @@ public sealed record AiBusinessResponse(
     IReadOnlyList<AiReference>? References = null,
     IReadOnlyDictionary<string, string>? Context = null,
     string? ErrorCode = null,
-    string? ErrorMessage = null);
+    string? ErrorMessage = null,
+    string? ReasoningContent = null);

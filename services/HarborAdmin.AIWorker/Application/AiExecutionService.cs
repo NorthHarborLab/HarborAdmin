@@ -87,7 +87,7 @@ public sealed class AiExecutionService(
                 var usage = ApplyPricing(result.Usage, validation.Model);
                 await quotaService.CommitAsync(reservation, usage, success: true, cancellationToken);
                 var response = new AiBusinessResponse(true, normalized.InvocationId!, normalized.CorrelationId!, "Succeeded", snapshot.Version,
-                    result.Content, provider.ProviderKey, model, usage, setup.References, normalized.Context);
+                    result.Content, provider.ProviderKey, model, usage, setup.References, normalized.Context, ReasoningContent: result.ReasoningContent);
                 await CompleteLogAsync(log, "Succeeded", null, null, provider, model, fallbackTrace, usage, cancellationToken, result, response.Content,
                     profile.OutputOptions?.ResponseFormat, stopwatch);
                 await PublishCallbackAsync(business, normalized, response, cancellationToken);

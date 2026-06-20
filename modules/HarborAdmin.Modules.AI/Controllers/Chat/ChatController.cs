@@ -25,11 +25,18 @@ public sealed class ChatController(AiChatStreamService chatStreamService, Busine
     };
 
     /// <summary>
-    /// 列出可用于聊天流式调用的业务选项。
+    /// 列出可用于聊天调用的业务选项。
     /// </summary>
     [HttpGet("businesses")]
     public async Task<ApiResult<IReadOnlyList<AiChatBusinessOptionDto>>> ListBusinesses(CancellationToken cancellationToken) =>
         await ListResultAsync(cancellationToken, businessService.ListChatOptionsAsync);
+
+    /// <summary>
+    /// 执行普通 HTTP AI 聊天调用。
+    /// </summary>
+    [HttpPost("invoke")]
+    public async Task<ApiResult<AiBusinessResponse>> Invoke([FromBody] AiChatStreamRequest request, CancellationToken cancellationToken) =>
+        await OkResultAsync(chatStreamService.InvokeAsync(request, cancellationToken));
 
     /// <summary>
     /// 中转 AIWorker SSE 聊天流。

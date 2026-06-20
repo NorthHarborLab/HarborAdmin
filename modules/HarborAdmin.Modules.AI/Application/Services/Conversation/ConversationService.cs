@@ -168,6 +168,7 @@ public sealed class ConversationService(IAiConversationRepository repository)
         long userId,
         long conversationId,
         string content,
+        string? reasoningContent,
         string? invocationId,
         bool isError,
         CancellationToken cancellationToken = default)
@@ -182,6 +183,7 @@ public sealed class ConversationService(IAiConversationRepository repository)
                 ConversationId = conversationId,
                 Role = "assistant",
                 Content = content,
+                ReasoningContent = NormalizeOptional(reasoningContent),
                 Sequence = sequence,
                 InvocationId = invocationId,
                 IsError = isError,
@@ -238,6 +240,7 @@ public sealed class ConversationService(IAiConversationRepository repository)
                     message.Id.ToString(),
                     message.Role,
                     message.Content,
+                    message.ReasoningContent,
                     message.Sequence,
                     message.InvocationId,
                     message.IsError))

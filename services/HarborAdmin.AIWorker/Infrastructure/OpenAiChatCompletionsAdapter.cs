@@ -34,9 +34,11 @@ public sealed class OpenAiChatCompletionsAdapter(HttpClient httpClient) : IAiPro
         var choice = root.GetProperty("choices")[0];
         var message = choice.GetProperty("message");
         var content = message.TryGetProperty("content", out var contentElement) ? contentElement.GetString() ?? string.Empty : string.Empty;
+        var reasoningContent = GetString(message, "reasoning_content");
         var toolCallCount = message.TryGetProperty("tool_calls", out var toolCalls) && toolCalls.ValueKind == JsonValueKind.Array ? toolCalls.GetArrayLength() : 0;
         var providerRequestId = ReadHeader(response, "x-request-id") ?? ReadHeader(response, "x-request-id".ToUpperInvariant()) ?? GetString(root, "id");
-        return new AiProviderCallResult(content, ParseUsage(root), providerRequestId, GetString(choice, "finish_reason"), GetString(root, "provider"), toolCallCount);
+        return new AiProviderCallResult(content, ParseUsage(root), providerRequestId, GetString(choice, "finish_reason"), GetString(root, "provider"), toolCallCount,
+            reasoningContent);
     }
 
     /// <inheritdoc />

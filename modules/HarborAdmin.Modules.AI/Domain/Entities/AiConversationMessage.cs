@@ -26,6 +26,12 @@ public sealed class AiConversationMessage : EntityBase
     public string Content { get; set; } = string.Empty;
 
     /// <summary>
+    /// 思考过程正文。
+    /// </summary>
+    [Column(StringLength = -1)]
+    public string? ReasoningContent { get; set; }
+
+    /// <summary>
     /// 会话内顺序。
     /// </summary>
     public int Sequence { get; set; }

@@ -78,15 +78,15 @@ public sealed class BusinessService(IAiBusinessRepository repository, IHarborMap
     protected override string GetNotFoundMessage(long id) => $"AI business '{id}' was not found.";
 
     /// <summary>
-    /// 列出可用于聊天流式调用的业务选项。
+    /// 列出可用于聊天调用的业务选项。
     /// </summary>
     public async Task<IReadOnlyList<AiChatBusinessOptionDto>> ListChatOptionsAsync(CancellationToken cancellationToken = default)
     {
         var items = await Repository.ListAsync(HarborQueryOptions.Empty, cancellationToken);
         return items
-            .Where(item => item.Enabled && item.EnableStreaming)
+            .Where(item => item.Enabled)
             .OrderBy(item => item.BusinessKey, StringComparer.Ordinal)
-            .Select(item => new AiChatBusinessOptionDto(item.BusinessKey, item.Name, item.AllowedProducerKeys))
+            .Select(item => new AiChatBusinessOptionDto(item.BusinessKey, item.Name, item.AllowedProducerKeys, item.EnableStreaming))
             .ToList();
     }
 }

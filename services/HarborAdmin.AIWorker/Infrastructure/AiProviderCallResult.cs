@@ -11,4 +11,5 @@ public sealed record AiProviderCallResult(
     string? ProviderRequestId,
     string? FinishReason = null,
     string? UpstreamProvider = null,
-    int ToolCallCount = 0);
+    int ToolCallCount = 0,
+    string? ReasoningContent = null);

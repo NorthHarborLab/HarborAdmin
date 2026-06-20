@@ -7,6 +7,7 @@ public sealed record AiConversationMessageDto(
     string Id,
     string Role,
     string Content,
+    string? ReasoningContent,
     int Sequence,
     string? InvocationId,
     bool IsError);
