@@ -9,7 +9,7 @@ namespace HarborAdmin.BuildingBlocks.AspNetCore.Controllers;
 /// <typeparam name="TDto">输出 DTO 类型。</typeparam>
 /// <typeparam name="TQuery">分页查询请求类型。</typeparam>
 /// <typeparam name="TSaveRequest">保存请求类型。</typeparam>
-public abstract class CrudControllerBase<TDto, TQuery, TSaveRequest> : PagedCrudControllerBase<TDto, TQuery>
+public abstract class HarborCrudControllerBase<TDto, TQuery, TSaveRequest> : HarorQueryControllerBase<TDto, TQuery>
     where TQuery : PageRequest
 {
     /// <summary>

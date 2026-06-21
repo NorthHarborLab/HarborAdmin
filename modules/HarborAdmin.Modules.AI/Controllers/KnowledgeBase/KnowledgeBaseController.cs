@@ -12,7 +12,7 @@ namespace HarborAdmin.Modules.AI.Controllers.KnowledgeBase;
 /// </summary>
 [ApiController]
 [Route("api/admin/ai/knowledge-bases")]
-public sealed class KnowledgeBaseController(KnowledgeBaseService service) : CrudControllerBase<AiKnowledgeBaseDto, PageRequest, SaveAiKnowledgeBaseRequest>
+public sealed class KnowledgeBaseController(KnowledgeBaseService service) : HarborCrudControllerBase<AiKnowledgeBaseDto, PageRequest, SaveAiKnowledgeBaseRequest>
 {
     /// <summary>
     /// 列出知识库。

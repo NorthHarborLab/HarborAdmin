@@ -12,7 +12,7 @@ namespace HarborAdmin.Modules.AI.Controllers.Business;
 /// </summary>
 [ApiController]
 [Route("api/admin/ai/businesses")]
-public sealed class BusinessController(BusinessService service) : CrudControllerBase<AiBusinessDto, PageRequest, SaveAiBusinessRequest>
+public sealed class BusinessController(BusinessService service) : HarborCrudControllerBase<AiBusinessDto, PageRequest, SaveAiBusinessRequest>
 {
     /// <summary>
     /// 列出业务。
