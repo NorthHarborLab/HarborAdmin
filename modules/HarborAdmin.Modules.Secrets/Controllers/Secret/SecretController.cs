@@ -12,7 +12,7 @@ namespace HarborAdmin.Modules.Secrets.Controllers.Secret;
 /// </summary>
 [ApiController]
 [Route("api/admin/secrets")]
-public sealed class SecretController(SecretService secretService) : HarborControllerBase
+public sealed class SecretController(SecretService secretService) : AdminControllerBase
 {
     /// <summary>
     /// 列出密钥。

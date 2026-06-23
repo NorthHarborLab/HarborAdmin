@@ -12,7 +12,7 @@ namespace HarborAdmin.Modules.International.Controllers.Page;
 /// </summary>
 [ApiController]
 [Route("api/admin/international/groups")]
-public sealed class GroupController(InternationalPageService pageService) : HarborControllerBase
+public sealed class GroupController(InternationalPageService pageService) : AdminControllerBase
 {
     /// <summary>
     /// 创建资源分组。

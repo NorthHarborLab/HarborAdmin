@@ -17,7 +17,7 @@ namespace HarborAdmin.Modules.Admin.Controllers.Metadata;
 public sealed class MetadataController(
     AdminMetadataService service,
     AdminRuntimeAccessService accessService,
-    ICurrentUser currentUser) : HarborControllerBase
+    ICurrentUser currentUser) : AdminControllerBase
 {
     /// <summary>
     /// 获取指定动态 Feature schema。

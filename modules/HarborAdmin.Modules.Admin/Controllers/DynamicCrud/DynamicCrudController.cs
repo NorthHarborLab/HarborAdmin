@@ -12,7 +12,7 @@ namespace HarborAdmin.Modules.Admin.Controllers.DynamicCrud;
 /// </summary>
 [ApiController]
 [Route("api/admin/dynamic-crud")]
-public sealed class DynamicCrudController(AdminDynamicCrudService service) : HarborControllerBase
+public sealed class DynamicCrudController(AdminDynamicCrudService service) : AdminControllerBase
 {
     /// <summary>
     /// 分页查询动态资源记录。

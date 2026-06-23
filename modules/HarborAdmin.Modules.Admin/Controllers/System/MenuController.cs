@@ -12,7 +12,7 @@ namespace HarborAdmin.Modules.Admin.Controllers.System;
 /// </summary>
 [ApiController]
 [Route("api/admin/system/menu")]
-public sealed class MenuController(MenuService menuService) : HarborControllerBase
+public sealed class MenuController(MenuService menuService) : AdminControllerBase
 {
     /// <summary>
     /// 查询菜单树。

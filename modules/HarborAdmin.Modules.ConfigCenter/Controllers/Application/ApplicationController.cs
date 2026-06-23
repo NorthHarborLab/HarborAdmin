@@ -12,7 +12,7 @@ namespace HarborAdmin.Modules.ConfigCenter.Controllers.Application;
 /// <param name="service">配置中心应用服务。</param>
 [ApiController]
 [Route("api/admin/config-center/apps")]
-public sealed class ApplicationController(ConfigCenterApplicationService service) : HarborControllerBase
+public sealed class ApplicationController(ConfigCenterApplicationService service) : AdminControllerBase
 {
     /// <summary>
     /// 列出所有已注册应用。

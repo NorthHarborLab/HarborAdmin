@@ -13,7 +13,7 @@ namespace HarborAdmin.Modules.Admin.Controllers.FeatureDesign;
 /// </summary>
 [ApiController]
 [Route("api/admin/feature-design/features/{featureCode}/apis")]
-public sealed class FeatureDesignApiController(FeatureDesignApiService apiService) : HarborControllerBase
+public sealed class FeatureDesignApiController(FeatureDesignApiService apiService) : AdminControllerBase
 {
     private CancellationToken RequestCancellationToken => HttpContext.RequestAborted;
 

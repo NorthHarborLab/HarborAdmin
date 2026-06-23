@@ -9,6 +9,7 @@ using HarborAdmin.Modules.Admin.Application.Services.Dept;
 using HarborAdmin.Modules.Admin.Application.Services.Dictionary;
 using HarborAdmin.Modules.Admin.Application.Services.DynamicCrud;
 using HarborAdmin.Modules.Admin.Application.Services.FeatureDesign;
+using HarborAdmin.Modules.Admin.Application.Services.JwtProfile;
 using HarborAdmin.Modules.Admin.Application.Services.Menu;
 using HarborAdmin.Modules.Admin.Application.Services.Metadata;
 using HarborAdmin.Modules.Admin.Application.Services.Role;
@@ -66,9 +67,11 @@ public sealed class AdminStartUp : HarborModuleMetadataBase, IHarborModuleStartu
         services.AddScoped<IAdminMenuRepository, AdminMenuRepository>();
         services.AddScoped<IAdminAccessRepository, AdminAccessRepository>();
         services.AddScoped<IAdminFeatureDesignRepository, AdminFeatureDesignRepository>();
+        services.AddScoped<IAdminJwtProfileRepository, AdminJwtProfileRepository>();
+        services.AddScoped<IAdminJwtRefreshTokenRepository, AdminJwtRefreshTokenRepository>();
         services.AddScoped<IAdminDepartmentRepository, AdminDepartmentRepository>();
         services.AddScoped<IAdminRoleRepository, AdminRoleRepository>();
-        services.AddSingleton<AdminTokenProtector>();
+        services.AddScoped<JwtProfileTokenService>();
         services.AddSingleton<CaptchaImagePool>();
         services.AddSingleton<CaptchaChallengeService>();
         services.AddScoped<SystemServiceContext>();
@@ -89,11 +92,11 @@ public sealed class AdminStartUp : HarborModuleMetadataBase, IHarborModuleStartu
     private static void AddAdminAccess(IServiceCollection services)
     {
         services.AddScoped<AccessCacheService>();
-        services.AddScoped<IAdminPrincipalResolver, AdminPrincipalResolver>();
         services.AddScoped<IAdminApiAccessEvaluator, AdminApiAccessEvaluator>();
         services.AddScoped<AccessQueryService>();
         services.AddScoped<SessionService>();
         services.AddScoped<ApiAuthorizationService>();
+        services.AddScoped<JwtProfileService>();
         services.AddScoped<FieldPolicyService>();
         services.AddScoped<AdminRuntimeAccessService>();
         services.AddScoped<AdminFieldProjectionService>();

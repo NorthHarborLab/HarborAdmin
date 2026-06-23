@@ -12,7 +12,7 @@ namespace HarborAdmin.Modules.AI.Controllers.Provider;
 /// </summary>
 [ApiController]
 [Route("api/admin/ai/providers")]
-public sealed class ProviderController(ProviderService service) : HarborCrudControllerBase<AiProviderDto, PageRequest, SaveAiProviderRequest>
+public sealed class ProviderController(ProviderService service) : AdminCrudControllerBase<AiProviderDto, PageRequest, SaveAiProviderRequest>
 {
     /// <summary>
     /// 列出供应商。

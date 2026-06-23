@@ -11,7 +11,7 @@ namespace HarborAdmin.Modules.AI.Controllers.Observability;
 /// </summary>
 [ApiController]
 [Route("api/admin/ai/invocations")]
-public sealed class InvocationController(AiObservabilityService service) : HarborControllerBase
+public sealed class InvocationController(AiObservabilityService service) : AdminControllerBase
 {
     /// <summary>
     /// 列出调用日志。

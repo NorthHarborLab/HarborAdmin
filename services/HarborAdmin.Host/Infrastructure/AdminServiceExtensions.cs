@@ -1,6 +1,7 @@
 using HarborAdmin.BuildingBlocks.Abstractions.Auth;
 using HarborAdmin.Host.Infrastructure.Options;
 using HarborAdmin.Host.Infrastructure.Security;
+using Microsoft.AspNetCore.Authentication;
 
 namespace HarborAdmin.Host.Infrastructure;
 
@@ -20,7 +21,15 @@ public static class AdminServiceExtensions
         services.AddHttpContextAccessor();
         services.AddOptions<AdminHostSecurityOptions>().BindConfiguration(AdminHostSecurityOptions.SectionName);
         services.AddScoped<AdminRequestUser>();
+        services.AddScoped<ClientJwtRequestPrincipal>();
+        services.AddScoped<IClientJwtPrincipal>(sp => sp.GetRequiredService<ClientJwtRequestPrincipal>());
         services.AddSingleton<ICurrentUser, HttpContextCurrentUser>();
+        services
+            .AddAuthentication()
+            .AddScheme<AuthenticationSchemeOptions, JwtProfileAuthenticationHandler>(
+                JwtProfileAuthenticationDefaults.AuthenticationScheme,
+                _ => { });
+        services.AddAuthorization();
         return services;
     }
 }

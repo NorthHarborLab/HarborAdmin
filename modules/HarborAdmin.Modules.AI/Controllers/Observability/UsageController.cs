@@ -12,7 +12,7 @@ namespace HarborAdmin.Modules.AI.Controllers.Observability;
 /// </summary>
 [ApiController]
 [Route("api/admin/ai/usage")]
-public sealed class UsageController(AiObservabilityService service) : HarborControllerBase
+public sealed class UsageController(AiObservabilityService service) : AdminControllerBase
 {
     /// <summary>
     /// 列出用量（兼容旧接口）。

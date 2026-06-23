@@ -14,7 +14,7 @@ namespace HarborAdmin.Modules.International.Controllers.Resource;
 [ApiController]
 [AllowAnonymous]
 [Route("api/admin/international/resources")]
-public sealed class ResourceController(InternationalResourceBundleService resourceBundleService) : HarborControllerBase
+public sealed class ResourceController(InternationalResourceBundleService resourceBundleService) : AdminControllerBase
 {
     /// <summary>
     /// 获取当前资源版本。

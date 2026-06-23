@@ -12,7 +12,7 @@ namespace HarborAdmin.Modules.AI.Controllers.Quota;
 /// </summary>
 [ApiController]
 [Route("api/admin/ai/model-quotas")]
-public sealed class ModelQuotaController(QuotaService service) : HarborCrudControllerBase<AiModelQuotaDto, PageRequest, SaveAiModelQuotaRequest>
+public sealed class ModelQuotaController(QuotaService service) : AdminCrudControllerBase<AiModelQuotaDto, PageRequest, SaveAiModelQuotaRequest>
 {
     /// <summary>
     /// 列出模型限额。

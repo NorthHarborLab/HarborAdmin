@@ -14,7 +14,7 @@ namespace HarborAdmin.Modules.TaskOrchestration.Controllers.Tasks;
 /// </summary>
 [ApiController]
 [Route("api/admin/task-orchestration")]
-public sealed class TaskRunLogController(TaskOrchestrationService service) : HarborControllerBase
+public sealed class TaskRunLogController(TaskOrchestrationService service) : AdminControllerBase
 {
     /// <summary>
     /// 查询指定任务运行日志

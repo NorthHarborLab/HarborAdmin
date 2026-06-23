@@ -28,17 +28,4 @@ public sealed class AdminAuthRepository(IAdminDbContext db, UnitOfWorkManagerClo
     public Task UpdateUserPasswordHashAsync(AdminUser user, CancellationToken cancellationToken = default) =>
         FreeSql.Update<AdminUser>().SetSource(user).ExecuteAffrowsAsync(cancellationToken);
 
-    /// <inheritdoc />
-    public async Task<AdminRefreshToken?> GetRefreshTokenByHashAsync(string tokenHash, CancellationToken cancellationToken = default) =>
-        await FreeSql.Select<AdminRefreshToken>()
-            .Where(item => item.TokenHash == tokenHash)
-            .ToOneAsync(cancellationToken);
-
-    /// <inheritdoc />
-    public Task InsertRefreshTokenAsync(AdminRefreshToken token, CancellationToken cancellationToken = default) =>
-        FreeSql.Insert(token).ExecuteAffrowsAsync(cancellationToken);
-
-    /// <inheritdoc />
-    public Task UpdateRefreshTokenAsync(AdminRefreshToken token, CancellationToken cancellationToken = default) =>
-        FreeSql.Update<AdminRefreshToken>().SetSource(token).ExecuteAffrowsAsync(cancellationToken);
 }

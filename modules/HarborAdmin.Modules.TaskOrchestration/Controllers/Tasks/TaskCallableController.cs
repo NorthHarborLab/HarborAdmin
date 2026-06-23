@@ -11,7 +11,7 @@ namespace HarborAdmin.Modules.TaskOrchestration.Controllers.Tasks;
 /// </summary>
 [ApiController]
 [Route("api/admin/task-orchestration/callables")]
-public sealed class TaskCallableController(TaskOrchestrationService service) : HarborControllerBase
+public sealed class TaskCallableController(TaskOrchestrationService service) : AdminControllerBase
 {
     /// <summary>
     /// 列出可调用接口方法

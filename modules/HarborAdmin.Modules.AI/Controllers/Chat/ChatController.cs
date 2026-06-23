@@ -17,7 +17,7 @@ namespace HarborAdmin.Modules.AI.Controllers.Chat;
 /// </summary>
 [ApiController]
 [Route("api/admin/ai/chat")]
-public sealed class ChatController(AiChatStreamService chatStreamService, BusinessService businessService) : HarborControllerBase
+public sealed class ChatController(AiChatStreamService chatStreamService, BusinessService businessService) : AdminControllerBase
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {

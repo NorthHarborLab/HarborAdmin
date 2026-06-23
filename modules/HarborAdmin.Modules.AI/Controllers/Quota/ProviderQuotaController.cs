@@ -12,7 +12,7 @@ namespace HarborAdmin.Modules.AI.Controllers.Quota;
 /// </summary>
 [ApiController]
 [Route("api/admin/ai/providers/{providerId:long}/quota")]
-public sealed class ProviderQuotaController(QuotaService service) : HarborControllerBase
+public sealed class ProviderQuotaController(QuotaService service) : AdminControllerBase
 {
     /// <summary>
     /// 获取供应商限额。

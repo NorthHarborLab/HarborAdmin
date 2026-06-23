@@ -11,7 +11,7 @@ namespace HarborAdmin.Modules.ConfigCenter.Controllers.Publish;
 /// <param name="service">配置中心应用服务。</param>
 [ApiController]
 [Route("api/admin/config-center/{appId}")]
-public sealed class PublishController(ConfigCenterPublishService service) : HarborControllerBase
+public sealed class PublishController(ConfigCenterPublishService service) : AdminControllerBase
 {
     /// <summary>
     /// 列出发布历史（按版本降序）。

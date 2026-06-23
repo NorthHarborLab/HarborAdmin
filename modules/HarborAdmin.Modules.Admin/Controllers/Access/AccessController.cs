@@ -15,7 +15,7 @@ namespace HarborAdmin.Modules.Admin.Controllers.Access;
 [ApiController]
 [AuthenticatedOnly]
 [Route("api/admin/access")]
-public sealed class AccessController(SessionService sessionService, AuthService authService, ICurrentUser currentUser) : HarborControllerBase
+public sealed class AccessController(SessionService sessionService, AuthService authService, ICurrentUser currentUser) : AdminControllerBase
 {
     /// <summary>
     /// 获取当前用户信息。
@@ -57,7 +57,7 @@ public sealed class AccessController(SessionService sessionService, AuthService 
     [HttpPost("logout")]
     public async Task<ApiResult<bool>> Logout(CancellationToken cancellationToken)
     {
-        await authService.LogoutAsync(Request, Response, cancellationToken);
+        await authService.LogoutAsync(null, Request, Response, cancellationToken);
         return OkResult(true);
     }
 }

@@ -12,7 +12,7 @@ namespace HarborAdmin.Modules.TaskOrchestration.Controllers.Tasks;
 /// </summary>
 [ApiController]
 [Route("api/admin/task-orchestration/tasks")]
-public sealed class TaskManagementController(TaskOrchestrationService service) : HarborControllerBase
+public sealed class TaskManagementController(TaskOrchestrationService service) : AdminControllerBase
 {
     /// <summary>
     /// 查询编排任务

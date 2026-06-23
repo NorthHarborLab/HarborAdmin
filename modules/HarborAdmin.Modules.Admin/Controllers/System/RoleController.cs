@@ -12,7 +12,7 @@ namespace HarborAdmin.Modules.Admin.Controllers.System;
 /// </summary>
 [ApiController]
 [Route("api/admin/system/role")]
-public sealed class RoleController(RoleService roleService) : HarborCrudControllerBase<SystemRoleDto, PageRequest, SaveSystemRoleRequest>
+public sealed class RoleController(RoleService roleService) : AdminCrudControllerBase<SystemRoleDto, PageRequest, SaveSystemRoleRequest>
 {
     /// <summary>
     /// 查询角色列表。

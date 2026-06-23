@@ -8,12 +8,6 @@ namespace HarborAdmin.Host.Infrastructure;
 public static class AdminPipelineExtensions
 {
     /// <summary>
-    /// 启用 Admin access token 解析中间件。
-    /// </summary>
-    public static IApplicationBuilder UseAdminAuthentication(this IApplicationBuilder app) =>
-        app.UseMiddleware<AdminAuthenticationMiddleware>();
-
-    /// <summary>
     /// 启用 Admin API 权限校验中间件。
     /// </summary>
     public static IApplicationBuilder UseAdminApiAuthorization(this IApplicationBuilder app) =>

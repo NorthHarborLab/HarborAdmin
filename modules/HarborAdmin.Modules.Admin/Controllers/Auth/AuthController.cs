@@ -6,6 +6,7 @@ using HarborAdmin.Modules.Admin.Contracts.Auth.Request;
 using HarborAdmin.Modules.Admin.Contracts.Captcha.Dto;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace HarborAdmin.Modules.Admin.Controllers.Auth;
 
@@ -51,6 +52,18 @@ public sealed class AuthController(AuthService authService) : HarborControllerBa
     /// 刷新 access token
     /// </summary>
     [HttpPost("refresh")]
-    public async Task<ApiResult<RefreshTokenResultDto>> Refresh() =>
-        await OkResultAsync(authService.RefreshAsync(Request, Response, RequestCancellationToken));
+    public async Task<ApiResult<RefreshTokenResultDto>> Refresh(
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] RefreshTokenRequest? request) =>
+        await OkResultAsync(authService.RefreshAsync(request, Request, Response, RequestCancellationToken));
+
+    /// <summary>
+    /// 登出并吊销 refresh token
+    /// </summary>
+    [HttpPost("logout")]
+    public async Task<ApiResult<bool>> Logout(
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] LogoutRequest? request)
+    {
+        await authService.LogoutAsync(request, Request, Response, RequestCancellationToken);
+        return OkResult(true);
+    }
 }

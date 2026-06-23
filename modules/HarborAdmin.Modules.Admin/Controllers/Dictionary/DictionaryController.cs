@@ -14,7 +14,7 @@ namespace HarborAdmin.Modules.Admin.Controllers.Dictionary;
 [ApiController]
 [AuthenticatedOnly]
 [Route("api/admin/dictionaries")]
-public sealed class DictionaryController(AdminDictionaryService dictionaryService) : HarborControllerBase
+public sealed class DictionaryController(AdminDictionaryService dictionaryService) : AdminControllerBase
 {
     /// <summary>
     /// 查询字典类型。

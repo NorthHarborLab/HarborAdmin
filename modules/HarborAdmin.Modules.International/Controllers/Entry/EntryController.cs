@@ -13,7 +13,7 @@ namespace HarborAdmin.Modules.International.Controllers.Entry;
 /// </summary>
 [ApiController]
 [Route("api/admin/international/pages")]
-public sealed class EntryController(InternationalEntryService entryService, InternationalTranslationService translationService) : HarborControllerBase
+public sealed class EntryController(InternationalEntryService entryService, InternationalTranslationService translationService) : AdminControllerBase
 {
     /// <summary>
     /// 列出页面条目。

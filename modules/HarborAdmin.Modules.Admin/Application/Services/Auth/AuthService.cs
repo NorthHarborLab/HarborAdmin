@@ -1,3 +1,5 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
@@ -9,13 +11,11 @@ using HarborAdmin.Modules.Admin.Contracts.Auth.Request;
 using HarborAdmin.Modules.Admin.Contracts.Captcha.Dto;
 using HarborAdmin.Modules.Admin.Domain.Entities;
 using HarborAdmin.Modules.Admin.Infrastructure.Caching;
-using HarborAdmin.Modules.Admin.Infrastructure.Options;
 using HarborAdmin.Modules.Admin.Infrastructure.Security;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
 
 namespace HarborAdmin.Modules.Admin.Application.Services.Auth;
 
@@ -24,8 +24,7 @@ namespace HarborAdmin.Modules.Admin.Application.Services.Auth;
 /// </summary>
 public sealed class AuthService(
     IAdminAuthRepository repository,
-    AdminTokenProtector tokenProtector,
-    IOptions<AdminAuthOptions> authOptions,
+    JwtProfileTokenService jwtTokenService,
     IWebHostEnvironment environment,
     CaptchaChallengeService captchaChallengeService,
     IHarborCache cache)
@@ -34,6 +33,11 @@ public sealed class AuthService(
     /// Refresh token Cookie 名称。
     /// </summary>
     private const string RefreshCookieName = "harbor_refresh_token";
+
+    /// <summary>
+    /// 后台用户主体类型。
+    /// </summary>
+    private const string AdminSubjectType = "AdminUser";
 
     /// <summary>
     /// RSA 加密挑战有效分钟数。
@@ -120,69 +124,64 @@ public sealed class AuthService(
             await repository.UpdateUserPasswordHashAsync(user, cancellationToken);
         }
 
-        var accessToken = tokenProtector.CreateAccessToken(
-            user.Id,
-            user.UserName,
-            DateTimeOffset.UtcNow.AddMinutes(authOptions.Value.AccessTokenMinutes));
-        await IssueRefreshTokenAsync(user.Id, response, cancellationToken);
-        return new LoginResultDto(accessToken);
+        var tokenPair = await jwtTokenService.IssueTokenPairAsync(
+            AdminJwtProfileConstants.AdminProfileKey,
+            user.Id.ToString(),
+            AdminSubjectType,
+            CreateAdminClaims(user),
+            ResolveRemoteIp(response.HttpContext),
+            ResolveUserAgent(response.HttpContext),
+            cancellationToken);
+        AppendRefreshCookie(response, tokenPair.RefreshToken, tokenPair.RefreshTokenExpiresAt);
+        return ToLoginResult(tokenPair);
     }
 
     /// <summary>
     /// 使用 refresh token Cookie 续期 access token。
     /// </summary>
-    /// <param name="request">HTTP 请求，用于读取 refresh token。</param>
+    /// <param name="request">刷新 token 请求。</param>
+    /// <param name="httpRequest">HTTP 请求，用于读取 refresh token Cookie。</param>
     /// <param name="response">HTTP 响应，用于轮换 refresh token。</param>
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>新的 access token。</returns>
-    public async Task<RefreshTokenResultDto> RefreshAsync(HttpRequest request, HttpResponse response, CancellationToken cancellationToken)
+    public async Task<RefreshTokenResultDto> RefreshAsync(
+        RefreshTokenRequest? request,
+        HttpRequest httpRequest,
+        HttpResponse response,
+        CancellationToken cancellationToken)
     {
-        if (!request.Cookies.TryGetValue(RefreshCookieName, out var refreshToken))
+        var refreshToken = ResolveRefreshToken(request?.RefreshToken, httpRequest);
+        if (string.IsNullOrWhiteSpace(refreshToken))
         {
             throw new UnauthorizedDomainException("刷新令牌不存在。");
         }
 
-        var tokenHash = tokenProtector.HashRefreshToken(refreshToken);
-        var token = await repository.GetRefreshTokenByHashAsync(tokenHash, cancellationToken);
-        if (token is null || IsRefreshTokenRevoked(token) || token.ExpiresAt < DateTimeOffset.UtcNow)
-        {
-            throw new UnauthorizedDomainException("刷新令牌无效。");
-        }
-
-        var user = await GetUserAsync(token.UserId, cancellationToken);
-        if (user is null || !user.Enabled)
-        {
-            throw new UnauthorizedDomainException("用户不存在或已禁用。");
-        }
-
-        token.RevokedAt = DateTimeOffset.UtcNow;
-        await repository.UpdateRefreshTokenAsync(token, cancellationToken);
-        await IssueRefreshTokenAsync(user.Id, response, cancellationToken);
-        var accessToken = tokenProtector.CreateAccessToken(
-            user.Id,
-            user.UserName,
-            DateTimeOffset.UtcNow.AddMinutes(authOptions.Value.AccessTokenMinutes));
-        return new RefreshTokenResultDto(accessToken);
+        var tokenPair = await jwtTokenService.RefreshTokenPairAsync(
+            refreshToken,
+            AdminJwtProfileConstants.AdminProfileKey,
+            CreateAdminClaimsForRefreshAsync,
+            ResolveRemoteIp(response.HttpContext),
+            ResolveUserAgent(response.HttpContext),
+            cancellationToken);
+        AppendRefreshCookie(response, tokenPair.RefreshToken, tokenPair.RefreshTokenExpiresAt);
+        return ToRefreshTokenResult(tokenPair);
     }
 
     /// <summary>
     /// 吊销 refresh token 并清除登录 Cookie。
     /// </summary>
-    /// <param name="request">HTTP 请求。</param>
+    /// <param name="request">登出请求。</param>
+    /// <param name="httpRequest">HTTP 请求，用于读取 refresh token Cookie。</param>
     /// <param name="response">HTTP 响应。</param>
     /// <param name="cancellationToken">取消令牌。</param>
-    public async Task LogoutAsync(HttpRequest request, HttpResponse response, CancellationToken cancellationToken)
+    public async Task LogoutAsync(
+        LogoutRequest? request,
+        HttpRequest httpRequest,
+        HttpResponse response,
+        CancellationToken cancellationToken)
     {
-        if (request.Cookies.TryGetValue(RefreshCookieName, out var refreshToken))
-        {
-            var tokenHash = tokenProtector.HashRefreshToken(refreshToken);
-            var token = await repository.GetRefreshTokenByHashAsync(tokenHash, cancellationToken);
-            if (token is not null && !IsRefreshTokenRevoked(token))
-            {
-                token.RevokedAt = DateTimeOffset.UtcNow;
-                await repository.UpdateRefreshTokenAsync(token, cancellationToken);
-            }
-        }
+        var refreshToken = ResolveRefreshToken(request?.RefreshToken, httpRequest);
+        await jwtTokenService.RevokeRefreshTokenAsync(refreshToken, cancellationToken);
 
         response.Cookies.Delete(RefreshCookieName);
     }
@@ -234,37 +233,92 @@ public sealed class AuthService(
     }
 
     /// <summary>
-    /// 生成 refresh token 并写入数据库与 HttpOnly Cookie。
+    /// 创建后台用户 Claims。
     /// </summary>
-    /// <param name="userId">用户 ID。</param>
-    /// <param name="response">HTTP 响应。</param>
-    /// <param name="cancellationToken">取消令牌。</param>
-    private async Task IssueRefreshTokenAsync(long userId, HttpResponse response, CancellationToken cancellationToken)
-    {
-        var refreshToken = tokenProtector.CreateRefreshToken();
-        await repository.InsertRefreshTokenAsync(new AdminRefreshToken
-        {
-            UserId = userId,
-            TokenHash = tokenProtector.HashRefreshToken(refreshToken),
-            ExpiresAt = DateTimeOffset.UtcNow.AddDays(authOptions.Value.RefreshTokenDays),
-            CreatedAt = DateTimeOffset.UtcNow,
-        }, cancellationToken);
+    private static IEnumerable<Claim> CreateAdminClaims(AdminUser user) =>
+    [
+        new Claim(JwtRegisteredClaimNames.UniqueName, user.UserName),
+        new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+        new Claim(ClaimTypes.Name, user.UserName),
+    ];
 
+    /// <summary>
+    /// 为刷新后的后台用户创建 Claims。
+    /// </summary>
+    private async Task<IEnumerable<Claim>> CreateAdminClaimsForRefreshAsync(
+        JwtRefreshTokenSubjectContext context,
+        CancellationToken cancellationToken)
+    {
+        if (!string.Equals(context.ProfileKey, AdminJwtProfileConstants.AdminProfileKey, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(context.SubjectType, AdminSubjectType, StringComparison.OrdinalIgnoreCase)
+            || !long.TryParse(context.Subject, out var userId))
+        {
+            throw new UnauthorizedDomainException("刷新令牌无效。");
+        }
+
+        var user = await GetUserAsync(userId, cancellationToken);
+        if (user is null || !user.Enabled)
+        {
+            throw new UnauthorizedDomainException("用户不存在或已禁用。");
+        }
+
+        return CreateAdminClaims(user);
+    }
+
+    /// <summary>
+    /// 解析 refresh token。
+    /// </summary>
+    private static string? ResolveRefreshToken(string? requestToken, HttpRequest request) =>
+        !string.IsNullOrWhiteSpace(requestToken)
+            ? requestToken.Trim()
+            : request.Cookies.TryGetValue(RefreshCookieName, out var cookieToken)
+                ? cookieToken
+                : null;
+
+    /// <summary>
+    /// 写入 refresh token Cookie。
+    /// </summary>
+    private void AppendRefreshCookie(HttpResponse response, string refreshToken, DateTimeOffset expiresAt)
+    {
         response.Cookies.Append(RefreshCookieName, refreshToken, new CookieOptions
         {
             HttpOnly = true,
             IsEssential = true,
             SameSite = SameSiteMode.Lax,
             Secure = !environment.IsDevelopment(),
-            Expires = DateTimeOffset.UtcNow.AddDays(authOptions.Value.RefreshTokenDays),
+            Expires = expiresAt,
         });
     }
 
     /// <summary>
-    /// 判断 refresh token 是否已吊销。
+    /// 转换登录结果。
     /// </summary>
-    /// <param name="token">刷新令牌实体。</param>
-    /// <returns>已吊销时返回 <see langword="true"/>。</returns>
-    private static bool IsRefreshTokenRevoked(AdminRefreshToken token) =>
-        token.RevokedAt is { } revokedAt && revokedAt > DateTimeOffset.MinValue.AddYears(1);
+    private static LoginResultDto ToLoginResult(JwtProfileTokenPairResult tokenPair) =>
+        new(
+            tokenPair.AccessToken,
+            tokenPair.RefreshToken,
+            tokenPair.AccessTokenExpiresAt,
+            tokenPair.RefreshTokenExpiresAt);
+
+    /// <summary>
+    /// 转换刷新结果。
+    /// </summary>
+    private static RefreshTokenResultDto ToRefreshTokenResult(JwtProfileTokenPairResult tokenPair) =>
+        new(
+            tokenPair.AccessToken,
+            tokenPair.RefreshToken,
+            tokenPair.AccessTokenExpiresAt,
+            tokenPair.RefreshTokenExpiresAt);
+
+    /// <summary>
+    /// 解析请求来源 IP。
+    /// </summary>
+    private static string? ResolveRemoteIp(HttpContext context) =>
+        context.Connection.RemoteIpAddress?.ToString();
+
+    /// <summary>
+    /// 解析 User-Agent。
+    /// </summary>
+    private static string? ResolveUserAgent(HttpContext context) =>
+        context.Request.Headers.UserAgent.ToString();
 }

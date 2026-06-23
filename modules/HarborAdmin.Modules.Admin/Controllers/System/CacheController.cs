@@ -12,7 +12,7 @@ namespace HarborAdmin.Modules.Admin.Controllers.System;
 /// </summary>
 [ApiController]
 [Route("api/admin/system/cache")]
-public sealed class CacheController(CacheManagementService cacheManagementService) : HarborControllerBase
+public sealed class CacheController(CacheManagementService cacheManagementService) : AdminControllerBase
 {
     /// <summary>
     /// 获取缓存概览。

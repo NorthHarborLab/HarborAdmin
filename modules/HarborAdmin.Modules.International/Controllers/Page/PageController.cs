@@ -12,7 +12,7 @@ namespace HarborAdmin.Modules.International.Controllers.Page;
 /// </summary>
 [ApiController]
 [Route("api/admin/international/pages")]
-public sealed class PageController(InternationalPageService pageService) : HarborControllerBase
+public sealed class PageController(InternationalPageService pageService) : AdminControllerBase
 {
     /// <summary>
     /// 列出页面。

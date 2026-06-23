@@ -12,7 +12,7 @@ namespace HarborAdmin.Modules.Admin.Controllers.System;
 /// </summary>
 [ApiController]
 [Route("api/admin/system/dept")]
-public sealed class DeptController(DeptService deptService) : HarborCrudControllerBase<SystemDeptDto, PageRequest, SaveSystemDeptRequest>
+public sealed class DeptController(DeptService deptService) : AdminCrudControllerBase<SystemDeptDto, PageRequest, SaveSystemDeptRequest>
 {
     /// <summary>
     /// 查询部门树。

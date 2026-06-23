@@ -13,7 +13,7 @@ namespace HarborAdmin.Modules.Admin.Controllers.System;
 /// </summary>
 [ApiController]
 [Route("api/admin/system/user")]
-public sealed class UserController(UserService userService, ICurrentUser currentUser) : HarborControllerBase
+public sealed class UserController(UserService userService, ICurrentUser currentUser) : AdminControllerBase
 {
     /// <summary>
     /// 查询用户列表。

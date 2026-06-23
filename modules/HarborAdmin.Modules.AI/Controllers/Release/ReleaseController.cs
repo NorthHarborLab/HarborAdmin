@@ -12,7 +12,7 @@ namespace HarborAdmin.Modules.AI.Controllers.Release;
 /// </summary>
 [ApiController]
 [Route("api/admin/ai")]
-public sealed class ReleaseController(ReleaseService service) : HarborControllerBase
+public sealed class ReleaseController(ReleaseService service) : AdminControllerBase
 {
     /// <summary>
     /// 发布当前草稿。

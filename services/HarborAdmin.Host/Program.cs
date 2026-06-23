@@ -79,7 +79,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors();
 app.UseRouting();
-app.UseAdminAuthentication();
+app.UseAuthentication();
 app.UseAuthorization();
 app.UseAdminApiAuthorization();
 app.MapControllers();

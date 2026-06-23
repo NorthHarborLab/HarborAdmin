@@ -13,7 +13,7 @@ namespace HarborAdmin.Modules.AI.Controllers.Conversation;
 /// </summary>
 [ApiController]
 [Route("api/admin/ai/conversations")]
-public sealed class ConversationController(ConversationService conversationService, ICurrentUser currentUser) : HarborControllerBase
+public sealed class ConversationController(ConversationService conversationService, ICurrentUser currentUser) : AdminControllerBase
 {
     /// <summary>
     /// 分页列出当前用户会话。
