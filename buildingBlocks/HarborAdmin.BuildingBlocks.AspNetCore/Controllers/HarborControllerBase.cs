@@ -1,76 +1,58 @@
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
+using HarborAdmin.BuildingBlocks.Abstractions.Results;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HarborAdmin.BuildingBlocks.AspNetCore.Controllers;
 
 /// <summary>
-/// Harbor Controller 通用响应包装基类。
+/// Harbor Controller 根基类。
 /// </summary>
+/// <remarks>
+/// 仅建立 Controller 类型层级与公共扩展点，不封装具体 Action 调用或响应创建流程。
+/// </remarks>
 public abstract class HarborControllerBase : ControllerBase
 {
     /// <summary>
-    /// 包装成功响应。
+    /// 将协议无关的应用结果映射为 HTTP API 响应。
     /// </summary>
-    protected static ApiResult<TValue> OkResult<TValue>(TValue value) => ApiResult.Ok(value);
-
-    /// <summary>
-    /// 执行业务任务并包装成功响应。
-    /// </summary>
-    protected static async Task<ApiResult<TValue>> OkResultAsync<TValue>(Task<TValue> task)
+    protected static ActionResult<ApiResult<T>> ToActionResult<T>(HarborResult<T> result)
     {
-        return ApiResult.Ok(await task);
+        if (result.IsSuccess)
+        {
+            return ApiResult.Ok(result.Value!);
+        }
+
+        var error = result.Error!;
+        var status = GetHttpStatus(error.Kind);
+        return new ObjectResult(ApiResult<T>.Fail(
+            status,
+            error.DefaultMessage,
+            error.FieldErrors,
+            error.Metadata,
+            error.Code,
+            error.Kind.ToString(),
+            error.Arguments,
+            error.Retryable))
+        {
+            StatusCode = status,
+        };
     }
 
     /// <summary>
-    /// 执行业务任务并包装成功响应。
+    /// 获取错误分类对应的 HTTP 状态码。
     /// </summary>
-    protected static async Task<ApiResult<TValue>> OkResultAsync<TValue>(CancellationToken cancellationToken, Func<CancellationToken, Task<TValue>> action)
+    private static int GetHttpStatus(HarborErrorKind kind) => kind switch
     {
-        return ApiResult.Ok(await action(cancellationToken));
-    }
-
-    /// <summary>
-    /// 执行列表查询并包装成功响应。
-    /// </summary>
-    protected static Task<ApiResult<IReadOnlyList<TItem>>> ListResultAsync<TItem>(CancellationToken cancellationToken,
-        Func<CancellationToken, Task<IReadOnlyList<TItem>>> list)
-    {
-        return OkResultAsync(cancellationToken, list);
-    }
-
-    /// <summary>
-    /// 执行分页查询并包装成功响应。
-    /// </summary>
-    protected static Task<ApiResult<PagedResult<TItem>>> PageResultAsync<TItem>(CancellationToken cancellationToken,
-        Func<CancellationToken, Task<PagedResult<TItem>>> page)
-    {
-        return OkResultAsync(cancellationToken, page);
-    }
-
-    /// <summary>
-    /// 执行创建并包装成功响应。
-    /// </summary>
-    protected static async Task<ApiResult<TResult>> CreateResultAsync<TRequest, TResult>(TRequest request, CancellationToken cancellationToken,
-        Func<TRequest, CancellationToken, Task<TResult>> create)
-    {
-        return ApiResult.Ok(await create(request, cancellationToken));
-    }
-
-    /// <summary>
-    /// 执行更新并包装成功响应。
-    /// </summary>
-    protected static async Task<ApiResult<TResult>> UpdateResultAsync<TKey, TRequest, TResult>(TKey key, TRequest request, CancellationToken cancellationToken,
-        Func<TKey, TRequest, CancellationToken, Task<TResult>> update)
-    {
-        return ApiResult.Ok(await update(key, request, cancellationToken));
-    }
-
-    /// <summary>
-    /// 执行删除并包装成功响应。
-    /// </summary>
-    protected static async Task<ApiResult<bool>> DeleteResultAsync<TKey>(TKey key, CancellationToken cancellationToken, Func<TKey, CancellationToken, Task> delete)
-    {
-        await delete(key, cancellationToken);
-        return ApiResult.Ok(true);
-    }
+        HarborErrorKind.Validation => StatusCodes.Status400BadRequest,
+        HarborErrorKind.Unauthorized => StatusCodes.Status401Unauthorized,
+        HarborErrorKind.Forbidden => StatusCodes.Status403Forbidden,
+        HarborErrorKind.NotFound => StatusCodes.Status404NotFound,
+        HarborErrorKind.Conflict => StatusCodes.Status409Conflict,
+        HarborErrorKind.Business => StatusCodes.Status400BadRequest,
+        HarborErrorKind.RateLimited => StatusCodes.Status429TooManyRequests,
+        HarborErrorKind.DependencyUnavailable => StatusCodes.Status503ServiceUnavailable,
+        HarborErrorKind.Timeout => StatusCodes.Status504GatewayTimeout,
+        _ => StatusCodes.Status500InternalServerError,
+    };
 }

@@ -3,11 +3,13 @@ using HarborAdmin.BuildingBlocks.Abstractions.Enums;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using HarborAdmin.BuildingBlocks.Abstractions.Repositories;
+using HarborAdmin.BuildingBlocks.Abstractions.Results;
 using HarborAdmin.BuildingBlocks.Mapping;
 using HarborAdmin.Modules.Admin.Application.Abstractions;
 using HarborAdmin.Modules.Admin.Application.Services.Shared;
 using HarborAdmin.Modules.Admin.Contracts.System.Dto;
 using HarborAdmin.Modules.Admin.Contracts.System.Request;
+using HarborAdmin.Modules.Admin.Contracts.Shared.ErrorCode;
 using HarborAdmin.Modules.Admin.Domain.Entities;
 
 namespace HarborAdmin.Modules.Admin.Application.Services.Role;
@@ -31,19 +33,33 @@ public sealed class RoleService(
     /// <summary>
     /// 将保存请求应用到角色聚合。
     /// </summary>
-    protected override async Task ApplySaveAsync(AdminRole role, SaveSystemRoleRequest request, CancellationToken cancellationToken)
+    protected override async Task<HarborResult> ApplySaveAsync(AdminRole role, SaveSystemRoleRequest request, CancellationToken cancellationToken)
     {
         role.Name = request.Name;
-        role.RoleCode = string.IsNullOrWhiteSpace(request.RoleCode) ? AdminIdHelper.BuildCode(request.Name) : request.RoleCode;
+        role.RoleCode = string.IsNullOrWhiteSpace(request.RoleCode) ? AdminIdHelper.BuildCode(request.Name) : request.RoleCode.Trim();
         role.DataScopeType = string.IsNullOrWhiteSpace(request.DataScopeType) ? "Self" : request.DataScopeType;
         role.Remark = request.Remark;
         role.Enabled = request.Status == 1;
         role.UpdatedAt = UtcNow;
+        if (await Repository.RoleCodeExistsAsync(
+                role.RoleCode,
+                role.Id > 0 ? role.Id : null,
+                cancellationToken))
+        {
+            return HarborResult.Failure(AdminRoleErrorCodes.DuplicateCode.Create(
+                new Dictionary<string, object?> { ["roleCode"] = role.RoleCode }));
+        }
+
         var menuIds = (request.MenuIds ?? ExtractMenuIds(request.Permissions ?? []))
             .Select(AdminIdHelper.ParseId)
             .Distinct()
             .ToArray();
-        await EnsureMenusExistAsync(menuIds, cancellationToken);
+        var menuValidation = await ValidateMenusAsync(menuIds, cancellationToken);
+        if (!menuValidation.IsSuccess)
+        {
+            return menuValidation;
+        }
+
         role.RoleMenus = menuIds
             .Select(menuId => new AdminRoleMenu { RoleId = role.Id, MenuId = menuId })
             .ToList();
@@ -55,7 +71,17 @@ public sealed class RoleService(
         var rolePermissions = new List<AdminRolePermission>(permissionCodes.Length);
         foreach (var permissionCode in permissionCodes)
         {
-            var action = await Repository.GetFeatureActionByPermissionCodeAsync(permissionCode, cancellationToken);
+            AdminFeatureAction action;
+            try
+            {
+                action = await Repository.GetFeatureActionByPermissionCodeAsync(permissionCode, cancellationToken);
+            }
+            catch (NotFoundDomainException)
+            {
+                return HarborResult.Failure(AdminRoleErrorCodes.PermissionNotFound.Create(
+                    new Dictionary<string, object?> { ["permissionCode"] = permissionCode }));
+            }
+
             rolePermissions.Add(new AdminRolePermission
             {
                 RoleId = role.Id,
@@ -65,7 +91,16 @@ public sealed class RoleService(
         }
 
         role.RolePermissions = rolePermissions;
-        role.FieldPermissions = await BuildFieldPermissionsAsync(role.Id, request.FieldPolicies ?? [], cancellationToken);
+        try
+        {
+            role.FieldPermissions = await BuildFieldPermissionsAsync(role.Id, request.FieldPolicies ?? [], cancellationToken);
+        }
+        catch (NotFoundDomainException exception)
+        {
+            return HarborResult.Failure(AdminRoleErrorCodes.PermissionNotFound.Create(
+                new Dictionary<string, object?> { ["permissionCode"] = exception.Message }));
+        }
+
         role.DataScopes =
         [
             new AdminRoleDataScope
@@ -74,6 +109,7 @@ public sealed class RoleService(
                 ScopeType = role.DataScopeType,
             },
         ];
+        return HarborResult.Success();
     }
 
     /// <inheritdoc />
@@ -85,7 +121,7 @@ public sealed class RoleService(
         await context.BumpSessionVersionAsync(cancellationToken);
 
     /// <inheritdoc />
-    protected override string GetNotFoundMessage(long id) => "角色不存在。";
+    protected override HarborErrorDefinition NotFoundError => AdminRoleErrorCodes.NotFound;
 
     /// <summary>
     /// 根据请求字段策略构建角色字段权限实体。
@@ -141,11 +177,11 @@ public sealed class RoleService(
     /// <summary>
     /// 校验角色绑定的菜单全部存在。
     /// </summary>
-    private async Task EnsureMenusExistAsync(IReadOnlyList<long> menuIds, CancellationToken cancellationToken)
+    private async Task<HarborResult> ValidateMenusAsync(IReadOnlyList<long> menuIds, CancellationToken cancellationToken)
     {
         if (menuIds.Count == 0)
         {
-            return;
+            return HarborResult.Success();
         }
 
         var menus = await menuRepository.GetMenusByIdsAsync(menuIds, cancellationToken);
@@ -153,7 +189,10 @@ public sealed class RoleService(
         var missingIds = menuIds.Where(menuId => !existingIds.Contains(menuId)).ToArray();
         if (missingIds.Length > 0)
         {
-            throw new NotFoundDomainException($"菜单不存在：{string.Join(", ", missingIds)}");
+            return HarborResult.Failure(AdminRoleErrorCodes.MenuNotFound.Create(
+                new Dictionary<string, object?> { ["ids"] = string.Join(", ", missingIds) }));
         }
+
+        return HarborResult.Success();
     }
 }

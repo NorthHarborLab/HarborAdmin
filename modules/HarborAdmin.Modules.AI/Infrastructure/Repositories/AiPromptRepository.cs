@@ -18,6 +18,23 @@ public sealed class AiPromptRepository(
     : FreeSqlCrudRepository<AiPrompt, IAiDbContext>(db, entityRegistry, unitOfWorkManager), IAiPromptRepository
 {
     /// <inheritdoc />
+    public Task<bool> PromptVersionExistsAsync(
+        string promptKey,
+        int version,
+        long? excludeId,
+        CancellationToken cancellationToken = default)
+    {
+        var query = FreeSql.Select<AiPrompt>()
+            .Where(entity => entity.PromptKey == promptKey && entity.Version == version);
+        if (excludeId.HasValue)
+        {
+            query = query.Where(entity => entity.Id != excludeId.Value);
+        }
+
+        return query.AnyAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
     public async Task<AiPrompt?> GetEnabledPromptAsync(string promptKey, CancellationToken cancellationToken = default) =>
         await FreeSql.Select<AiPrompt>()
             .Where(prompt => prompt.PromptKey == promptKey && prompt.Enabled)

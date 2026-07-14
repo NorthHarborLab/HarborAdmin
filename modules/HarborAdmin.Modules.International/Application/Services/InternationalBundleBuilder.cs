@@ -1,3 +1,4 @@
+using HarborAdmin.Modules.International.Contracts.Resource;
 using HarborAdmin.Modules.International.Domain.Entities;
 
 namespace HarborAdmin.Modules.International.Application.Services;
@@ -7,6 +8,28 @@ namespace HarborAdmin.Modules.International.Application.Services;
 /// </summary>
 internal static class InternationalBundleBuilder
 {
+    /// <summary>
+    /// 将全局错误码翻译合并进资源包。
+    /// </summary>
+    internal static void MergeErrorMessages(Dictionary<string, object> messages)
+    {
+        foreach (var locale in InternationalErrorTranslations.Catalog)
+        {
+            var localeRoot = GetOrCreateObject(messages, locale.Key);
+            foreach (var translation in locale.Value)
+            {
+                var segments = $"errors.{translation.Key}".Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                IDictionary<string, object> current = localeRoot;
+                for (var index = 0; index < segments.Length - 1; index++)
+                {
+                    current = GetOrCreateObject(current, segments[index]);
+                }
+
+                current[segments[^1]] = translation.Value;
+            }
+        }
+    }
+
     /// <summary>
     /// 将单个页面的条目合并进全量资源包。
     /// </summary>

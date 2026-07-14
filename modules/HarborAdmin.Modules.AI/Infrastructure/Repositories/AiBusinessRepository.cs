@@ -22,6 +22,18 @@ public sealed class AiBusinessRepository(IAiDbContext db, DbEntityRegistry entit
             .FirstAsync(cancellationToken);
 
     /// <inheritdoc />
+    public Task<bool> BusinessKeyExistsAsync(string businessKey, long? excludeId, CancellationToken cancellationToken = default)
+    {
+        var query = FreeSql.Select<AiBusiness>().Where(entity => entity.BusinessKey == businessKey);
+        if (excludeId.HasValue)
+        {
+            query = query.Where(entity => entity.Id != excludeId.Value);
+        }
+
+        return query.AnyAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
     public override async Task<AiBusiness> InsertAsync(AiBusiness entity, CancellationToken cancellationToken = default)
     {
         await ExecuteInUnitOfWorkAsync(async ct =>

@@ -1,9 +1,9 @@
 using HarborAdmin.BuildingBlocks.Abstractions.Application;
 using HarborAdmin.BuildingBlocks.Abstractions.Domain;
 using HarborAdmin.BuildingBlocks.Abstractions.Enums;
-using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using HarborAdmin.BuildingBlocks.Abstractions.Repositories;
+using HarborAdmin.BuildingBlocks.Abstractions.Results;
 
 namespace HarborAdmin.BuildingBlocks.Application;
 
@@ -30,36 +30,52 @@ public abstract class HarborCrudApplicationService<TEntity, TDto, TQuery, TSaveR
     }
 
     /// <inheritdoc />
-    public virtual async Task<TDto> SaveAsync(long? id, TSaveRequest request, CancellationToken cancellationToken)
+    public virtual async Task<HarborResult<TDto>> SaveAsync(long? id, TSaveRequest request, CancellationToken cancellationToken)
     {
         var isUpdate = id is > 0;
-        var entity = isUpdate
-            ? RequireFound(await Repository.GetAsync(id!.Value, cancellationToken), GetNotFoundMessage(id.Value))
-            : CreateEntity(request);
-
-        if (isUpdate)
+        var entity = isUpdate ? await Repository.GetAsync(id!.Value, cancellationToken) : CreateEntity(request);
+        if (entity is null)
         {
-            await ValidateUpdateAsync(entity, request, cancellationToken);
-        }
-        else
-        {
-            await ValidateCreateAsync(entity, request, cancellationToken);
+            return HarborResult<TDto>.Failure(CreateNotFoundError(id!.Value));
         }
 
-        await ApplySaveAsync(entity, request, cancellationToken);
+        var validation = isUpdate
+            ? await ValidateUpdateAsync(entity, request, cancellationToken)
+            : await ValidateCreateAsync(entity, request, cancellationToken);
+        if (!validation.IsSuccess)
+        {
+            return HarborResult<TDto>.Failure(validation.Error!);
+        }
+
+        var apply = await ApplySaveAsync(entity, request, cancellationToken);
+        if (!apply.IsSuccess)
+        {
+            return HarborResult<TDto>.Failure(apply.Error!);
+        }
+
         var saved = isUpdate
             ? await Repository.UpdateAsync(entity, cancellationToken)
             : await Repository.InsertAsync(entity, cancellationToken);
         await AfterSaveAsync(saved, request, cancellationToken);
-        return MapToDto(saved);
+        return HarborResult<TDto>.Success(MapToDto(saved));
     }
 
     /// <inheritdoc />
-    public virtual async Task DeleteAsync(long id, CancellationToken cancellationToken)
+    public virtual async Task<HarborResult<bool>> DeleteAsync(long id, CancellationToken cancellationToken)
     {
-        var entity = RequireFound(await Repository.GetAsync(id, cancellationToken), GetNotFoundMessage(id));
+        var entity = await Repository.GetAsync(id, cancellationToken);
+        if (entity is null)
+        {
+            return HarborResult<bool>.Failure(CreateNotFoundError(id));
+        }
+
         var decision = await CanDeleteAsync(entity, cancellationToken);
-        switch (decision)
+        if (!decision.IsSuccess)
+        {
+            return HarborResult<bool>.Failure(decision.Error!);
+        }
+
+        switch (decision.Value)
         {
             case CrudDeleteDecision.PhysicalDelete:
                 await Repository.DeleteAsync(id, cancellationToken);
@@ -67,13 +83,12 @@ public abstract class HarborCrudApplicationService<TEntity, TDto, TQuery, TSaveR
             case CrudDeleteDecision.SoftDelete:
                 await Repository.SoftDeleteAsync(entity, cancellationToken);
                 break;
-            case CrudDeleteDecision.Reject:
-                throw new ConflictDomainException(GetDeleteRejectedMessage(entity));
             default:
-                throw new ValidationDomainException($"Unsupported delete decision '{decision}'.");
+                throw new InvalidOperationException($"Unsupported delete decision '{decision.Value}'.");
         }
 
-        await AfterDeleteAsync(entity, decision, cancellationToken);
+        await AfterDeleteAsync(entity, decision.Value, cancellationToken);
+        return HarborResult<bool>.Success(true);
     }
 
     /// <summary>
@@ -89,25 +104,25 @@ public abstract class HarborCrudApplicationService<TEntity, TDto, TQuery, TSaveR
     /// <param name="entity">实体。</param>
     /// <param name="request">保存请求。</param>
     /// <param name="cancellationToken">取消令牌。</param>
-    protected abstract Task ApplySaveAsync(TEntity entity, TSaveRequest request, CancellationToken cancellationToken);
+    protected abstract Task<HarborResult> ApplySaveAsync(TEntity entity, TSaveRequest request, CancellationToken cancellationToken);
 
     /// <summary>
     /// 创建前校验。
     /// </summary>
-    protected virtual Task ValidateCreateAsync(TEntity entity, TSaveRequest request, CancellationToken cancellationToken) =>
-        Task.CompletedTask;
+    protected virtual Task<HarborResult> ValidateCreateAsync(TEntity entity, TSaveRequest request, CancellationToken cancellationToken) =>
+        Task.FromResult(HarborResult.Success());
 
     /// <summary>
     /// 更新前校验。
     /// </summary>
-    protected virtual Task ValidateUpdateAsync(TEntity entity, TSaveRequest request, CancellationToken cancellationToken) =>
-        Task.CompletedTask;
+    protected virtual Task<HarborResult> ValidateUpdateAsync(TEntity entity, TSaveRequest request, CancellationToken cancellationToken) =>
+        Task.FromResult(HarborResult.Success());
 
     /// <summary>
     /// 判断是否可删除。
     /// </summary>
-    protected virtual Task<CrudDeleteDecision> CanDeleteAsync(TEntity entity, CancellationToken cancellationToken) =>
-        Task.FromResult(CrudDeleteDecision.PhysicalDelete);
+    protected virtual Task<HarborResult<CrudDeleteDecision>> CanDeleteAsync(TEntity entity, CancellationToken cancellationToken) =>
+        Task.FromResult(HarborResult<CrudDeleteDecision>.Success(CrudDeleteDecision.PhysicalDelete));
 
     /// <summary>
     /// 保存后处理。
@@ -121,8 +136,4 @@ public abstract class HarborCrudApplicationService<TEntity, TDto, TQuery, TSaveR
     protected virtual Task AfterDeleteAsync(TEntity entity, CrudDeleteDecision decision, CancellationToken cancellationToken) =>
         Task.CompletedTask;
 
-    /// <summary>
-    /// 构造拒绝删除消息。
-    /// </summary>
-    protected virtual string GetDeleteRejectedMessage(TEntity entity) => $"{typeof(TEntity).Name} '{entity.Id}' cannot be deleted.";
 }

@@ -22,6 +22,18 @@ public sealed class AiProviderRepository(IAiDbContext db, DbEntityRegistry entit
             .FirstAsync(cancellationToken);
 
     /// <inheritdoc />
+    public Task<bool> ProviderKeyExistsAsync(string providerKey, long? excludeId, CancellationToken cancellationToken = default)
+    {
+        var query = FreeSql.Select<AiProvider>().Where(entity => entity.ProviderKey == providerKey);
+        if (excludeId.HasValue)
+        {
+            query = query.Where(entity => entity.Id != excludeId.Value);
+        }
+
+        return query.AnyAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
     public override async Task<AiProvider> InsertAsync(AiProvider entity, CancellationToken cancellationToken = default)
     {
         await ExecuteInUnitOfWorkAsync(async ct =>

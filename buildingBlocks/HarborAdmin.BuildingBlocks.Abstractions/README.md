@@ -95,59 +95,61 @@ public sealed class AdminAuditLog : EntityBase
 
 - 成功响应使用 `ApiResult.Ok(...)`。
 - Controller 不直接返回 `ApiResult.Fail(...)` 表示业务失败。
-- 业务失败由应用服务抛出领域异常，Host 过滤器转换为统一响应。
+- 标准 CRUD 的可预期业务失败由应用服务返回 `HarborResult<T>`；未迁移服务的领域异常仍由 Host 过滤器兼容转换。
 
-`Controllers/` 提供三类 Controller 基础能力：
+`HarborAdmin.BuildingBlocks.AspNetCore` 保留与 Application、Repository 对应的 Controller 类型层级：
 
-- `HarborControllerBase`：所有非标准 Controller 的最小基类，继承 ASP.NET Core `ControllerBase`，提供 `OkResult(...)`、`OkResultAsync(...)`、`ListResultAsync(...)`、`PageResultAsync(...)`、`CreateResultAsync(...)`、`UpdateResultAsync(...)`、`DeleteResultAsync(...)`。
-- `CrudControllerBase<TDto, TSaveRequest>`：标准非分页 CRUD 基类，服务实现 `ICrudApplicationService<TDto, TSaveRequest>`。
-- `PagedCrudControllerBase<TDto, TQuery, TSaveRequest>`：标准分页 CRUD 基类，服务实现 `IPagedCrudApplicationService<TDto, TQuery, TSaveRequest>`，其中 `TQuery` 继承 `PageRequest`，服务层负责转换为仓储使用的 `HarborQueryOptions`。
+- `HarborControllerBase`：Controller 根基类和公共扩展点。
+- `HarborQueryControllerBase<TDto, TQuery>`：查询 Controller 类型边界，固定提供 List、Get、Page 响应方法。
+- `HarborCrudControllerBase<TDto, TQuery, TSaveRequest>`：CRUD Controller 类型边界，固定提供 Create、Update、Delete 响应方法。
+- `AdminControllerBase` / `AdminCrudControllerBase<...>`：在对应层级上统一声明 Admin JWT Profile。
 
-标准可分页 CRUD Controller 优先使用分页基类：
+Query/CRUD 基类的方法直接调用对应应用服务，把 `HarborResult<T>` 映射为 HTTP 状态和 `ApiResult`，不再经过 `OkResultAsync` 之类的通用二次包装。匿名接口等特殊场景可直接继承 ASP.NET Core `ControllerBase`。
+
+Controller 固定 CRUD Action 显式调用有业务语义的基类方法：
 
 ```csharp
 public sealed class ProviderController(ProviderService service)
-    : PagedCrudControllerBase<AiProviderDto, PageRequest, SaveAiProviderRequest>
+    : AdminCrudControllerBase<AiProviderDto, PageRequest, SaveAiProviderRequest>
 {
     [HttpGet]
-    public async Task<ApiResult<PagedResult<AiProviderDto>>> List(
+    public Task<ActionResult<ApiResult<PagedResult<AiProviderDto>>>> List(
         [FromQuery] PageRequest query,
         CancellationToken cancellationToken) =>
-        await PageResultAsync(query, service, cancellationToken);
+        PageResultAsync(query, service, cancellationToken);
 }
 ```
 
-标准非分页 CRUD Controller 可复用 List / Get / Create / Update / Delete 的响应包装：
+创建、更新与删除使用对应的固定基类方法：
 
 ```csharp
 public sealed class ProviderController(ProviderService service)
-    : CrudControllerBase<AiProviderDto, SaveAiProviderRequest>
+    : AdminCrudControllerBase<AiProviderDto, PageRequest, SaveAiProviderRequest>
 {
     [HttpPost]
-    public async Task<ApiResult<AiProviderDto>> Create(
+    public Task<ActionResult<ApiResult<AiProviderDto>>> Create(
         [FromBody] SaveAiProviderRequest request,
         CancellationToken cancellationToken) =>
-        await CreateResultAsync(request, service, cancellationToken);
+        CreateResultAsync(request, service, cancellationToken);
 }
 ```
 
-具体 Controller 仍必须显式声明路由、HTTP Verb、XML 注释和业务服务；`CrudControllerBase` / `PagedCrudControllerBase` 不生成隐式端点。
+具体 Controller 必须显式声明路由、HTTP Verb、XML 注释和业务服务。标准 CRUD 使用 Query/CRUD 基类固定方法；非标准 Action 直接调用应用服务。不要新增 `OkResultAsync` 这类无业务语义的通用包装。
 
 ## 应用服务基础能力
 
 `HarborApplicationService` 提供轻量公共能力：
 
 - `UtcNow`：统一当前 UTC 时间入口。
-- `RequireText(...)`：规范化必填文本并抛出校验异常。
 - `RequireFound(...)`：要求对象存在并抛出未找到异常。
 
 `HarborApplicationService` 只提供 Guard、时间等轻量公共能力，不承载 CRUD 方法模板。模块内形态稳定的普通 CRUD 不应重复手写这些方法，应优先使用 Repository 驱动基类。
 
-`Repositories/` 中的 `IHarborRepository` / `IHarborRepository<TEntity>` 是仓储根契约，`IHarborQueryRepository<TEntity>` 与 `IHarborCrudRepository<TEntity>` 分别承载标准查询和 CRUD 能力。普通 CRUD 应用服务优先继承 `HarborApplicationRepositoryService<TEntity, TDto, TSaveRequest, TRepository>`，让基类直接调用仓储完成 `List/Get/Save/Delete`，子类只实现 DTO 映射、请求落实体、保存/删除校验等钩子。
+`Repositories/` 中的 `IHarborRepository` / `IHarborRepository<TEntity>` 是仓储根契约，`IHarborQueryRepository<TEntity>` 与 `IHarborCrudRepository<TEntity>` 分别承载标准查询和 CRUD 能力。普通查询应用服务优先继承 `HarborQueryApplicationService<TEntity, TDto, TQuery, TRepository>`；普通 CRUD 应用服务优先继承 `HarborCrudApplicationService<TEntity, TDto, TQuery, TSaveRequest, TRepository>`，让基类直接调用仓储完成 `List/Get/Save/Delete`，子类只实现 DTO 映射、请求落实体、保存/删除校验等钩子。
 
-`HarborApplicationPagedRepositoryService<TEntity, TDto, TQuery, TSaveRequest, TRepository>` 继承 Repository CRUD 基类并实现 `IPagedCrudApplicationService<TDto, TQuery, TSaveRequest>`。形态稳定的分页资源服务可继承它；树形、动态查询、发布或带副作用的接口不要为了套分页基类而改变业务形态。
+Controller 通过 Query/CRUD 基类调用这些标准应用服务方法，不再为普通 CRUD 保留 `ListProvidersAsync`、`SaveProviderAsync` 这类转发壳。复杂查询、树形资源、权限副作用、发布或流式接口不强行套用标准 CRUD 契约。
 
-Controller 应直接通过 `CrudControllerBase` 调用这些标准 CRUD 方法，不再为普通 CRUD 保留 `ListProvidersAsync`、`SaveProviderAsync` 这类转发壳。复杂查询、树形资源、权限副作用、发布或流式接口不强行套用该契约。
+标准查询与 CRUD 应用服务统一返回 `HarborResult<T>`。模块错误码定义在自身 `Contracts/Shared/ErrorCode`，格式为 `{MODULE}.{RESOURCE}.{REASON}`；详细规则和生成命令见 `docs/error-code-governance.md`。
 
 应用服务不直接引用 FreeSql、FreeSqlCloud 或 DbKey。分库由仓储实现根据模块 metadata 与 `[OverrideDbKey]` 自动完成。
 
@@ -162,7 +164,7 @@ Controller 应直接通过 `CrudControllerBase` 调用这些标准 CRUD 方法�
 - `ForbiddenDomainException`
 - `BusinessDomainException`
 
-服务层通过抛异常表达业务失败，Host 统一转换 HTTP 状态码和 `ApiResult`。
+未迁移服务仍可通过领域异常表达业务失败，Host 统一转换 HTTP 状态码和 `ApiResult`；新迁移的标准 CRUD 使用 `HarborResult<T>`，不要在两种风格之间随意选择。
 
 ## 设计约束
 

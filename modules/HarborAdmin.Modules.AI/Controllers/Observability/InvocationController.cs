@@ -18,5 +18,5 @@ public sealed class InvocationController(AiObservabilityService service) : Admin
     /// </summary>
     [HttpGet]
     public async Task<ApiResult<IReadOnlyList<AiInvocationLogDto>>> List(CancellationToken cancellationToken) =>
-        await ListResultAsync(cancellationToken, service.ListInvocationLogsAsync);
+        ApiResult.Ok(await service.ListInvocationLogsAsync(cancellationToken));
 }

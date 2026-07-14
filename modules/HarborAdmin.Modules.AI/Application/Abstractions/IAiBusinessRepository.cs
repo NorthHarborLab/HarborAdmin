@@ -12,4 +12,9 @@ public interface IAiBusinessRepository : IHarborCrudRepository<AiBusiness>
     /// 按业务 Key 获取业务及路由。
     /// </summary>
     Task<AiBusiness?> GetBusinessByKeyAsync(string businessKey, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 判断业务 Key 是否已被其他记录使用。
+    /// </summary>
+    Task<bool> BusinessKeyExistsAsync(string businessKey, long? excludeId, CancellationToken cancellationToken = default);
 }

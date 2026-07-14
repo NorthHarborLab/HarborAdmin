@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
+using HarborAdmin.BuildingBlocks.Abstractions.Results;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Npgsql;
@@ -60,7 +61,15 @@ public sealed class ApiExceptionFilter : IExceptionFilter
                 context.HttpContext.Request.Method);
         }
 
-        context.Result = new ObjectResult(ApiResult.Fail(mapping.Code, mapping.Message, mapping.Errors, metadata))
+        context.Result = new ObjectResult(ApiResult.Fail(
+            mapping.Code,
+            mapping.Message,
+            mapping.Errors,
+            metadata,
+            mapping.Error.Code,
+            mapping.Error.Kind.ToString(),
+            mapping.Error.Arguments,
+            mapping.Error.Retryable))
         {
             StatusCode = mapping.StatusCode,
         };
@@ -81,23 +90,51 @@ public sealed class ApiExceptionFilter : IExceptionFilter
     }
 
     private static ExceptionMap MapByCode(int code, int statusCode, string message) =>
-        new(statusCode, code, message);
+        new(statusCode, code, message, Failure: CreatePlatformError(code, message));
 
     private static ExceptionMap MapAdminDomainException(AdminDomainException exception) =>
-        new(exception.HttpStatus, exception.Code, exception.Message, exception.Errors, exception.ErrorMeta);
+        new(
+            exception.HttpStatus,
+            exception.Code,
+            exception.Message,
+            exception.Errors,
+            exception.ErrorMeta,
+            CreatePlatformError(exception.Code, exception.Message, exception.Errors, exception.ErrorMeta));
 
     private static ExceptionMap MapPostgresException(PostgresException ex)
     {
         return ex.SqlState switch
         {
-            "23505" => new(StatusCodes.Status409Conflict, ApiResultCodes.Conflict, MapPostgresUniqueViolation(ex)),
-            "23503" => new(StatusCodes.Status409Conflict, ApiResultCodes.Conflict, "关联数据约束冲突，请先处理依赖关系后再操作。"),
-            _ => new(StatusCodes.Status500InternalServerError, ApiResultCodes.InternalError, "数据库异常，请稍后重试。"),
+            "23505" => CreateExceptionMap(StatusCodes.Status409Conflict, ApiResultCodes.Conflict, MapPostgresUniqueViolation(ex)),
+            "23503" => CreateExceptionMap(StatusCodes.Status409Conflict, ApiResultCodes.Conflict, "关联数据约束冲突，请先处理依赖关系后再操作。"),
+            _ => CreateExceptionMap(StatusCodes.Status500InternalServerError, ApiResultCodes.InternalError, "数据库异常，请稍后重试。"),
         };
     }
 
     private static ExceptionMap MapGeneric(Exception ex) =>
-        new(StatusCodes.Status500InternalServerError, ApiResultCodes.InternalError, "服务器内部错误，请稍后重试。");
+        CreateExceptionMap(StatusCodes.Status500InternalServerError, ApiResultCodes.InternalError, "服务器内部错误，请稍后重试。");
+
+    private static ExceptionMap CreateExceptionMap(int status, int code, string message) =>
+        new(status, code, message, Failure: CreatePlatformError(code, message));
+
+    private static HarborError CreatePlatformError(
+        int code,
+        string message,
+        IReadOnlyDictionary<string, string[]>? errors = null,
+        object? metadata = null)
+    {
+        var definition = code switch
+        {
+            ApiResultCodes.BadRequest => HarborPlatformErrorCodes.Validation,
+            ApiResultCodes.Unauthorized => HarborPlatformErrorCodes.Unauthorized,
+            ApiResultCodes.Forbidden => HarborPlatformErrorCodes.Forbidden,
+            ApiResultCodes.NotFound => HarborPlatformErrorCodes.NotFound,
+            ApiResultCodes.Conflict => HarborPlatformErrorCodes.Conflict,
+            ApiResultCodes.InternalError => HarborPlatformErrorCodes.Internal,
+            _ => HarborPlatformErrorCodes.Business,
+        };
+        return definition.Create(fieldErrors: errors, metadata: metadata, defaultMessage: message);
+    }
 
     private static string MapPostgresUniqueViolation(PostgresException ex)
     {
@@ -117,5 +154,9 @@ public sealed class ApiExceptionFilter : IExceptionFilter
         int Code,
         string Message,
         IReadOnlyDictionary<string, string[]>? Errors = null,
-        object? Metadata = null);
+        object? Metadata = null,
+        HarborError? Failure = null)
+    {
+        public HarborError Error { get; } = Failure ?? HarborPlatformErrorCodes.Internal.Create();
+    }
 }

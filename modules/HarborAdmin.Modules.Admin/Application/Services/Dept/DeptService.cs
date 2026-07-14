@@ -1,14 +1,15 @@
 using HarborAdmin.BuildingBlocks.Application;
 using HarborAdmin.BuildingBlocks.Abstractions.Enums;
-using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using HarborAdmin.BuildingBlocks.Abstractions.Repositories;
 using HarborAdmin.BuildingBlocks.Abstractions.Repositories.Models;
+using HarborAdmin.BuildingBlocks.Abstractions.Results;
 using HarborAdmin.BuildingBlocks.Mapping;
 using HarborAdmin.Modules.Admin.Application.Abstractions;
 using HarborAdmin.Modules.Admin.Application.Services.Shared;
 using HarborAdmin.Modules.Admin.Contracts.System.Dto;
 using HarborAdmin.Modules.Admin.Contracts.System.Request;
+using HarborAdmin.Modules.Admin.Contracts.Shared.ErrorCode;
 using HarborAdmin.Modules.Admin.Domain.Entities;
 
 namespace HarborAdmin.Modules.Admin.Application.Services.Dept;
@@ -22,15 +23,13 @@ public sealed class DeptService(
     IHarborMapper mapper)
     : HarborCrudApplicationService<AdminDepartment, SystemDeptDto, PageRequest, SaveSystemDeptRequest, IAdminDepartmentRepository>(repository)
 {
-    private string? _deleteRejectedMessage;
-
     /// <summary>
     /// 获取部门树。
     /// </summary>
-    public override async Task<IReadOnlyList<SystemDeptDto>> ListAsync(CancellationToken cancellationToken = default)
+    public override async Task<HarborResult<IReadOnlyList<SystemDeptDto>>> ListAsync(CancellationToken cancellationToken = default)
     {
         var depts = await Repository.ListAsync(HarborQueryOptions.Empty, cancellationToken);
-        return BuildDepartmentTree(depts);
+        return HarborResult<IReadOnlyList<SystemDeptDto>>.Success(BuildDepartmentTree(depts));
     }
 
     /// <inheritdoc />
@@ -43,33 +42,51 @@ public sealed class DeptService(
     /// <summary>
     /// 将保存请求应用到部门。
     /// </summary>
-    protected override async Task ApplySaveAsync(AdminDepartment entity, SaveSystemDeptRequest request, CancellationToken cancellationToken)
+    protected override async Task<HarborResult> ApplySaveAsync(
+        AdminDepartment entity,
+        SaveSystemDeptRequest request,
+        CancellationToken cancellationToken)
     {
         var parentId = AdminIdHelper.ParseNullableId(request.Pid);
-        await EnsureValidParentAsync(entity.Id > 0 ? entity.Id : null, parentId, cancellationToken);
+        var parentValidation = await ValidateParentAsync(entity.Id > 0 ? entity.Id : null, parentId, cancellationToken);
+        if (!parentValidation.IsSuccess)
+        {
+            return parentValidation;
+        }
+
+        if (await Repository.DeptCodeExistsAsync(
+                entity.DeptCode,
+                entity.Id > 0 ? entity.Id : null,
+                cancellationToken))
+        {
+            return HarborResult.Failure(AdminDepartmentErrorCodes.DuplicateCode.Create(
+                new Dictionary<string, object?> { ["deptCode"] = entity.DeptCode }));
+        }
+
         entity.Name = request.Name;
         entity.ParentId = parentId;
         entity.Remark = request.Remark;
         entity.Enabled = request.Status == 1;
         entity.UpdatedAt = UtcNow;
+        return HarborResult.Success();
     }
 
     /// <inheritdoc />
-    protected override async Task<CrudDeleteDecision> CanDeleteAsync(AdminDepartment entity, CancellationToken cancellationToken)
+    protected override async Task<HarborResult<CrudDeleteDecision>> CanDeleteAsync(AdminDepartment entity, CancellationToken cancellationToken)
     {
         if (await Repository.CountChildrenAsync(entity.Id, cancellationToken) > 0)
         {
-            _deleteRejectedMessage = "请先删除下级部门。";
-            return CrudDeleteDecision.Reject;
+            return HarborResult<CrudDeleteDecision>.Failure(AdminDepartmentErrorCodes.HasChildren.Create(
+                new Dictionary<string, object?> { ["id"] = entity.Id }));
         }
 
         if (await Repository.HasUsersAsync(entity.Id, cancellationToken))
         {
-            _deleteRejectedMessage = "部门下存在用户，不能删除。";
-            return CrudDeleteDecision.Reject;
+            return HarborResult<CrudDeleteDecision>.Failure(AdminDepartmentErrorCodes.HasUsers.Create(
+                new Dictionary<string, object?> { ["id"] = entity.Id }));
         }
 
-        return CrudDeleteDecision.PhysicalDelete;
+        return HarborResult<CrudDeleteDecision>.Success(CrudDeleteDecision.PhysicalDelete);
     }
 
     /// <inheritdoc />
@@ -81,10 +98,7 @@ public sealed class DeptService(
         await context.BumpSessionVersionAsync(cancellationToken);
 
     /// <inheritdoc />
-    protected override string GetNotFoundMessage(long id) => "部门不存在。";
-
-    /// <inheritdoc />
-    protected override string GetDeleteRejectedMessage(AdminDepartment entity) => _deleteRejectedMessage ?? "部门不能删除。";
+    protected override HarborErrorDefinition NotFoundError => AdminDepartmentErrorCodes.NotFound;
 
     /// <summary>
     /// 将部门列表构建为树形 DTO。
@@ -111,27 +125,28 @@ public sealed class DeptService(
     /// <summary>
     /// 校验部门父级存在且不会形成循环。
     /// </summary>
-    private async Task EnsureValidParentAsync(long? currentId, long? parentId, CancellationToken cancellationToken)
+    private async Task<HarborResult> ValidateParentAsync(long? currentId, long? parentId, CancellationToken cancellationToken)
     {
         if (!parentId.HasValue)
         {
-            return;
+            return HarborResult.Success();
         }
 
         if (currentId == parentId)
         {
-            throw new ValidationDomainException("上级部门不能选择当前部门。");
+            return HarborResult.Failure(AdminDepartmentErrorCodes.InvalidParent.Create());
         }
 
         var departments = await Repository.ListAsync(HarborQueryOptions.Empty, cancellationToken);
         if (departments.All(dept => dept.Id != parentId.Value))
         {
-            throw new NotFoundDomainException("上级部门不存在。");
+            return HarborResult.Failure(AdminDepartmentErrorCodes.ParentNotFound.Create(
+                new Dictionary<string, object?> { ["parentId"] = parentId.Value }));
         }
 
         if (!currentId.HasValue)
         {
-            return;
+            return HarborResult.Success();
         }
 
         var nextParentId = parentId;
@@ -139,10 +154,12 @@ public sealed class DeptService(
         {
             if (nextParentId.Value == currentId.Value)
             {
-                throw new ValidationDomainException("上级部门不能选择当前部门的下级部门。");
+                return HarborResult.Failure(AdminDepartmentErrorCodes.InvalidParent.Create());
             }
 
             nextParentId = departments.FirstOrDefault(dept => dept.Id == nextParentId.Value)?.ParentId;
         }
+
+        return HarborResult.Success();
     }
 }

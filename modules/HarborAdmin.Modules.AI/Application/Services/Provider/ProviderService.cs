@@ -2,12 +2,14 @@ using HarborAdmin.BuildingBlocks.Application;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using HarborAdmin.BuildingBlocks.Abstractions.Repositories;
+using HarborAdmin.BuildingBlocks.Abstractions.Results;
 using HarborAdmin.BuildingBlocks.Abstractions.Secrets;
 using HarborAdmin.BuildingBlocks.Mapping;
 using HarborAdmin.Modules.AI.Application.Abstractions;
 using HarborAdmin.Modules.AI.Application.Services.Shared;
 using HarborAdmin.Modules.AI.Contracts.Provider.Dto;
 using HarborAdmin.Modules.AI.Contracts.Provider.Request;
+using HarborAdmin.Modules.AI.Contracts.Shared.ErrorCode;
 using HarborAdmin.Modules.AI.Domain.Entities;
 
 namespace HarborAdmin.Modules.AI.Application.Services.Provider;
@@ -27,89 +29,124 @@ public sealed class ProviderService(IAiProviderRepository repository, ISecretSto
     /// <summary>
     /// 将保存请求应用到供应商。
     /// </summary>
-    protected override async Task ApplySaveAsync(AiProvider entity, SaveAiProviderRequest request, CancellationToken cancellationToken)
+    protected override async Task<HarborResult> ApplySaveAsync(AiProvider entity, SaveAiProviderRequest request, CancellationToken cancellationToken)
     {
-        var now = UtcNow;
-        entity.ProviderKey = AiNormalizationHelper.NormalizeKey(request.ProviderKey, nameof(request.ProviderKey));
-        entity.DisplayName = AiNormalizationHelper.NormalizeRequired(request.DisplayName, nameof(request.DisplayName));
-        entity.AdapterType = AiNormalizationHelper.NormalizeRequired(request.AdapterType, nameof(request.AdapterType));
-        entity.BaseUrl = AiNormalizationHelper.NormalizeRequired(request.BaseUrl, nameof(request.BaseUrl));
-        entity.SecretRef = AiNormalizationHelper.NormalizeOptional(request.SecretRef);
-        entity.SecretVersion = await ResolveSecretVersionAsync(entity.SecretRef, cancellationToken);
-        entity.DefaultHeadersJson = AiNormalizationHelper.NormalizeOptional(request.DefaultHeadersJson);
-        entity.DefaultBodyJson = AiNormalizationHelper.NormalizeOptional(request.DefaultBodyJson);
-        entity.Enabled = request.Enabled;
-        entity.SupportsStreaming = request.SupportsStreaming;
-        entity.TimeoutSeconds = request.TimeoutSeconds <= 0 ? 120 : request.TimeoutSeconds;
-        entity.MaxRetryCount = Math.Max(0, request.MaxRetryCount);
-        entity.CircuitBreakerFailureThreshold = request.CircuitBreakerFailureThreshold <= 0 ? 3 : request.CircuitBreakerFailureThreshold;
-        entity.CircuitBreakerBreakSeconds = request.CircuitBreakerBreakSeconds <= 0 ? 60 : request.CircuitBreakerBreakSeconds;
-        entity.UpdatedAt = now;
-        entity.Models = NormalizeProviderModels(request, entity, now).ToList();
+        try
+        {
+            var now = UtcNow;
+            entity.ProviderKey = AiNormalizationHelper.NormalizeKey(request.ProviderKey, nameof(request.ProviderKey));
+            entity.DisplayName = AiNormalizationHelper.NormalizeRequired(request.DisplayName, nameof(request.DisplayName));
+            entity.AdapterType = AiNormalizationHelper.NormalizeRequired(request.AdapterType, nameof(request.AdapterType));
+            entity.BaseUrl = AiNormalizationHelper.NormalizeRequired(request.BaseUrl, nameof(request.BaseUrl));
+            entity.SecretRef = AiNormalizationHelper.NormalizeOptional(request.SecretRef);
+            entity.DefaultHeadersJson = AiNormalizationHelper.NormalizeOptional(request.DefaultHeadersJson);
+            entity.DefaultBodyJson = AiNormalizationHelper.NormalizeOptional(request.DefaultBodyJson);
+            entity.Enabled = request.Enabled;
+            entity.SupportsStreaming = request.SupportsStreaming;
+            entity.TimeoutSeconds = request.TimeoutSeconds <= 0 ? 120 : request.TimeoutSeconds;
+            entity.MaxRetryCount = Math.Max(0, request.MaxRetryCount);
+            entity.CircuitBreakerFailureThreshold = request.CircuitBreakerFailureThreshold <= 0 ? 3 : request.CircuitBreakerFailureThreshold;
+            entity.CircuitBreakerBreakSeconds = request.CircuitBreakerBreakSeconds <= 0 ? 60 : request.CircuitBreakerBreakSeconds;
+            entity.UpdatedAt = now;
+
+            if (await Repository.ProviderKeyExistsAsync(
+                    entity.ProviderKey,
+                    entity.Id > 0 ? entity.Id : null,
+                    cancellationToken))
+            {
+                return HarborResult.Failure(AiProviderErrorCodes.DuplicateKey.Create(
+                    new Dictionary<string, object?> { ["providerKey"] = entity.ProviderKey }));
+            }
+
+            var secretVersion = await ResolveSecretVersionAsync(entity.SecretRef, cancellationToken);
+            if (!secretVersion.IsSuccess)
+            {
+                return HarborResult.Failure(secretVersion.Error!);
+            }
+
+            var models = NormalizeProviderModels(request, entity, now);
+            if (!models.IsSuccess)
+            {
+                return HarborResult.Failure(models.Error!);
+            }
+
+            entity.SecretVersion = secretVersion.Value;
+            entity.Models = models.Value!.ToList();
+            return HarborResult.Success();
+        }
+        catch (ValidationDomainException exception)
+        {
+            return HarborResult.Failure(AiProviderErrorCodes.InvalidInput.Create(
+                new Dictionary<string, object?> { ["reason"] = exception.Message }, exception.Errors, exception.ErrorMeta));
+        }
     }
 
     /// <inheritdoc />
-    protected override string GetNotFoundMessage(long id) => $"AI provider '{id}' was not found.";
+    protected override HarborErrorDefinition NotFoundError => AiProviderErrorCodes.NotFound;
 
     /// <summary>
     /// 校验 Secret 引用并固定当前版本号。
     /// </summary>
-    private async Task<int> ResolveSecretVersionAsync(string? secretRef, CancellationToken cancellationToken)
+    private async Task<HarborResult<int>> ResolveSecretVersionAsync(string? secretRef, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(secretRef))
         {
-            return 0;
+            return HarborResult<int>.Success(0);
         }
 
         var descriptor = await secretStore.GetAsync(secretRef, cancellationToken);
         if (descriptor is not { Enabled: true })
         {
-            throw new ValidationDomainException($"SecretRef '{secretRef}' does not exist or is disabled.");
+            return HarborResult<int>.Failure(AiProviderErrorCodes.SecretUnavailable.Create(
+                new Dictionary<string, object?> { ["secretRef"] = secretRef }));
         }
 
         // 发布快照只保存 SecretRef 和版本号，固定版本可避免后续轮换影响历史发布。
-        return descriptor.Version;
+        return HarborResult<int>.Success(descriptor.Version);
     }
 
     /// <summary>
     /// 规范化供应商模型列表并保证至少一个默认模型。
     /// </summary>
-    private static IReadOnlyList<AiProviderModel> NormalizeProviderModels(SaveAiProviderRequest request, AiProvider provider, DateTimeOffset now)
+    private static HarborResult<IReadOnlyList<AiProviderModel>> NormalizeProviderModels(
+        SaveAiProviderRequest request,
+        AiProvider provider,
+        DateTimeOffset now)
     {
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var models = request.Models
-            .Where(m => !string.IsNullOrWhiteSpace(m.ModelName))
-            .OrderBy(m => m.SortOrder)
-            .Select((m, index) => new AiProviderModel
+            .Where(model => !string.IsNullOrWhiteSpace(model.ModelName))
+            .OrderBy(model => model.SortOrder)
+            .Select((model, index) => new AiProviderModel
             {
                 ProviderId = provider.Id,
-                ModelName = AiNormalizationHelper.NormalizeRequired(m.ModelName, nameof(m.ModelName)),
-                DisplayName = AiNormalizationHelper.NormalizeOptional(m.DisplayName),
-                IsDefault = m.IsDefault,
-                Enabled = m.Enabled,
-                SupportsStreaming = m.SupportsStreaming,
-                InputModalities = AiNormalizationHelper.NormalizeOptional(m.InputModalities),
-                OutputModalities = AiNormalizationHelper.NormalizeOptional(m.OutputModalities),
-                SupportsVision = m.SupportsVision,
-                SupportsTools = m.SupportsTools,
-                SupportsStructuredOutput = m.SupportsStructuredOutput,
-                SupportsJsonMode = m.SupportsJsonMode,
-                SupportsReasoning = m.SupportsReasoning,
-                ContextWindow = m.ContextWindow,
-                MaxOutputTokens = m.MaxOutputTokens,
-                InputPrice = m.InputPrice,
-                OutputPrice = m.OutputPrice,
-                CachedInputPrice = m.CachedInputPrice,
-                ReasoningPrice = m.ReasoningPrice,
-                SortOrder = m.SortOrder <= 0 ? index + 1 : m.SortOrder,
+                ModelName = AiNormalizationHelper.NormalizeRequired(model.ModelName, nameof(model.ModelName)),
+                DisplayName = AiNormalizationHelper.NormalizeOptional(model.DisplayName),
+                IsDefault = model.IsDefault,
+                Enabled = model.Enabled,
+                SupportsStreaming = model.SupportsStreaming,
+                InputModalities = AiNormalizationHelper.NormalizeOptional(model.InputModalities),
+                OutputModalities = AiNormalizationHelper.NormalizeOptional(model.OutputModalities),
+                SupportsVision = model.SupportsVision,
+                SupportsTools = model.SupportsTools,
+                SupportsStructuredOutput = model.SupportsStructuredOutput,
+                SupportsJsonMode = model.SupportsJsonMode,
+                SupportsReasoning = model.SupportsReasoning,
+                ContextWindow = model.ContextWindow,
+                MaxOutputTokens = model.MaxOutputTokens,
+                InputPrice = model.InputPrice,
+                OutputPrice = model.OutputPrice,
+                CachedInputPrice = model.CachedInputPrice,
+                ReasoningPrice = model.ReasoningPrice,
+                SortOrder = model.SortOrder <= 0 ? index + 1 : model.SortOrder,
                 CreatedAt = now,
                 UpdatedAt = now
             })
-            .Where(m => seen.Add(m.ModelName))
+            .Where(model => seen.Add(model.ModelName))
             .ToList();
         if (models.Count == 0)
         {
-            throw new ValidationDomainException("At least one provider model is required.");
+            return HarborResult<IReadOnlyList<AiProviderModel>>.Failure(AiProviderErrorCodes.ModelRequired.Create());
         }
 
         if (models.All(m => !m.IsDefault))
@@ -126,6 +163,6 @@ public sealed class ProviderService(IAiProviderRepository repository, ISecretSto
             defaultSeen |= model.IsDefault;
         }
 
-        return models;
+        return HarborResult<IReadOnlyList<AiProviderModel>>.Success(models);
     }
 }

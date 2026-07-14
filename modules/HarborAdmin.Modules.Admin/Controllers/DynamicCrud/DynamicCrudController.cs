@@ -22,7 +22,7 @@ public sealed class DynamicCrudController(AdminDynamicCrudService service) : Adm
         string featureCode,
         [FromBody] DynamicQueryRequest request,
         CancellationToken cancellationToken) =>
-        await OkResultAsync(service.QueryAsync(featureCode, request, cancellationToken));
+        ApiResult.Ok(await service.QueryAsync(featureCode, request, cancellationToken));
 
     /// <summary>
     /// 获取动态资源记录详情。
@@ -32,7 +32,7 @@ public sealed class DynamicCrudController(AdminDynamicCrudService service) : Adm
         string featureCode,
         string id,
         CancellationToken cancellationToken) =>
-        await OkResultAsync(service.GetAsync(featureCode, id, cancellationToken));
+        ApiResult.Ok(await service.GetAsync(featureCode, id, cancellationToken));
 
     /// <summary>
     /// 新增动态资源记录。
@@ -42,7 +42,7 @@ public sealed class DynamicCrudController(AdminDynamicCrudService service) : Adm
         string featureCode,
         [FromBody] Dictionary<string, object?> values,
         CancellationToken cancellationToken) =>
-        await OkResultAsync(service.CreateAsync(featureCode, values, cancellationToken));
+        ApiResult.Ok(await service.CreateAsync(featureCode, values, cancellationToken));
 
     /// <summary>
     /// 更新动态资源记录。
@@ -53,7 +53,7 @@ public sealed class DynamicCrudController(AdminDynamicCrudService service) : Adm
         string id,
         [FromBody] Dictionary<string, object?> values,
         CancellationToken cancellationToken) =>
-        await OkResultAsync(service.UpdateAsync(featureCode, id, values, cancellationToken));
+        ApiResult.Ok(await service.UpdateAsync(featureCode, id, values, cancellationToken));
 
     /// <summary>
     /// 删除动态资源记录。
@@ -65,6 +65,6 @@ public sealed class DynamicCrudController(AdminDynamicCrudService service) : Adm
         CancellationToken cancellationToken)
     {
         await service.DeleteAsync(featureCode, id, cancellationToken);
-        return OkResult(true);
+        return ApiResult.Ok(true);
     }
 }

@@ -22,7 +22,7 @@ public sealed class ItemController(ConfigCenterItemService service) : AdminContr
     /// <returns>草稿配置项列表。</returns>
     [HttpGet]
     public async Task<ApiResult<IReadOnlyList<ConfigItemDto>>> List(string appId, CancellationToken cancellationToken) =>
-        await OkResultAsync(service.ListItemsAsync(appId, cancellationToken));
+        ApiResult.Ok(await service.ListItemsAsync(appId, cancellationToken));
 
     /// <summary>
     /// 新增草稿配置项。
@@ -33,7 +33,7 @@ public sealed class ItemController(ConfigCenterItemService service) : AdminContr
     /// <returns>已创建的配置项。</returns>
     [HttpPost]
     public async Task<ApiResult<ConfigItemDto>> Create(string appId, [FromBody] SaveConfigItemRequest request, CancellationToken cancellationToken) =>
-        await OkResultAsync(service.SaveItemAsync(appId, null, request, cancellationToken));
+        ApiResult.Ok(await service.SaveItemAsync(appId, null, request, cancellationToken));
 
     /// <summary>
     /// 更新草稿配置项。
@@ -45,7 +45,7 @@ public sealed class ItemController(ConfigCenterItemService service) : AdminContr
     /// <returns>更新后的配置项。</returns>
     [HttpPut("{id:long}")]
     public async Task<ApiResult<ConfigItemDto>> Update(string appId, long id, [FromBody] SaveConfigItemRequest request, CancellationToken cancellationToken) =>
-        await OkResultAsync(service.SaveItemAsync(appId, id, request, cancellationToken));
+        ApiResult.Ok(await service.SaveItemAsync(appId, id, request, cancellationToken));
 
     /// <summary>
     /// 删除草稿配置项。
@@ -53,6 +53,9 @@ public sealed class ItemController(ConfigCenterItemService service) : AdminContr
     /// <param name="id">配置项主键。</param>
     /// <param name="cancellationToken">取消令牌。</param>
     [HttpDelete("{id:long}")]
-    public async Task<ApiResult<bool>> Delete(long id, CancellationToken cancellationToken) =>
-        await DeleteResultAsync(id, cancellationToken, service.DeleteItemAsync);
+    public async Task<ApiResult<bool>> Delete(long id, CancellationToken cancellationToken)
+    {
+        await service.DeleteItemAsync(id, cancellationToken);
+        return ApiResult.Ok(true);
+    }
 }

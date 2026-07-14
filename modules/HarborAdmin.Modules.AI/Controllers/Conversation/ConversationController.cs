@@ -22,14 +22,14 @@ public sealed class ConversationController(ConversationService conversationServi
     public async Task<ApiResult<PagedResult<AiConversationDto>>> List(
         [FromQuery] AiConversationListQuery query,
         CancellationToken cancellationToken) =>
-        await OkResultAsync(conversationService.ListAsync(currentUser.Id, query, cancellationToken));
+        ApiResult.Ok(await conversationService.ListAsync(currentUser.Id, query, cancellationToken));
 
     /// <summary>
     /// 获取会话详情。
     /// </summary>
     [HttpGet("{id:long}")]
     public async Task<ApiResult<AiConversationDetailDto>> Get(long id, CancellationToken cancellationToken) =>
-        await OkResultAsync(conversationService.GetDetailAsync(currentUser.Id, id, cancellationToken));
+        ApiResult.Ok(await conversationService.GetDetailAsync(currentUser.Id, id, cancellationToken));
 
     /// <summary>
     /// 创建会话。
@@ -38,7 +38,7 @@ public sealed class ConversationController(ConversationService conversationServi
     public async Task<ApiResult<AiConversationDetailDto>> Create(
         [FromBody] SaveAiConversationRequest request,
         CancellationToken cancellationToken) =>
-        await OkResultAsync(conversationService.CreateAsync(currentUser.Id, request, cancellationToken));
+        ApiResult.Ok(await conversationService.CreateAsync(currentUser.Id, request, cancellationToken));
 
     /// <summary>
     /// 更新会话设置。
@@ -48,12 +48,15 @@ public sealed class ConversationController(ConversationService conversationServi
         long id,
         [FromBody] SaveAiConversationRequest request,
         CancellationToken cancellationToken) =>
-        await OkResultAsync(conversationService.UpdateAsync(currentUser.Id, id, request, cancellationToken));
+        ApiResult.Ok(await conversationService.UpdateAsync(currentUser.Id, id, request, cancellationToken));
 
     /// <summary>
     /// 删除会话。
     /// </summary>
     [HttpDelete("{id:long}")]
-    public async Task<ApiResult<bool>> Delete(long id, CancellationToken cancellationToken) =>
-        await DeleteResultAsync(id, cancellationToken, (conversationId, token) => conversationService.DeleteAsync(currentUser.Id, conversationId, token));
+    public async Task<ApiResult<bool>> Delete(long id, CancellationToken cancellationToken)
+    {
+        await conversationService.DeleteAsync(currentUser.Id, id, cancellationToken);
+        return ApiResult.Ok(true);
+    }
 }

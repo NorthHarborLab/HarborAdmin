@@ -19,7 +19,7 @@ public sealed class UsageController(AiObservabilityService service) : AdminContr
     /// </summary>
     [HttpGet]
     public async Task<ApiResult<IReadOnlyList<AiUsageLedgerDto>>> List(CancellationToken cancellationToken) =>
-        await ListResultAsync(cancellationToken, service.ListUsageAsync);
+        ApiResult.Ok(await service.ListUsageAsync(cancellationToken));
 
     /// <summary>
     /// 获取用量概览 KPI。
@@ -28,7 +28,7 @@ public sealed class UsageController(AiObservabilityService service) : AdminContr
     public async Task<ApiResult<AiUsageOverviewDto>> Overview(
         [FromQuery] AiUsageSummaryQuery query,
         CancellationToken cancellationToken) =>
-        await OkResultAsync(service.GetUsageOverviewAsync(query, cancellationToken));
+        ApiResult.Ok(await service.GetUsageOverviewAsync(query, cancellationToken));
 
     /// <summary>
     /// 分页获取用量聚合明细。
@@ -37,5 +37,5 @@ public sealed class UsageController(AiObservabilityService service) : AdminContr
     public async Task<ApiResult<PagedResult<AiUsageSummaryDto>>> Summary(
         [FromQuery] AiUsageSummaryQuery query,
         CancellationToken cancellationToken) =>
-        await OkResultAsync(service.PageUsageSummaryAsync(query, cancellationToken));
+        ApiResult.Ok(await service.PageUsageSummaryAsync(query, cancellationToken));
 }

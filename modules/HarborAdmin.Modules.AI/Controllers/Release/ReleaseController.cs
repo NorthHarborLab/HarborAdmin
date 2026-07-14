@@ -19,26 +19,26 @@ public sealed class ReleaseController(ReleaseService service) : AdminControllerB
     /// </summary>
     [HttpPost("publish")]
     public async Task<ApiResult<AiReleaseDto>> Publish([FromBody] PublishAiConfigRequest request, CancellationToken cancellationToken) =>
-        await CreateResultAsync<PublishAiConfigRequest, AiReleaseDto>(request, cancellationToken, service.PublishAsync);
+        ApiResult.Ok(await service.PublishAsync(request, cancellationToken));
 
     /// <summary>
     /// 列出发布历史。
     /// </summary>
     [HttpGet("releases")]
     public async Task<ApiResult<IReadOnlyList<AiReleaseDto>>> List(CancellationToken cancellationToken) =>
-        await ListResultAsync(cancellationToken, service.ListReleasesAsync);
+        ApiResult.Ok(await service.ListReleasesAsync(cancellationToken));
 
     /// <summary>
     /// 获取已发布快照。
     /// </summary>
     [HttpGet("published")]
     public async Task<ApiResult<AiPublishedSnapshotDto?>> Published([FromQuery] int version, CancellationToken cancellationToken) =>
-        await OkResultAsync(service.GetPublishedAsync(version, cancellationToken));
+        ApiResult.Ok(await service.GetPublishedAsync(version, cancellationToken));
 
     /// <summary>
     /// 回滚到指定版本。
     /// </summary>
     [HttpPost("releases/{version:int}/rollback")]
     public async Task<ApiResult<AiReleaseDto>> Rollback(int version, CancellationToken cancellationToken) =>
-        await OkResultAsync(service.RollbackAsync(version, cancellationToken));
+        ApiResult.Ok(await service.RollbackAsync(version, cancellationToken));
 }

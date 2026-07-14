@@ -82,21 +82,21 @@ HarborAdmin.Modules.{ModuleName}/
 
 ### 3.2 类型命名
 
-| 种类             | 模式                                                             | 示例                                                    |
-| ---------------- | ---------------------------------------------------------------- | ------------------------------------------------------- |
-| 实体             | `{Prefix}{Entity}`，`sealed`                                     | `AdminUser`、`AiProvider`、`HarborSecret`               |
-| 主业务实体       | 继承 `AuditableEntity`                                           | `AdminUser`、`AiProvider`、`ConfigItem`                 |
-| 关联/日志/快照表 | 继承 `EntityBase`                                                | `AdminUserRole`、`AiInvocationLog`                      |
-| 输出 DTO         | `{Name}Dto`，优先 `sealed record`                                | `SystemUserDto`、`AiProviderDto`                        |
-| 输入 Request     | `Save{Name}Request`，`sealed class`                              | `SaveSystemUserRequest`、`SaveAiProviderRequest`        |
-| 应用服务         | `{Area}Service`，`sealed`，主构造函数                            | `UserService`、`ProviderService`                        |
-| 服务上下文       | `{Module}ServiceContext` 或 `{Area}ServiceContext`               | `AdminServiceContext`、`SystemServiceContext`           |
-| 实体仓储接口     | `I{Entity}Repository` 或 `I{Module}{Domain}Repository`           | `IAiProviderRepository`、`IAdminUserRepository`         |
+| 种类             | 模式                                                      | 示例                                                    |
+| ---------------- | --------------------------------------------------------- | ------------------------------------------------------- |
+| 实体             | `{Prefix}{Entity}`，`sealed`                              | `AdminUser`、`AiProvider`、`HarborSecret`               |
+| 主业务实体       | 继承 `AuditableEntity`                                    | `AdminUser`、`AiProvider`、`ConfigItem`                 |
+| 关联/日志/快照表 | 继承 `EntityBase`                                         | `AdminUserRole`、`AiInvocationLog`                      |
+| 输出 DTO         | `{Name}Dto`，优先 `sealed record`                         | `SystemUserDto`、`AiProviderDto`                        |
+| 输入 Request     | `Save{Name}Request`，`sealed class`                       | `SaveSystemUserRequest`、`SaveAiProviderRequest`        |
+| 应用服务         | `{Area}Service`，`sealed`，主构造函数                     | `UserService`、`ProviderService`                        |
+| 服务上下文       | `{Module}ServiceContext` 或 `{Area}ServiceContext`        | `AdminServiceContext`、`SystemServiceContext`           |
+| 实体仓储接口     | `I{Entity}Repository` 或 `I{Module}{Domain}Repository`    | `IAiProviderRepository`、`IAdminUserRepository`         |
 | 复杂领域仓储实现 | `{Domain}Repository`，继承 `HarborRepository<TDbContext>` | `AdminAccessRepository`、`AdminFeatureDesignRepository` |
-| DbContext        | `I{Module}DbContext` / `{Module}DbContext`                       | `IAdminDbContext`                                       |
-| 模块启动入口     | `{Module}StartUp`                                                | `AdminStartUp`                                          |
-| Controller       | `{Resource}Controller`，无模块前缀                               | `UserController`、`ProviderController`                  |
-| Options          | `{Module}{Area}Options` + `SectionName` 常量                     | `AdminAuthOptions`                                      |
+| DbContext        | `I{Module}DbContext` / `{Module}DbContext`                | `IAdminDbContext`                                       |
+| 模块启动入口     | `{Module}StartUp`                                         | `AdminStartUp`                                          |
+| Controller       | `{Resource}Controller`，无模块前缀                        | `UserController`、`ProviderController`                  |
+| Options          | `{Module}{Area}Options` + `SectionName` 常量              | `AdminAuthOptions`                                      |
 
 ### 3.3 Controller 与路由
 
@@ -261,11 +261,11 @@ public async Task<SystemUserDto> SaveUserAsync(long currentUserId, long? id, Sav
 | -------- | ------------------------------------------------------ |
 | 时间戳   | `CreatedAt` / `UpdatedAt` 使用 `DateTimeOffset.UtcNow` |
 | 取消     | 公开异步方法带 `CancellationToken cancellationToken`   |
-| 校验失败 | 抛领域异常，**不**返回 `ApiResult.Fail`                |
+| 校验失败 | 标准 CRUD 返回 `HarborResult`；未迁移服务保留领域异常；均不返回 `ApiResult.Fail` |
 
-形态稳定的普通 CRUD Service 优先继承 `HarborApplicationRepositoryService<TEntity, TDto, TSaveRequest, TRepository>`，其中 `TRepository` 实现 `IHarborCrudRepository<TEntity>`。基类直接调用实体仓储完成 `List/Get/Save/Delete`；子类只覆盖 `MapToDto`、`CreateEntity`、`ApplySaveAsync`、`ValidateCreateAsync`、`ValidateUpdateAsync`、`CanDeleteAsync`、`AfterSaveAsync`、`AfterDeleteAsync` 等业务钩子。
+形态稳定的普通 CRUD Service 优先继承 `HarborCrudApplicationService<TEntity, TDto, TQuery, TSaveRequest, TRepository>`，其中 `TRepository` 实现 `IHarborCrudRepository<TEntity>`。基类直接调用实体仓储完成 `List/Get/Save/Delete`；子类只覆盖 `MapToDto`、`CreateEntity`、`ApplySaveAsync`、`ValidateCreateAsync`、`ValidateUpdateAsync`、`CanDeleteAsync`、`AfterSaveAsync`、`AfterDeleteAsync` 等业务钩子。
 
-Service 不传 DbKey 或底层路由对象；分库由仓储根据模块 metadata / `[OverrideDbKey]` 决定。Controller 直接通过 `CrudControllerBase` 调用这些标准方法，不再保留 `SaveProviderAsync` 这类普通 CRUD 转发入口；确有业务语义差异的方法再单独命名。
+Service 不传 DbKey 或底层路由对象；分库由仓储根据模块 metadata / `[OverrideDbKey]` 决定。Controller 直接调用应用服务公开方法，不再保留 `SaveProviderAsync` 这类普通 CRUD 转发入口；确有业务语义差异的方法再单独命名。
 
 ---
 
@@ -285,12 +285,12 @@ public sealed class AdminUserRepository(IAdminDbContext db, UnitOfWorkManagerClo
 }
 ```
 
-| 规则          | 说明                                                                                               |
-| ------------- | -------------------------------------------------------------------------------------------------- |
+| 规则          | 说明                                                                                             |
+| ------------- | ------------------------------------------------------------------------------------------------ |
 | 标准实体 CRUD | 接口继承 `IHarborCrudRepository<TEntity>`，实现继承 `FreeSqlCrudRepository<TEntity, TDbContext>` |
-| 复杂领域仓储  | 使用窄接口，例如 `IAdminAccessRepository`、`IAdminFeatureDesignRepository`                         |
-| 模块总仓储    | 不再默认创建 `I{Module}Repository`；只有确有跨领域聚合且无法拆小时才允许                           |
-| 生命周期      | DbContext 通常 `Singleton`；实体/领域仓储通常 `Scoped`                                             |
+| 复杂领域仓储  | 使用窄接口，例如 `IAdminAccessRepository`、`IAdminFeatureDesignRepository`                       |
+| 模块总仓储    | 不再默认创建 `I{Module}Repository`；只有确有跨领域聚合且无法拆小时才允许                         |
+| 生命周期      | DbContext 通常 `Singleton`；实体/领域仓储通常 `Scoped`                                           |
 
 标准实体 CRUD 可新增实体级仓储并继承 `FreeSqlCrudRepository<TEntity, TDbContext>`；复杂聚合查询、发布快照、多表业务操作放入按领域命名的窄仓储。不要用一个巨型 `IAdminRepository` / `FreeSqlAdminRepository` 收纳所有方法，不要把 DbKey 或底层路由传到 Service / Controller。
 
@@ -304,14 +304,14 @@ public sealed class AdminUserRepository(IAdminDbContext db, UnitOfWorkManagerClo
 /// </summary>
 [ApiController]
 [Route("api/admin/system/user")]
-public sealed class UserController(UserService userService, ICurrentUser currentUser) : HarborControllerBase
+public sealed class UserController(UserService userService, ICurrentUser currentUser) : AdminControllerBase
 {
     /// <summary>
     /// 创建用户。
     /// </summary>
     [HttpPost]
     public async Task<ApiResult<SystemUserDto>> Create([FromBody] SaveSystemUserRequest request, CancellationToken cancellationToken) =>
-        await OkResultAsync(userService.SaveUserAsync(currentUser.Id, null, request, cancellationToken));
+        ApiResult.Ok(await userService.SaveUserAsync(currentUser.Id, null, request, cancellationToken));
 
     /// <summary>
     /// 删除用户。
@@ -320,26 +320,30 @@ public sealed class UserController(UserService userService, ICurrentUser current
     public async Task<ApiResult<bool>> Delete(long id, CancellationToken cancellationToken)
     {
         await userService.DeleteUserAsync(id, cancellationToken);
-        return OkResult(true);
+        return ApiResult.Ok(true);
     }
 }
 ```
 
-| 规则     | 说明                                                                                                                                                                          |
-| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 职责     | 薄适配：编排 Service，**不含业务逻辑**                                                                                                                                        |
-| 基类     | 所有模块 Controller 继承 `HarborControllerBase` / `CrudControllerBase` / `PagedCrudControllerBase`，不直接继承 `ControllerBase`                                               |
-| 成功响应 | 通过 `OkResult(...)`、`OkResultAsync(...)`、`ListResultAsync(...)`、`PageResultAsync(...)`、`CreateResultAsync(...)`、`UpdateResultAsync(...)`、`DeleteResultAsync(...)` 包装 |
-| 失败响应 | **禁止**在 Controller 调 `ApiResult.Fail`；Service 抛领域异常，由 Host 过滤器转换                                                                                             |
-| 删除     | 无 body 时返回 `ApiResult<bool>` 且值为 `true`，优先调用 `DeleteResultAsync(...)`                                                                                             |
-| 路由参数 | 使用约束，如 `{id:long}`、`{featureCode}`                                                                                                                                     |
-| 流式例外 | `AiChatController` 等 SSE 端点可不返回 `ApiResult<T>`                                                                                                                         |
+| 规则     | 说明                                                                                                                  |
+| -------- | --------------------------------------------------------------------------------------------------------------------- |
+| 职责     | 薄适配：编排 Service，**不含业务逻辑**                                                                                |
+| 基类     | 普通后台接口继承 `AdminControllerBase`；标准 CRUD 接口继承 `AdminCrudControllerBase<TDto, TQuery, TSaveRequest>`；匿名接口可直接继承 `ControllerBase` |
+| 成功响应 | 标准 CRUD 使用 Query/CRUD 基类的语义方法；非标准 Action 直接使用 `ApiResult.Ok(await service.XxxAsync(...))`         |
+| 失败响应 | **禁止**在 Controller 调 `ApiResult.Fail`；标准 CRUD 的 `HarborResult` 由基类映射，旧领域异常由 Host 过滤器兼容转换     |
+| 删除     | 标准 CRUD 调用 `DeleteResultAsync(...)`；非标准删除显式调用服务后返回 `ApiResult.Ok(true)`                           |
+| 路由参数 | 使用约束，如 `{id:long}`、`{featureCode}`                                                                             |
+| 流式例外 | `AiChatController` 等 SSE 端点可不返回 `ApiResult<T>`                                                                 |
 
-标准可分页 CRUD Controller 优先继承 `PagedCrudControllerBase<TDto, TQuery, TSaveRequest>`，Service 继承 `HarborApplicationPagedRepositoryService<...>` 并实现 `IPagedCrudApplicationService<TDto, TQuery, TSaveRequest>`，其中 `TQuery` 继承 `PageRequest`；Service 内部再转换为仓储使用的 `HarborQueryOptions`。标准非分页 CRUD 继承 `CrudControllerBase<TDto, TSaveRequest>` 并让 Service 实现 `ICrudApplicationService<TDto, TSaveRequest>`。父资源、业务键、当前用户、树、发布、动态元数据、副作用或流式接口不强行套 CRUD 模板，但必须继承 `HarborControllerBase` 并复用统一包装方法。具体 Controller 仍必须显式声明路由、HTTP Verb、XML 注释和需要的业务服务。
+`HarborControllerBase`、`HarborQueryControllerBase<TDto, TQuery>`、`HarborCrudControllerBase<TDto, TQuery, TSaveRequest>` 与 Application、Repository 的 Query/CRUD 基类形成对应层级，必须保留。Query 基类固定提供 `ListResultAsync`、`GetResultAsync`、`PageResultAsync`；CRUD 基类固定提供 `CreateResultAsync`、`UpdateResultAsync`、`DeleteResultAsync`，用于承接前端统一 CRUD 契约。上述方法内部直接调用应用服务并创建 `ApiResult`，不得再经过 `OkResultAsync` 等无业务语义的二次包装。非标准 Action 直接调用应用服务。
 
 ---
 
-## 9. 错误处理与 ApiResult
+## 9. 错误处理、HarborResult 与 ApiResult
+
+新迁移的标准 Application Service 使用协议无关的 `HarborResult<T>`：可预期的校验、未找到、冲突和业务拒绝返回模块错误定义；数据库故障、代码缺陷和不可恢复基础设施故障继续抛异常。未迁移服务暂时保留领域异常，不允许在新代码中随意选择两种风格。
+
+错误码按 `{MODULE}.{RESOURCE}.{REASON}` 命名，定义在模块自身 `Contracts/Shared/ErrorCode`。发布后不得改变语义；语义变化时新增错误码并将旧码标记为 `Deprecated`。详细治理和生成命令见 `docs/error-code-governance.md`。
 
 | 异常                          | 典型场景           | HTTP   |
 | ----------------------------- | ------------------ | ------ |
@@ -350,11 +354,7 @@ public sealed class UserController(UserService userService, ICurrentUser current
 | `ForbiddenDomainException`    | 无权限             | 403    |
 | `BusinessDomainException`     | 自定义业务码       | 可配置 |
 
-```csharp
-// 推荐
-var entity = await repository.GetAsync(id, cancellationToken)
-    ?? throw new NotFoundDomainException("用户不存在。");
-```
+`HarborQueryControllerBase` / `HarborCrudControllerBase` 负责把 `HarborErrorKind` 映射为 HTTP 状态与 `ApiResult.errorCode`。现有数字 `ApiResult.code` 和成功值 `0` 保持不变；异常过滤器继续为旧领域异常和未知异常提供平台兼容错误码。
 
 消息语言：系统管理类偏中文；部分技术域（如 AI 配置）可用英文，同一模块内保持一致。
 
@@ -473,21 +473,40 @@ Worker 进程只加载自身需要的模块程序集：
 
 ## 16. 参考文件（复制风格时优先打开）
 
-| 用途           | 路径                                                                                                                                                                       |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 模块总览       | `modules/HarborAdmin.Modules.Admin/README.md`                                                                                                                              |
-| 实体           | `modules/HarborAdmin.Modules.Admin/Domain/Entities/AdminUser.cs`                                                                                                           |
-| Request        | `modules/HarborAdmin.Modules.Admin/Contracts/System/Request/SaveSystemUserRequest.cs`                                                                                      |
-| DTO            | `modules/HarborAdmin.Modules.Admin/Contracts/System/Dto/SystemUserDto.cs`                                                                                                  |
-| Service        | `modules/HarborAdmin.Modules.Admin/Application/Services/User/UserService.cs`                                                                                               |
-| ServiceContext | `modules/HarborAdmin.Modules.Admin/Application/Services/Shared/SystemServiceContext.cs`                                                                                    |
-| Controller     | `modules/HarborAdmin.Modules.Admin/Controllers/System/UserController.cs`                                                                                                   |
-| Repository     | `modules/HarborAdmin.Modules.Admin/Infrastructure/Repositories/AdminUserRepository.cs`                                                                                     |
-| 模块启动入口   | `modules/HarborAdmin.Modules.Admin/AdminStartUp.cs`                                                                                                                        |
-| Worker 组合根  | `services/HarborAdmin.AIWorker/Program.cs`、`services/HarborAdmin.TaskWorker/Program.cs`                                                                                   |
-| 任务编排示例   | `modules/HarborAdmin.Modules.TaskOrchestration/TaskOrchestrationStartUp.cs`、`modules/HarborAdmin.Modules.TaskOrchestration/Controllers/Tasks/TaskManagementController.cs` |
-| 已对齐模块示例 | `Modules.AI`、`Modules.ConfigCenter`、`Modules.International`、`Modules.Secrets`、`Modules.TaskOrchestration`                                                              |
+| 用途 | 路径|| -------------- | ----------------------------------------------------------- |
+| 模块总览 | `modules/HarborAdmin.Modules.Admin/README.md` |
+| 实体 | `modules/HarborAdmin.Modules.Admin/Domain/Entities/AdminUser.cs` |
+| Request | `modules/HarborAdmin.Modules.Admin/Contracts/System/Request/SaveSystemUserRequest.cs` |
+| DTO | `modules/HarborAdmin.Modules.Admin/Contracts/System/Dto/SystemUserDto.cs` |
+| Service | `modules/HarborAdmin.Modules.Admin/Application/Services/User/UserService.cs` |
+| ServiceContext | `modules/HarborAdmin.Modules.Admin/Application/Services/Shared/SystemServiceContext.cs` |
+| Controller | `modules/HarborAdmin.Modules.Admin/Controllers/System/UserController.cs` |
+| Repository | `modules/HarborAdmin.Modules.Admin/Infrastructure/Repositories/AdminUserRepository.cs` |
+| 模块启动入口 | `modules/HarborAdmin.Modules.Admin/AdminStartUp.cs` |
+| Worker 组合根 | `services/HarborAdmin.AIWorker/Program.cs`、`services/HarborAdmin.TaskWorker/Program.cs` |
+| 任务编排示例 | `modules/HarborAdmin.Modules.TaskOrchestration/TaskOrchestrationStartUp.cs`、`modules/HarborAdmin.Modules.TaskOrchestration/Controllers/Tasks/TaskManagementController.cs` |
+| 已对齐模块示例 | `Modules.AI`、`Modules.ConfigCenter`、`Modules.International`、`Modules.Secrets`、`Modules.TaskOrchestration` |
 
 ---
+## 代码质量约束
 
+AI 写代码时必须优先遵守以下规则：
+
+1. 优先复用现有模式、现有工具类、现有模块边界，不为当前任务新造抽象。
+2. 保持最小改动；不要顺手重构、重排、改名、格式化无关代码。
+3. 不要为了“看起来整洁”拆出一堆私有方法。只有在以下情况才允许抽方法：
+   - 逻辑被复用 2 次以上；
+   - 主流程复杂到影响阅读；
+   - 需要形成明确的业务语义边界；
+   - 便于独立测试或隔离副作用。
+4. 简单顺序逻辑优先保持在调用处，避免读代码时频繁跳转。
+5. 避免冗余 DTO、包装类、helper、extension、manager、service；除非已有架构明确需要。
+6. 变量名、方法名必须表达业务语义，不使用泛化命名，如 `HandleData`、`ProcessInfo`、`DoWorkInternal`。
+7. 换行交给项目格式化工具和既有风格决定，不手动制造“花式换行”。
+8. 新增代码应像现有资深开发者维护过的代码：直接、短、边界清晰、没有仪式感。
+9. 提交前自查：
+   - 这段代码能不能少一层？
+   - 这个私有方法是否真的降低复杂度？
+   - 是否引入了只服务一次调用的抽象？
+   - 是否改动了与需求无关的格式或结构？
 _本规范随 `Modules.Admin` 基线演进；大规模重构前先阅读模块 `README.md` 与现有同域代码。_

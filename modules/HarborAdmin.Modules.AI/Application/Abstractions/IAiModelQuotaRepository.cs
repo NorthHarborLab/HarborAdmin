@@ -8,4 +8,14 @@ namespace HarborAdmin.Modules.AI.Application.Abstractions;
 /// </summary>
 public interface IAiModelQuotaRepository : IHarborCrudRepository<AiModelQuota>
 {
+    /// <summary>
+    /// 判断模型限额作用域是否已被其他记录使用。
+    /// </summary>
+    Task<bool> ScopeExistsAsync(
+        string providerKey,
+        string? modelName,
+        string? businessKey,
+        string? producerKey,
+        long? excludeId,
+        CancellationToken cancellationToken = default);
 }

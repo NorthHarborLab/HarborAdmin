@@ -19,40 +19,43 @@ public sealed class PageController(InternationalPageService pageService) : Admin
     /// </summary>
     [HttpGet]
     public async Task<ApiResult<IReadOnlyList<InternationalPageDto>>> List(CancellationToken cancellationToken) =>
-        await ListResultAsync(cancellationToken, pageService.ListPagesAsync);
+        ApiResult.Ok(await pageService.ListPagesAsync(cancellationToken));
 
     /// <summary>
     /// 列出页面分组树。
     /// </summary>
     [HttpGet("tree")]
     public async Task<ApiResult<IReadOnlyList<InternationalGroupNodeDto>>> ListTree(CancellationToken cancellationToken) =>
-        await ListResultAsync(cancellationToken, pageService.ListPageTreeAsync);
+        ApiResult.Ok(await pageService.ListPageTreeAsync(cancellationToken));
 
     /// <summary>
     /// 创建页面。
     /// </summary>
     [HttpPost]
     public async Task<ApiResult<InternationalPageDto>> Create([FromBody] SaveInternationalPageRequest request, CancellationToken cancellationToken) =>
-        await CreateResultAsync<SaveInternationalPageRequest, InternationalPageDto>(request, cancellationToken, (body, token) => pageService.SavePageAsync(null, body, token));
+        ApiResult.Ok(await pageService.SavePageAsync(null, request, cancellationToken));
 
     /// <summary>
     /// 更新页面。
     /// </summary>
     [HttpPut("{id:long}")]
     public async Task<ApiResult<InternationalPageDto>> Update(long id, [FromBody] SaveInternationalPageRequest request, CancellationToken cancellationToken) =>
-        await UpdateResultAsync<long, SaveInternationalPageRequest, InternationalPageDto>(id, request, cancellationToken, (pageId, body, token) => pageService.SavePageAsync(pageId, body, token));
+        ApiResult.Ok(await pageService.SavePageAsync(id, request, cancellationToken));
 
     /// <summary>
     /// 删除页面。
     /// </summary>
     [HttpDelete("{id:long}")]
-    public async Task<ApiResult<bool>> Delete(long id, CancellationToken cancellationToken) =>
-        await DeleteResultAsync(id, cancellationToken, pageService.DeletePageAsync);
+    public async Task<ApiResult<bool>> Delete(long id, CancellationToken cancellationToken)
+    {
+        await pageService.DeletePageAsync(id, cancellationToken);
+        return ApiResult.Ok(true);
+    }
 
     /// <summary>
     /// 发布页面版本。
     /// </summary>
     [HttpPost("{id:long}/publish")]
     public async Task<ApiResult<InternationalPageDto>> PublishVersion(long id, CancellationToken cancellationToken) =>
-        await OkResultAsync(pageService.PublishPageVersionAsync(id, cancellationToken));
+        ApiResult.Ok(await pageService.PublishPageVersionAsync(id, cancellationToken));
 }

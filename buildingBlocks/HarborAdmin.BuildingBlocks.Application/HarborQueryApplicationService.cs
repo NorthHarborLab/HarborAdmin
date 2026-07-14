@@ -3,6 +3,7 @@ using HarborAdmin.BuildingBlocks.Abstractions.Application;
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using HarborAdmin.BuildingBlocks.Abstractions.Repositories;
 using HarborAdmin.BuildingBlocks.Abstractions.Repositories.Models;
+using HarborAdmin.BuildingBlocks.Abstractions.Results;
 
 namespace HarborAdmin.BuildingBlocks.Application;
 
@@ -15,7 +16,7 @@ namespace HarborAdmin.BuildingBlocks.Application;
 /// <typeparam name="TRepository">实体仓储类型。</typeparam>
 public abstract class HarborQueryApplicationService<TEntity, TDto, TQuery, TRepository>
     : HarborApplicationService, IHarborQueryApplicationService<TDto, TQuery>
-    where TEntity : EntityBase, new()
+    where TEntity : EntityBase
     where TQuery : PageRequest
     where TRepository : IHarborQueryRepository<TEntity>
 {
@@ -34,24 +35,28 @@ public abstract class HarborQueryApplicationService<TEntity, TDto, TQuery, TRepo
     protected TRepository Repository { get; }
 
     /// <inheritdoc />
-    public virtual async Task<IReadOnlyList<TDto>> ListAsync(CancellationToken cancellationToken) =>
-        (await Repository.ListAsync(HarborQueryOptions.Empty, cancellationToken))
-        .Select(MapToDto)
-        .ToList();
+    public virtual async Task<HarborResult<IReadOnlyList<TDto>>> ListAsync(CancellationToken cancellationToken) =>
+        HarborResult<IReadOnlyList<TDto>>.Success(
+            (await Repository.ListAsync(HarborQueryOptions.Empty, cancellationToken))
+                .Select(MapToDto)
+                .ToList());
 
     /// <inheritdoc />
-    public virtual async Task<TDto> GetAsync(long id, CancellationToken cancellationToken)
+    public virtual async Task<HarborResult<TDto>> GetAsync(long id, CancellationToken cancellationToken)
     {
-        var entity = RequireFound(await Repository.GetAsync(id, cancellationToken), GetNotFoundMessage(id));
-        return MapToDto(entity);
+        var entity = await Repository.GetAsync(id, cancellationToken);
+        return entity is null
+            ? HarborResult<TDto>.Failure(CreateNotFoundError(id))
+            : HarborResult<TDto>.Success(MapToDto(entity));
     }
 
     /// <inheritdoc />
-    public virtual async Task<PagedResult<TDto>> PageAsync(TQuery query, CancellationToken cancellationToken)
+    public virtual async Task<HarborResult<PagedResult<TDto>>> PageAsync(TQuery query, CancellationToken cancellationToken)
     {
         var options = CreateQueryOptions(query);
         var result = await Repository.PageAsync(options, cancellationToken);
-        return PagedResult<TDto>.From(result.Items.Select(MapToDto).ToList(), result.Total);
+        return HarborResult<PagedResult<TDto>>.Success(
+            PagedResult<TDto>.From(result.Items.Select(MapToDto).ToList(), result.Total));
     }
 
     /// <summary>
@@ -77,7 +82,13 @@ public abstract class HarborQueryApplicationService<TEntity, TDto, TQuery, TRepo
         };
 
     /// <summary>
-    /// 构造未找到消息。
+    /// 资源不存在错误定义。
     /// </summary>
-    protected virtual string GetNotFoundMessage(long id) => $"{typeof(TEntity).Name} '{id}' was not found.";
+    protected abstract HarborErrorDefinition NotFoundError { get; }
+
+    /// <summary>
+    /// 创建资源不存在错误。
+    /// </summary>
+    protected virtual HarborError CreateNotFoundError(long id) =>
+        NotFoundError.Create(new Dictionary<string, object?> { ["id"] = id });
 }

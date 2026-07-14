@@ -6,6 +6,26 @@ namespace HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 public sealed class ApiResult
 {
     /// <summary>
+    /// 稳定业务错误码，成功时为空。
+    /// </summary>
+    public string? ErrorCode { get; init; }
+
+    /// <summary>
+    /// 协议无关错误分类，成功时为空。
+    /// </summary>
+    public string? ErrorKind { get; init; }
+
+    /// <summary>
+    /// 错误消息参数。
+    /// </summary>
+    public IReadOnlyDictionary<string, object?>? ErrorArguments { get; init; }
+
+    /// <summary>
+    /// 是否建议调用方重试。
+    /// </summary>
+    public bool? Retryable { get; init; }
+
+    /// <summary>
     /// 额外错误明细，可用于字段级提示。
     /// </summary>
     public IReadOnlyDictionary<string, string[]>? Errors { get; init; }
@@ -40,8 +60,26 @@ public sealed class ApiResult
     /// <summary>
     /// 创建失败响应
     /// </summary>
-    public static ApiResult Fail(int code, string message, IReadOnlyDictionary<string, string[]>? errors = null, object? metadata = null) =>
-        new() { Code = code, Message = message, Errors = errors, ErrorMeta = metadata };
+    public static ApiResult Fail(
+        int code,
+        string message,
+        IReadOnlyDictionary<string, string[]>? errors = null,
+        object? metadata = null,
+        string? errorCode = null,
+        string? errorKind = null,
+        IReadOnlyDictionary<string, object?>? errorArguments = null,
+        bool? retryable = null) =>
+        new()
+        {
+            Code = code,
+            Message = message,
+            Errors = errors,
+            ErrorMeta = metadata,
+            ErrorCode = errorCode,
+            ErrorKind = errorKind,
+            ErrorArguments = errorArguments,
+            Retryable = retryable,
+        };
 
     /// <summary>
     /// 创建失败响应（泛型）
@@ -56,6 +94,26 @@ public sealed class ApiResult
 /// <typeparam name="T">业务数据类型</typeparam>
 public sealed class ApiResult<T>
 {
+    /// <summary>
+    /// 稳定业务错误码，成功时为空。
+    /// </summary>
+    public string? ErrorCode { get; init; }
+
+    /// <summary>
+    /// 协议无关错误分类，成功时为空。
+    /// </summary>
+    public string? ErrorKind { get; init; }
+
+    /// <summary>
+    /// 错误消息参数。
+    /// </summary>
+    public IReadOnlyDictionary<string, object?>? ErrorArguments { get; init; }
+
+    /// <summary>
+    /// 是否建议调用方重试。
+    /// </summary>
+    public bool? Retryable { get; init; }
+
     /// <summary>
     /// 额外错误明细，可用于字段级提示。
     /// </summary>
@@ -90,6 +148,24 @@ public sealed class ApiResult<T>
     /// <summary>
     /// 创建失败响应
     /// </summary>
-    public static ApiResult<T> Fail(int code, string message, IReadOnlyDictionary<string, string[]>? errors = null, object? metadata = null) =>
-        new() { Code = code, Message = message, Errors = errors, ErrorMeta = metadata };
+    public static ApiResult<T> Fail(
+        int code,
+        string message,
+        IReadOnlyDictionary<string, string[]>? errors = null,
+        object? metadata = null,
+        string? errorCode = null,
+        string? errorKind = null,
+        IReadOnlyDictionary<string, object?>? errorArguments = null,
+        bool? retryable = null) =>
+        new()
+        {
+            Code = code,
+            Message = message,
+            Errors = errors,
+            ErrorMeta = metadata,
+            ErrorCode = errorCode,
+            ErrorKind = errorKind,
+            ErrorArguments = errorArguments,
+            Retryable = retryable,
+        };
 }

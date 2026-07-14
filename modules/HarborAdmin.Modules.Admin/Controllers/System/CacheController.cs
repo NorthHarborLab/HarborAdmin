@@ -19,7 +19,7 @@ public sealed class CacheController(CacheManagementService cacheManagementServic
     /// </summary>
     [HttpGet("overview")]
     public async Task<ApiResult<CacheOverviewDto>> Overview(CancellationToken cancellationToken) =>
-        await OkResultAsync(cancellationToken, cacheManagementService.GetOverviewAsync);
+        ApiResult.Ok(await cacheManagementService.GetOverviewAsync(cancellationToken));
 
     /// <summary>
     /// 获取分组下运行时 tag 列表。
@@ -28,7 +28,7 @@ public sealed class CacheController(CacheManagementService cacheManagementServic
     public async Task<ApiResult<IReadOnlyList<CacheTagDto>>> GroupTags(
         [FromQuery] string groupPrefix,
         CancellationToken cancellationToken) =>
-        await OkResultAsync(cacheManagementService.GetGroupTagsAsync(groupPrefix, cancellationToken));
+        ApiResult.Ok(await cacheManagementService.GetGroupTagsAsync(groupPrefix, cancellationToken));
 
     /// <summary>
     /// 获取 tag 下 key 列表。
@@ -37,14 +37,14 @@ public sealed class CacheController(CacheManagementService cacheManagementServic
     public async Task<ApiResult<IReadOnlyList<string>>> TagKeys(
         [FromQuery] string tag,
         CancellationToken cancellationToken) =>
-        await OkResultAsync(cacheManagementService.GetTagKeysAsync(tag, cancellationToken));
+        ApiResult.Ok(await cacheManagementService.GetTagKeysAsync(tag, cancellationToken));
 
     /// <summary>
     /// 查看 key 缓存内容。
     /// </summary>
     [HttpGet("keys/value")]
     public async Task<ApiResult<CacheEntryValueDto>> KeyValue([FromQuery] string key, CancellationToken cancellationToken) =>
-        await OkResultAsync(cacheManagementService.GetKeyValueAsync(key, cancellationToken));
+        ApiResult.Ok(await cacheManagementService.GetKeyValueAsync(key, cancellationToken));
 
     /// <summary>
     /// 清理 tag。
@@ -53,7 +53,7 @@ public sealed class CacheController(CacheManagementService cacheManagementServic
     public async Task<ApiResult<bool>> InvalidateTag([FromQuery] string tag, CancellationToken cancellationToken)
     {
         await cacheManagementService.InvalidateTagAsync(tag, cancellationToken);
-        return OkResult(true);
+        return ApiResult.Ok(true);
     }
 
     /// <summary>
@@ -63,7 +63,7 @@ public sealed class CacheController(CacheManagementService cacheManagementServic
     public async Task<ApiResult<bool>> InvalidateKey([FromBody] InvalidateCacheKeyRequest request, CancellationToken cancellationToken)
     {
         await cacheManagementService.InvalidateKeyAsync(request.Key, cancellationToken);
-        return OkResult(true);
+        return ApiResult.Ok(true);
     }
 
     /// <summary>
@@ -73,6 +73,6 @@ public sealed class CacheController(CacheManagementService cacheManagementServic
     public async Task<ApiResult<bool>> InvalidateGroup([FromQuery] string groupPrefix, CancellationToken cancellationToken)
     {
         await cacheManagementService.InvalidateGroupAsync(groupPrefix, cancellationToken);
-        return OkResult(true);
+        return ApiResult.Ok(true);
     }
 }

@@ -24,4 +24,16 @@ public sealed class AdminDepartmentRepository(
     /// <inheritdoc />
     public Task<long> CountChildrenAsync(long parentId, CancellationToken cancellationToken = default) =>
         FreeSql.Select<AdminDepartment>().Where(department => department.ParentId == parentId).CountAsync(cancellationToken);
+
+    /// <inheritdoc />
+    public Task<bool> DeptCodeExistsAsync(string deptCode, long? excludeId, CancellationToken cancellationToken = default)
+    {
+        var query = FreeSql.Select<AdminDepartment>().Where(entity => entity.DeptCode == deptCode);
+        if (excludeId.HasValue)
+        {
+            query = query.Where(entity => entity.Id != excludeId.Value);
+        }
+
+        return query.AnyAsync(cancellationToken);
+    }
 }

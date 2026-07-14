@@ -21,7 +21,7 @@ public sealed class MenuController(MenuService menuService) : AdminControllerBas
     public async Task<ApiResult<IReadOnlyList<SystemMenuDto>>> List(
         [FromQuery] bool includePermissions,
         CancellationToken cancellationToken) =>
-        OkResult(includePermissions
+        ApiResult.Ok(includePermissions
             ? await menuService.ListMenuPermissionTreeAsync(cancellationToken)
             : await menuService.ListMenusAsync(cancellationToken));
 
@@ -33,7 +33,7 @@ public sealed class MenuController(MenuService menuService) : AdminControllerBas
         [FromQuery] string name,
         [FromQuery] string? id,
         CancellationToken cancellationToken) =>
-        await OkResultAsync(menuService.MenuNameExistsAsync(name, ParseMenuId(id), cancellationToken));
+        ApiResult.Ok(await menuService.MenuNameExistsAsync(name, ParseMenuId(id), cancellationToken));
 
     /// <summary>
     /// 菜单路径是否存在。
@@ -43,7 +43,7 @@ public sealed class MenuController(MenuService menuService) : AdminControllerBas
         [FromQuery] string path,
         [FromQuery] string? id,
         CancellationToken cancellationToken) =>
-        await OkResultAsync(menuService.MenuPathExistsAsync(path, ParseMenuId(id), cancellationToken));
+        ApiResult.Ok(await menuService.MenuPathExistsAsync(path, ParseMenuId(id), cancellationToken));
 
     /// <summary>
     /// 解析菜单 ID 查询参数。
@@ -56,14 +56,14 @@ public sealed class MenuController(MenuService menuService) : AdminControllerBas
     /// </summary>
     [HttpPost]
     public async Task<ApiResult<SystemMenuDto>> Create([FromBody] SaveSystemMenuRequest request, CancellationToken cancellationToken) =>
-        await OkResultAsync(menuService.SaveMenuAsync(null, request, cancellationToken));
+        ApiResult.Ok(await menuService.SaveMenuAsync(null, request, cancellationToken));
 
     /// <summary>
     /// 更新菜单。
     /// </summary>
     [HttpPut("{id:long}")]
     public async Task<ApiResult<SystemMenuDto>> Update(long id, [FromBody] SaveSystemMenuRequest request, CancellationToken cancellationToken) =>
-        await OkResultAsync(menuService.SaveMenuAsync(id, request, cancellationToken));
+        ApiResult.Ok(await menuService.SaveMenuAsync(id, request, cancellationToken));
 
     /// <summary>
     /// 同级菜单排序。
@@ -72,7 +72,7 @@ public sealed class MenuController(MenuService menuService) : AdminControllerBas
     public async Task<ApiResult<bool>> Reorder([FromBody] ReorderSystemMenuRequest request, CancellationToken cancellationToken)
     {
         await menuService.ReorderMenusAsync(request, cancellationToken);
-        return OkResult(true);
+        return ApiResult.Ok(true);
     }
 
     /// <summary>
@@ -82,6 +82,6 @@ public sealed class MenuController(MenuService menuService) : AdminControllerBas
     public async Task<ApiResult<bool>> Delete(long id, CancellationToken cancellationToken)
     {
         await menuService.DeleteMenuAsync(id, cancellationToken);
-        return OkResult(true);
+        return ApiResult.Ok(true);
     }
 }

@@ -21,7 +21,7 @@ public sealed class ApplicationController(ConfigCenterApplicationService service
     /// <returns>应用列表。</returns>
     [HttpGet]
     public async Task<ApiResult<IReadOnlyList<ConfigApplicationDto>>> List(CancellationToken cancellationToken) =>
-        await ListResultAsync(cancellationToken, service.ListApplicationsAsync);
+        ApiResult.Ok(await service.ListApplicationsAsync(cancellationToken));
 
     /// <summary>
     /// 注册新应用。
@@ -33,7 +33,7 @@ public sealed class ApplicationController(ConfigCenterApplicationService service
     public async Task<ApiResult<ConfigApplicationDto>> Create(
         [FromBody] SaveConfigApplicationRequest request,
         CancellationToken cancellationToken) =>
-        await CreateResultAsync<SaveConfigApplicationRequest, ConfigApplicationDto>(request, cancellationToken, (body, token) => service.SaveApplicationAsync(null, body, token));
+        ApiResult.Ok(await service.SaveApplicationAsync(null, request, cancellationToken));
 
     /// <summary>
     /// 更新应用元数据。
@@ -47,7 +47,7 @@ public sealed class ApplicationController(ConfigCenterApplicationService service
         string appId,
         [FromBody] SaveConfigApplicationRequest request,
         CancellationToken cancellationToken) =>
-        await UpdateResultAsync<string, SaveConfigApplicationRequest, ConfigApplicationDto>(appId, request, cancellationToken, service.SaveApplicationAsync);
+        ApiResult.Ok(await service.SaveApplicationAsync(appId, request, cancellationToken));
 
     /// <summary>
     /// 删除应用及其全部配置数据。
@@ -55,6 +55,9 @@ public sealed class ApplicationController(ConfigCenterApplicationService service
     /// <param name="appId">应用标识。</param>
     /// <param name="cancellationToken">取消令牌。</param>
     [HttpDelete("{appId}")]
-    public async Task<ApiResult<bool>> Delete(string appId, CancellationToken cancellationToken) =>
-        await DeleteResultAsync(appId, cancellationToken, service.DeleteApplicationAsync);
+    public async Task<ApiResult<bool>> Delete(string appId, CancellationToken cancellationToken)
+    {
+        await service.DeleteApplicationAsync(appId, cancellationToken);
+        return ApiResult.Ok(true);
+    }
 }

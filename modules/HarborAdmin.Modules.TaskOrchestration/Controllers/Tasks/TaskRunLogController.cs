@@ -23,8 +23,8 @@ public sealed class TaskRunLogController(TaskOrchestrationService service) : Adm
     /// <param name="request">查询选项</param>
     /// <returns>任务运行日志分页结果</returns>
     [HttpPost("tasks/{taskId:long}/runs")]
-    public Task<ApiResult<PagedResult<OrchestrationTaskRunDto>>> ListRuns(long taskId, [FromBody] HarborQueryOptions request) =>
-        OkResultAsync(service.ListRunsAsync(taskId, request, Request.HttpContext.RequestAborted));
+    public async Task<ApiResult<PagedResult<OrchestrationTaskRunDto>>> ListRuns(long taskId, [FromBody] HarborQueryOptions request) =>
+        ApiResult.Ok(await service.ListRunsAsync(taskId, request, Request.HttpContext.RequestAborted));
 
     /// <summary>
     /// 查询任务运行日志
@@ -32,8 +32,8 @@ public sealed class TaskRunLogController(TaskOrchestrationService service) : Adm
     /// <param name="request">查询请求</param>
     /// <returns>任务运行日志分页结果</returns>
     [HttpPost("runs/query")]
-    public Task<ApiResult<PagedResult<OrchestrationTaskRunDto>>> QueryRuns([FromBody] QueryOrchestrationTaskRunRequest request) =>
-        OkResultAsync(service.QueryRunsAsync(request, Request.HttpContext.RequestAborted));
+    public async Task<ApiResult<PagedResult<OrchestrationTaskRunDto>>> QueryRuns([FromBody] QueryOrchestrationTaskRunRequest request) =>
+        ApiResult.Ok(await service.QueryRunsAsync(request, Request.HttpContext.RequestAborted));
 
     /// <summary>
     /// 获取运行日志详情
@@ -41,6 +41,6 @@ public sealed class TaskRunLogController(TaskOrchestrationService service) : Adm
     /// <param name="runId">运行记录 ID</param>
     /// <returns>运行日志详情</returns>
     [HttpGet("runs/{runId:long}")]
-    public Task<ApiResult<OrchestrationTaskRunDto>> GetRun(long runId) =>
-        OkResultAsync(service.GetRunAsync(runId, Request.HttpContext.RequestAborted));
+    public async Task<ApiResult<OrchestrationTaskRunDto>> GetRun(long runId) =>
+        ApiResult.Ok(await service.GetRunAsync(runId, Request.HttpContext.RequestAborted));
 }

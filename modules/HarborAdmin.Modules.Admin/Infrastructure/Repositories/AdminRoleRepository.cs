@@ -16,6 +16,18 @@ public sealed class AdminRoleRepository(IAdminDbContext db, DbEntityRegistry ent
     : FreeSqlCrudRepository<AdminRole, IAdminDbContext>(db, entityRegistry, unitOfWorkManager), IAdminRoleRepository
 {
     /// <inheritdoc />
+    public Task<bool> RoleCodeExistsAsync(string roleCode, long? excludeId, CancellationToken cancellationToken = default)
+    {
+        var query = FreeSql.Select<AdminRole>().Where(entity => entity.RoleCode == roleCode);
+        if (excludeId.HasValue)
+        {
+            query = query.Where(entity => entity.Id != excludeId.Value);
+        }
+
+        return query.AnyAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
     public override async Task<AdminRole> InsertAsync(AdminRole entity, CancellationToken cancellationToken = default)
     {
         await ExecuteInUnitOfWorkAsync(async ct =>

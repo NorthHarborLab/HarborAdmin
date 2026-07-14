@@ -24,7 +24,7 @@ public sealed class AccessController(SessionService sessionService, AuthService 
     public async Task<ApiResult<CurrentUserDto>> GetMe(CancellationToken cancellationToken)
     {
         var session = await sessionService.BuildSessionAsync(currentUser.Id, cancellationToken);
-        return OkResult(session.User);
+        return ApiResult.Ok(session.User);
     }
 
     /// <summary>
@@ -32,14 +32,14 @@ public sealed class AccessController(SessionService sessionService, AuthService 
     /// </summary>
     [HttpGet("session")]
     public async Task<ApiResult<SessionSnapshotDto>> GetSession(CancellationToken cancellationToken) =>
-        await OkResultAsync(sessionService.BuildSessionAsync(currentUser.Id, cancellationToken));
+        ApiResult.Ok(await sessionService.BuildSessionAsync(currentUser.Id, cancellationToken));
 
     /// <summary>
     /// 获取 sessionVersion。
     /// </summary>
     [HttpGet("session/version")]
     public async Task<ApiResult<SessionVersionDto>> GetSessionVersion(CancellationToken cancellationToken) =>
-        await OkResultAsync(cancellationToken, sessionService.GetSessionVersionAsync);
+        ApiResult.Ok(await sessionService.GetSessionVersionAsync(cancellationToken));
 
     /// <summary>
     /// 获取权限码。
@@ -48,7 +48,7 @@ public sealed class AccessController(SessionService sessionService, AuthService 
     public async Task<ApiResult<IReadOnlyList<string>>> GetPermissions(CancellationToken cancellationToken)
     {
         var session = await sessionService.BuildSessionAsync(currentUser.Id, cancellationToken);
-        return OkResult(session.Permissions);
+        return ApiResult.Ok(session.Permissions);
     }
 
     /// <summary>
@@ -58,6 +58,6 @@ public sealed class AccessController(SessionService sessionService, AuthService 
     public async Task<ApiResult<bool>> Logout(CancellationToken cancellationToken)
     {
         await authService.LogoutAsync(null, Request, Response, cancellationToken);
-        return OkResult(true);
+        return ApiResult.Ok(true);
     }
 }
