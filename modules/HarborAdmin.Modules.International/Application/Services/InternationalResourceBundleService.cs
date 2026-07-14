@@ -3,6 +3,7 @@ using HarborAdmin.BuildingBlocks.Caching.Abstractions;
 using HarborAdmin.Modules.International.Application.Abstractions;
 using HarborAdmin.Modules.International.Infrastructure.Caching;
 using HarborAdmin.Modules.International.Contracts.Page.Dto;
+using HarborAdmin.Modules.International.Contracts.Resource;
 using HarborAdmin.Modules.International.Contracts.Resource.Dto;
 
 namespace HarborAdmin.Modules.International.Application.Services;
@@ -34,7 +35,20 @@ public sealed class InternationalResourceBundleService(
                     Value = new InternationalVersionDto(version, pageVersions)
                 };
             }, cancellationToken);
-        return model.Value;
+        if (model.Value.Pages.Any(page => string.Equals(
+                page.Path,
+                InternationalErrorTranslations.BundlePath,
+                StringComparison.Ordinal)))
+        {
+            return model.Value;
+        }
+
+        var pages = model.Value.Pages
+            .Append(new InternationalPageVersionDto(
+                InternationalErrorTranslations.BundlePath,
+                InternationalErrorTranslations.BundleVersion))
+            .ToArray();
+        return new InternationalVersionDto(model.Value.Version, pages);
     }
 
     /// <summary>
@@ -54,6 +68,8 @@ public sealed class InternationalResourceBundleService(
                     InternationalBundleBuilder.MergePageMessages(messages, page);
                 }
 
+                InternationalBundleBuilder.MergeErrorMessages(messages);
+
                 var version = await versionRepository.GetVersionAsync(ct);
                 return new InternationalBundleCacheModel
                 {
@@ -69,6 +85,16 @@ public sealed class InternationalResourceBundleService(
     public async Task<InternationalPageBundleDto> GetPageBundleAsync(string path, CancellationToken cancellationToken = default)
     {
         path = path.Trim();
+        if (string.Equals(path, InternationalErrorTranslations.BundlePath, StringComparison.Ordinal))
+        {
+            var errorMessages = new Dictionary<string, object>(StringComparer.Ordinal);
+            InternationalBundleBuilder.MergeErrorMessages(errorMessages);
+            return new InternationalPageBundleDto(
+                InternationalErrorTranslations.BundlePath,
+                InternationalErrorTranslations.BundleVersion,
+                errorMessages);
+        }
+
         var model = await cache.Get<InternationalPageBundleCacheModel>()
             .Where(model => model.Path == path)
             .GetOrCreateAsync(async ct =>

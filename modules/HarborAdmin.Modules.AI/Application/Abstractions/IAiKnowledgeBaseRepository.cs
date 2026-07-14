@@ -12,4 +12,9 @@ public interface IAiKnowledgeBaseRepository : IHarborCrudRepository<AiKnowledgeB
     /// 加载启用的知识库。
     /// </summary>
     Task<IReadOnlyList<AiKnowledgeBase>> ListEnabledKnowledgeBasesAsync(IEnumerable<string> keys, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 判断知识库 Key 是否已被其他记录使用。
+    /// </summary>
+    Task<bool> KnowledgeKeyExistsAsync(string knowledgeKey, long? excludeId, CancellationToken cancellationToken = default);
 }

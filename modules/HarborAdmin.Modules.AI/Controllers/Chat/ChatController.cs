@@ -29,14 +29,14 @@ public sealed class ChatController(AiChatStreamService chatStreamService, Busine
     /// </summary>
     [HttpGet("businesses")]
     public async Task<ApiResult<IReadOnlyList<AiChatBusinessOptionDto>>> ListBusinesses(CancellationToken cancellationToken) =>
-        await ListResultAsync(cancellationToken, businessService.ListChatOptionsAsync);
+        ApiResult.Ok(await businessService.ListChatOptionsAsync(cancellationToken));
 
     /// <summary>
     /// 执行普通 HTTP AI 聊天调用。
     /// </summary>
     [HttpPost("invoke")]
     public async Task<ApiResult<AiBusinessResponse>> Invoke([FromBody] AiChatStreamRequest request, CancellationToken cancellationToken) =>
-        await OkResultAsync(chatStreamService.InvokeAsync(request, cancellationToken));
+        ApiResult.Ok(await chatStreamService.InvokeAsync(request, cancellationToken));
 
     /// <summary>
     /// 中转 AIWorker SSE 聊天流。

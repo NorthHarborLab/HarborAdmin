@@ -20,21 +20,21 @@ public sealed class UserController(UserService userService, ICurrentUser current
     /// </summary>
     [HttpGet("list")]
     public async Task<ApiResult<IReadOnlyList<SystemUserDto>>> List([FromQuery] long? deptId, CancellationToken cancellationToken) =>
-        await OkResultAsync(userService.ListUsersAsync(currentUser.Id, deptId, cancellationToken));
+        ApiResult.Ok(await userService.ListUsersAsync(currentUser.Id, deptId, cancellationToken));
 
     /// <summary>
     /// 创建用户。
     /// </summary>
     [HttpPost]
     public async Task<ApiResult<SystemUserDto>> Create([FromBody] SaveSystemUserRequest request, CancellationToken cancellationToken) =>
-        await OkResultAsync(userService.SaveUserAsync(currentUser.Id, null, request, cancellationToken));
+        ApiResult.Ok(await userService.SaveUserAsync(currentUser.Id, null, request, cancellationToken));
 
     /// <summary>
     /// 更新用户。
     /// </summary>
     [HttpPut("{id:long}")]
     public async Task<ApiResult<SystemUserDto>> Update(long id, [FromBody] SaveSystemUserRequest request, CancellationToken cancellationToken) =>
-        await OkResultAsync(userService.SaveUserAsync(currentUser.Id, id, request, cancellationToken));
+        ApiResult.Ok(await userService.SaveUserAsync(currentUser.Id, id, request, cancellationToken));
 
     /// <summary>
     /// 删除用户。
@@ -43,6 +43,6 @@ public sealed class UserController(UserService userService, ICurrentUser current
     public async Task<ApiResult<bool>> Delete(long id, CancellationToken cancellationToken)
     {
         await userService.DeleteUserAsync(id, cancellationToken);
-        return OkResult(true);
+        return ApiResult.Ok(true);
     }
 }

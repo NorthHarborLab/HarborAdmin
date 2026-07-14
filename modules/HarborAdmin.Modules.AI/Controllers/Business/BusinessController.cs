@@ -18,34 +18,34 @@ public sealed class BusinessController(BusinessService service) : AdminCrudContr
     /// 列出业务。
     /// </summary>
     [HttpGet]
-    public async Task<ApiResult<PagedResult<AiBusinessDto>>> List([FromQuery] PageRequest query, CancellationToken cancellationToken) =>
+    public async Task<ActionResult<ApiResult<PagedResult<AiBusinessDto>>>> List([FromQuery] PageRequest query, CancellationToken cancellationToken) =>
         await PageResultAsync(query, service, cancellationToken);
 
     /// <summary>
     /// 获取业务详情。
     /// </summary>
     [HttpGet("{id:long}")]
-    public async Task<ApiResult<AiBusinessDto>> Get(long id, CancellationToken cancellationToken) =>
+    public async Task<ActionResult<ApiResult<AiBusinessDto>>> Get(long id, CancellationToken cancellationToken) =>
         await GetResultAsync(id, service, cancellationToken);
 
     /// <summary>
     /// 创建业务。
     /// </summary>
     [HttpPost]
-    public async Task<ApiResult<AiBusinessDto>> Create([FromBody] SaveAiBusinessRequest request, CancellationToken cancellationToken) =>
+    public async Task<ActionResult<ApiResult<AiBusinessDto>>> Create([FromBody] SaveAiBusinessRequest request, CancellationToken cancellationToken) =>
         await CreateResultAsync(request, service, cancellationToken);
 
     /// <summary>
     /// 更新业务。
     /// </summary>
     [HttpPut("{id:long}")]
-    public async Task<ApiResult<AiBusinessDto>> Update(long id, [FromBody] SaveAiBusinessRequest request, CancellationToken cancellationToken) =>
+    public async Task<ActionResult<ApiResult<AiBusinessDto>>> Update(long id, [FromBody] SaveAiBusinessRequest request, CancellationToken cancellationToken) =>
         await UpdateResultAsync(id, request, service, cancellationToken);
 
     /// <summary>
     /// 删除业务。
     /// </summary>
     [HttpDelete("{id:long}")]
-    public async Task<ApiResult<bool>> Delete(long id, CancellationToken cancellationToken) =>
+    public async Task<ActionResult<ApiResult<bool>>> Delete(long id, CancellationToken cancellationToken) =>
         await DeleteResultAsync(id, service, cancellationToken);
 }

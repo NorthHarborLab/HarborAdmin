@@ -1,6 +1,5 @@
-using HarborAdmin.BuildingBlocks.Abstractions.Exception;
-
 using HarborAdmin.BuildingBlocks.Abstractions.Application;
+using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 
 namespace HarborAdmin.BuildingBlocks.Application;
 

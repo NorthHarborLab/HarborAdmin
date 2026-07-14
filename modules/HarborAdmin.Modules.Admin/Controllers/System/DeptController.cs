@@ -18,27 +18,27 @@ public sealed class DeptController(DeptService deptService) : AdminCrudControlle
     /// 查询部门树。
     /// </summary>
     [HttpGet("list")]
-    public async Task<ApiResult<IReadOnlyList<SystemDeptDto>>> List(CancellationToken cancellationToken) =>
+    public async Task<ActionResult<ApiResult<IReadOnlyList<SystemDeptDto>>>> List(CancellationToken cancellationToken) =>
         await ListResultAsync(deptService, cancellationToken);
 
     /// <summary>
     /// 创建部门。
     /// </summary>
     [HttpPost]
-    public async Task<ApiResult<SystemDeptDto>> Create([FromBody] SaveSystemDeptRequest request, CancellationToken cancellationToken) =>
+    public async Task<ActionResult<ApiResult<SystemDeptDto>>> Create([FromBody] SaveSystemDeptRequest request, CancellationToken cancellationToken) =>
         await CreateResultAsync(request, deptService, cancellationToken);
 
     /// <summary>
     /// 更新部门。
     /// </summary>
     [HttpPut("{id:long}")]
-    public async Task<ApiResult<SystemDeptDto>> Update(long id, [FromBody] SaveSystemDeptRequest request, CancellationToken cancellationToken) =>
+    public async Task<ActionResult<ApiResult<SystemDeptDto>>> Update(long id, [FromBody] SaveSystemDeptRequest request, CancellationToken cancellationToken) =>
         await UpdateResultAsync(id, request, deptService, cancellationToken);
 
     /// <summary>
     /// 删除部门。
     /// </summary>
     [HttpDelete("{id:long}")]
-    public async Task<ApiResult<bool>> Delete(long id, CancellationToken cancellationToken) =>
+    public async Task<ActionResult<ApiResult<bool>>> Delete(long id, CancellationToken cancellationToken) =>
         await DeleteResultAsync(id, deptService, cancellationToken);
 }

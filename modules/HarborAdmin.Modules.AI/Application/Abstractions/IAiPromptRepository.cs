@@ -12,4 +12,9 @@ public interface IAiPromptRepository : IHarborCrudRepository<AiPrompt>
     /// 获取启用的 Prompt。
     /// </summary>
     Task<AiPrompt?> GetEnabledPromptAsync(string promptKey, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 判断 Prompt Key 与版本是否已被其他记录使用。
+    /// </summary>
+    Task<bool> PromptVersionExistsAsync(string promptKey, int version, long? excludeId, CancellationToken cancellationToken = default);
 }

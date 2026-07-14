@@ -20,7 +20,7 @@ public sealed class JwtProfileController(JwtProfileService jwtProfileService) : 
     /// </summary>
     [HttpGet]
     public async Task<ApiResult<IReadOnlyList<JwtProfileDto>>> List(CancellationToken cancellationToken) =>
-        await OkResultAsync(jwtProfileService.ListAsync(cancellationToken));
+        ApiResult.Ok(await jwtProfileService.ListAsync(cancellationToken));
 
     /// <summary>
     /// 保存 JWT Profile。
@@ -29,7 +29,7 @@ public sealed class JwtProfileController(JwtProfileService jwtProfileService) : 
     public async Task<ApiResult<JwtProfileDto>> Save(
         [FromBody] SaveJwtProfileRequest request,
         CancellationToken cancellationToken) =>
-        await OkResultAsync(jwtProfileService.SaveAsync(null, request, cancellationToken));
+        ApiResult.Ok(await jwtProfileService.SaveAsync(null, request, cancellationToken));
 
     /// <summary>
     /// 轮换 JWT Profile 签名密钥。
@@ -39,7 +39,7 @@ public sealed class JwtProfileController(JwtProfileService jwtProfileService) : 
         [FromRoute, Required] string profileKey,
         [FromBody] RotateJwtProfileSecretRequest request,
         CancellationToken cancellationToken) =>
-        await OkResultAsync(jwtProfileService.RotateSecretAsync(profileKey, request, cancellationToken));
+        ApiResult.Ok(await jwtProfileService.RotateSecretAsync(profileKey, request, cancellationToken));
 
     /// <summary>
     /// 设置 JWT Profile 启停状态。
@@ -49,5 +49,5 @@ public sealed class JwtProfileController(JwtProfileService jwtProfileService) : 
         [FromRoute, Required] string profileKey,
         [FromBody] SetJwtProfileEnabledRequest request,
         CancellationToken cancellationToken) =>
-        await OkResultAsync(jwtProfileService.SetEnabledAsync(profileKey, request.Enabled, cancellationToken));
+        ApiResult.Ok(await jwtProfileService.SetEnabledAsync(profileKey, request.Enabled, cancellationToken));
 }

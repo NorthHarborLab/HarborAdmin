@@ -19,5 +19,5 @@ public sealed class TaskCallableController(TaskOrchestrationService service) : A
     /// <returns>可调用接口方法集合</returns>
     [HttpGet]
     public ApiResult<IReadOnlyList<TaskCallableDescriptorDto>> List() =>
-        OkResult(service.ListCallables());
+        ApiResult.Ok(service.ListCallables());
 }

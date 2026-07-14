@@ -22,7 +22,7 @@ public sealed class FeatureDesignActionController(FeatureDesignActionService act
     /// </summary>
     [HttpGet]
     public async Task<ApiResult<IReadOnlyList<AdminFeatureActionDto>>> ListActions([FromRoute, Required] string featureCode) =>
-        await OkResultAsync(actionService.ListActionsAsync(featureCode, RequestCancellationToken));
+        ApiResult.Ok(await actionService.ListActionsAsync(featureCode, RequestCancellationToken));
 
     /// <summary>
     /// 新建功能动作。
@@ -30,7 +30,7 @@ public sealed class FeatureDesignActionController(FeatureDesignActionService act
     [HttpPost]
     public async Task<ApiResult<AdminFeatureActionDto>> CreateAction([FromRoute, Required] string featureCode,
         [FromBody] SaveAdminFeatureActionRequest request) =>
-        await OkResultAsync(actionService.CreateActionAsync(featureCode, request, RequestCancellationToken));
+        ApiResult.Ok(await actionService.CreateActionAsync(featureCode, request, RequestCancellationToken));
 
     /// <summary>
     /// 更新功能动作。
@@ -38,7 +38,7 @@ public sealed class FeatureDesignActionController(FeatureDesignActionService act
     [HttpPut("{actionCode}")]
     public async Task<ApiResult<AdminFeatureActionDto>> UpdateAction([FromRoute, Required] string featureCode, [FromRoute, Required] string actionCode,
         [FromBody] SaveAdminFeatureActionRequest request) =>
-        await OkResultAsync(actionService.UpdateActionAsync(featureCode, actionCode, request, RequestCancellationToken));
+        ApiResult.Ok(await actionService.UpdateActionAsync(featureCode, actionCode, request, RequestCancellationToken));
 
     /// <summary>
     /// 权限点排序。
@@ -49,7 +49,7 @@ public sealed class FeatureDesignActionController(FeatureDesignActionService act
         [FromBody] ReorderAdminFeatureActionRequest request)
     {
         await actionService.ReorderActionsAsync(featureCode, request, RequestCancellationToken);
-        return OkResult(true);
+        return ApiResult.Ok(true);
     }
 
     /// <summary>
@@ -59,7 +59,7 @@ public sealed class FeatureDesignActionController(FeatureDesignActionService act
     public async Task<ApiResult<bool>> DeleteAction([FromRoute, Required] string featureCode, [FromRoute, Required] string actionCode)
     {
         await actionService.DeleteActionAsync(featureCode, actionCode, RequestCancellationToken);
-        return OkResult(true);
+        return ApiResult.Ok(true);
     }
 
     /// <summary>
@@ -69,6 +69,6 @@ public sealed class FeatureDesignActionController(FeatureDesignActionService act
     public async Task<ApiResult<AdminFeatureActionDto>> SaveActionApis([FromRoute, Required] string featureCode,
         [FromRoute, Required] string actionCode,
         [FromBody, Required] IReadOnlyList<long> apiIds) =>
-        await OkResultAsync(actionService.SaveActionApisAsync(featureCode, actionCode, apiIds, RequestCancellationToken));
+        ApiResult.Ok(await actionService.SaveActionApisAsync(featureCode, actionCode, apiIds, RequestCancellationToken));
 }
 

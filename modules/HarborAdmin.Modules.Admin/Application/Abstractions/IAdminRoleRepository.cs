@@ -17,4 +17,9 @@ public interface IAdminRoleRepository : IHarborCrudRepository<AdminRole>
     /// 按功能编码与字段名解析功能字段。
     /// </summary>
     Task<AdminFeatureField> GetFeatureFieldAsync(string featureCode, string fieldName, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 判断角色编码是否已被其他记录使用。
+    /// </summary>
+    Task<bool> RoleCodeExistsAsync(string roleCode, long? excludeId, CancellationToken cancellationToken = default);
 }

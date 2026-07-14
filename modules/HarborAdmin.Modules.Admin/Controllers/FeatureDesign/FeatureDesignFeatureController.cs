@@ -22,21 +22,21 @@ public sealed class FeatureDesignFeatureController(FeatureDesignFeatureService f
     /// </summary>
     [HttpGet]
     public async Task<ApiResult<IReadOnlyList<AdminFeatureDto>>> ListFeatures() =>
-        await OkResultAsync(featureService.ListFeaturesAsync(RequestCancellationToken));
+        ApiResult.Ok(await featureService.ListFeaturesAsync(RequestCancellationToken));
 
     /// <summary>
     /// 新建 Feature。
     /// </summary>
     [HttpPost]
     public async Task<ApiResult<AdminFeatureDto>> CreateFeature([FromBody] SaveAdminFeatureRequest request) =>
-        await CreateResultAsync<SaveAdminFeatureRequest, AdminFeatureDto>(request, RequestCancellationToken, featureService.CreateFeatureAsync);
+        ApiResult.Ok(await featureService.CreateFeatureAsync(request, RequestCancellationToken));
 
     /// <summary>
     /// 更新 Feature。
     /// </summary>
     [HttpPut("{featureCode}")]
     public async Task<ApiResult<AdminFeatureDto>> UpdateFeature([FromRoute, Required] string featureCode, [FromBody] SaveAdminFeatureRequest request) =>
-        await UpdateResultAsync<string, SaveAdminFeatureRequest, AdminFeatureDto>(featureCode, request, RequestCancellationToken, featureService.UpdateFeatureAsync);
+        ApiResult.Ok(await featureService.UpdateFeatureAsync(featureCode, request, RequestCancellationToken));
 
     /// <summary>
     /// 同组排序 Feature。
@@ -45,7 +45,7 @@ public sealed class FeatureDesignFeatureController(FeatureDesignFeatureService f
     public async Task<ApiResult<bool>> ReorderFeatures([FromBody] ReorderAdminFeatureRequest request)
     {
         await featureService.ReorderFeaturesAsync(request, RequestCancellationToken);
-        return OkResult(true);
+        return ApiResult.Ok(true);
     }
 
     /// <summary>
@@ -55,7 +55,7 @@ public sealed class FeatureDesignFeatureController(FeatureDesignFeatureService f
     public async Task<ApiResult<bool>> DeleteFeature([FromRoute, Required] string featureCode)
     {
         await featureService.DeleteFeatureAsync(featureCode, RequestCancellationToken);
-        return OkResult(true);
+        return ApiResult.Ok(true);
 }
 }
 

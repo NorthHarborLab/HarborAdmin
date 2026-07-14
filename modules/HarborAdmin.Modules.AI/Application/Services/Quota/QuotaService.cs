@@ -2,6 +2,7 @@ using HarborAdmin.BuildingBlocks.Application;
 using HarborAdmin.BuildingBlocks.Abstractions.Exception;
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
 using HarborAdmin.BuildingBlocks.Abstractions.Repositories;
+using HarborAdmin.BuildingBlocks.Abstractions.Results;
 using HarborAdmin.BuildingBlocks.Mapping;
 using HarborAdmin.Modules.AI.Application.Abstractions;
 using HarborAdmin.Modules.AI.Application.Services.Shared;
@@ -9,6 +10,7 @@ using HarborAdmin.Modules.AI.Contracts.Provider.Dto;
 using HarborAdmin.Modules.AI.Contracts.Provider.Request;
 using HarborAdmin.Modules.AI.Contracts.Quota.Dto;
 using HarborAdmin.Modules.AI.Contracts.Quota.Request;
+using HarborAdmin.Modules.AI.Contracts.Shared.ErrorCode;
 using HarborAdmin.Modules.AI.Domain.Entities;
 
 namespace HarborAdmin.Modules.AI.Application.Services.Quota;
@@ -56,22 +58,48 @@ public sealed class QuotaService(
     /// <summary>
     /// 将保存请求应用到模型限额。
     /// </summary>
-    protected override Task ApplySaveAsync(AiModelQuota entity, SaveAiModelQuotaRequest request, CancellationToken cancellationToken)
+    protected override async Task<HarborResult> ApplySaveAsync(AiModelQuota entity, SaveAiModelQuotaRequest request, CancellationToken cancellationToken)
     {
-        entity.ProviderKey = AiNormalizationHelper.NormalizeKey(request.ProviderKey, nameof(request.ProviderKey));
-        entity.ModelName = AiNormalizationHelper.NormalizeOptional(request.ModelName);
-        entity.EndpointKey = AiNormalizationHelper.NormalizeOptional(request.EndpointKey);
-        entity.BusinessKey = AiNormalizationHelper.NormalizeOptional(request.BusinessKey);
-        entity.ProducerKey = AiNormalizationHelper.NormalizeOptional(request.ProducerKey);
-        entity.RequestsPerMinute = request.RequestsPerMinute;
-        entity.TokensPerMinute = request.TokensPerMinute;
-        entity.RequestsPerDay = request.RequestsPerDay;
-        entity.TokensPerDay = request.TokensPerDay;
-        entity.MonthlyBudget = request.MonthlyBudget;
-        entity.Enabled = request.Enabled;
-        return Task.CompletedTask;
+        try
+        {
+            entity.ProviderKey = AiNormalizationHelper.NormalizeKey(request.ProviderKey, nameof(request.ProviderKey));
+            entity.ModelName = AiNormalizationHelper.NormalizeOptional(request.ModelName);
+            entity.EndpointKey = AiNormalizationHelper.NormalizeOptional(request.EndpointKey);
+            entity.BusinessKey = AiNormalizationHelper.NormalizeOptional(request.BusinessKey);
+            entity.ProducerKey = AiNormalizationHelper.NormalizeOptional(request.ProducerKey);
+            entity.RequestsPerMinute = request.RequestsPerMinute;
+            entity.TokensPerMinute = request.TokensPerMinute;
+            entity.RequestsPerDay = request.RequestsPerDay;
+            entity.TokensPerDay = request.TokensPerDay;
+            entity.MonthlyBudget = request.MonthlyBudget;
+            entity.Enabled = request.Enabled;
+            if (await Repository.ScopeExistsAsync(
+                    entity.ProviderKey,
+                    entity.ModelName,
+                    entity.BusinessKey,
+                    entity.ProducerKey,
+                    entity.Id > 0 ? entity.Id : null,
+                    cancellationToken))
+            {
+                return HarborResult.Failure(AiModelQuotaErrorCodes.DuplicateScope.Create(
+                    new Dictionary<string, object?>
+                    {
+                        ["providerKey"] = entity.ProviderKey,
+                        ["modelName"] = entity.ModelName,
+                        ["businessKey"] = entity.BusinessKey,
+                        ["producerKey"] = entity.ProducerKey,
+                    }));
+            }
+
+            return HarborResult.Success();
+        }
+        catch (ValidationDomainException exception)
+        {
+            return HarborResult.Failure(AiModelQuotaErrorCodes.InvalidInput.Create(
+                new Dictionary<string, object?> { ["reason"] = exception.Message }, exception.Errors, exception.ErrorMeta));
+        }
     }
 
     /// <inheritdoc />
-    protected override string GetNotFoundMessage(long id) => $"AI model quota '{id}' was not found.";
+    protected override HarborErrorDefinition NotFoundError => AiModelQuotaErrorCodes.NotFound;
 }

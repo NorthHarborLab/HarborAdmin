@@ -1,4 +1,5 @@
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
+using HarborAdmin.BuildingBlocks.Abstractions.Results;
 
 namespace HarborAdmin.BuildingBlocks.Abstractions.Application;
 
@@ -14,10 +15,10 @@ public interface IHarborCrudApplicationService<TDto, in TQuery, in TSaveRequest>
     /// <summary>
     /// 保存数据。
     /// </summary>
-    Task<TDto> SaveAsync(long? id, TSaveRequest request, CancellationToken cancellationToken);
+    Task<HarborResult<TDto>> SaveAsync(long? id, TSaveRequest request, CancellationToken cancellationToken);
 
     /// <summary>
     /// 删除数据。
     /// </summary>
-    Task DeleteAsync(long id, CancellationToken cancellationToken);
+    Task<HarborResult<bool>> DeleteAsync(long id, CancellationToken cancellationToken);
 }

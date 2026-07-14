@@ -17,4 +17,9 @@ public interface IAdminDepartmentRepository : IHarborCrudRepository<AdminDepartm
     /// 统计直属下级部门数量。
     /// </summary>
     Task<long> CountChildrenAsync(long parentId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 判断部门编码是否已被其他记录使用。
+    /// </summary>
+    Task<bool> DeptCodeExistsAsync(string deptCode, long? excludeId, CancellationToken cancellationToken = default);
 }

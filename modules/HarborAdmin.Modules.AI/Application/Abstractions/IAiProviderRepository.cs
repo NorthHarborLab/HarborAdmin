@@ -12,4 +12,9 @@ public interface IAiProviderRepository : IHarborCrudRepository<AiProvider>
     /// 按供应商 Key 获取供应商。
     /// </summary>
     Task<AiProvider?> GetProviderByKeyAsync(string providerKey, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 判断供应商 Key 是否已被其他记录使用。
+    /// </summary>
+    Task<bool> ProviderKeyExistsAsync(string providerKey, long? excludeId, CancellationToken cancellationToken = default);
 }

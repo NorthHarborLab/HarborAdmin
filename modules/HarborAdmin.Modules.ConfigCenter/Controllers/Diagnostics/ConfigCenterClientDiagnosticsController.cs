@@ -28,7 +28,7 @@ public sealed class ConfigCenterClientDiagnosticsController(IConfigCenterClientS
             state.CurrentData.TryGetValue(key.Trim(), out remoteValue);
         }
 
-        return Task.FromResult(OkResult<object>(new
+        return Task.FromResult(ApiResult.Ok<object>(new
         {
             state.AppId,
             state.ClientId,

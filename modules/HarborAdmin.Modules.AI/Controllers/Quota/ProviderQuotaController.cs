@@ -19,7 +19,7 @@ public sealed class ProviderQuotaController(QuotaService service) : AdminControl
     /// </summary>
     [HttpGet]
     public async Task<ApiResult<AiProviderQuotaDto?>> Get(long providerId, [FromQuery] string? producerKey, CancellationToken cancellationToken) =>
-        await OkResultAsync(service.GetProviderQuotaAsync(providerId, producerKey, cancellationToken));
+        ApiResult.Ok(await service.GetProviderQuotaAsync(providerId, producerKey, cancellationToken));
 
     /// <summary>
     /// 保存供应商限额。
@@ -29,5 +29,5 @@ public sealed class ProviderQuotaController(QuotaService service) : AdminControl
         long providerId,
         [FromBody] SaveAiProviderQuotaRequest request,
         CancellationToken cancellationToken) =>
-        await OkResultAsync(service.SaveProviderQuotaAsync(providerId, request, cancellationToken));
+        ApiResult.Ok(await service.SaveProviderQuotaAsync(providerId, request, cancellationToken));
 }

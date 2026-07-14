@@ -22,7 +22,7 @@ public sealed class FeatureDesignFieldController(FeatureDesignFieldService field
     /// </summary>
     [HttpGet]
     public async Task<ApiResult<IReadOnlyList<AdminFeatureFieldDto>>> ListFields([FromRoute, Required] string featureCode) =>
-        await OkResultAsync(fieldService.ListFieldsAsync(featureCode, RequestCancellationToken));
+        ApiResult.Ok(await fieldService.ListFieldsAsync(featureCode, RequestCancellationToken));
 
     /// <summary>
     /// 新建功能字段。
@@ -31,7 +31,7 @@ public sealed class FeatureDesignFieldController(FeatureDesignFieldService field
     public async Task<ApiResult<AdminFeatureFieldDto>> CreateField(
         [FromRoute, Required] string featureCode,
         [FromBody] SaveAdminFeatureFieldRequest request) =>
-        await OkResultAsync(fieldService.CreateFieldAsync(featureCode, request, RequestCancellationToken));
+        ApiResult.Ok(await fieldService.CreateFieldAsync(featureCode, request, RequestCancellationToken));
 
     /// <summary>
     /// 更新功能字段。
@@ -41,7 +41,7 @@ public sealed class FeatureDesignFieldController(FeatureDesignFieldService field
         [FromRoute, Required] string featureCode,
         [FromRoute, Required] string fieldCode,
         [FromBody] SaveAdminFeatureFieldRequest request) =>
-        await OkResultAsync(fieldService.UpdateFieldAsync(featureCode, fieldCode, request, RequestCancellationToken));
+        ApiResult.Ok(await fieldService.UpdateFieldAsync(featureCode, fieldCode, request, RequestCancellationToken));
 
     /// <summary>
     /// 字段排序。
@@ -52,7 +52,7 @@ public sealed class FeatureDesignFieldController(FeatureDesignFieldService field
         [FromBody] ReorderAdminFeatureFieldRequest request)
     {
         await fieldService.ReorderFieldsAsync(featureCode, request, RequestCancellationToken);
-        return OkResult(true);
+        return ApiResult.Ok(true);
     }
 
     /// <summary>
@@ -64,7 +64,7 @@ public sealed class FeatureDesignFieldController(FeatureDesignFieldService field
         [FromRoute, Required] string fieldCode)
     {
         await fieldService.DeleteFieldAsync(featureCode, fieldCode, RequestCancellationToken);
-        return OkResult(true);
+        return ApiResult.Ok(true);
 }
 }
 

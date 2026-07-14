@@ -18,6 +18,18 @@ public sealed class AiKnowledgeBaseRepository(
     : FreeSqlCrudRepository<AiKnowledgeBase, IAiDbContext>(db, entityRegistry, unitOfWorkManager), IAiKnowledgeBaseRepository
 {
     /// <inheritdoc />
+    public Task<bool> KnowledgeKeyExistsAsync(string knowledgeKey, long? excludeId, CancellationToken cancellationToken = default)
+    {
+        var query = FreeSql.Select<AiKnowledgeBase>().Where(entity => entity.KnowledgeKey == knowledgeKey);
+        if (excludeId.HasValue)
+        {
+            query = query.Where(entity => entity.Id != excludeId.Value);
+        }
+
+        return query.AnyAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
     public async Task<IReadOnlyList<AiKnowledgeBase>> ListEnabledKnowledgeBasesAsync(IEnumerable<string> keys, CancellationToken cancellationToken = default)
     {
         var normalized = keys.Where(key => !string.IsNullOrWhiteSpace(key)).Select(key => key.Trim()).ToArray();

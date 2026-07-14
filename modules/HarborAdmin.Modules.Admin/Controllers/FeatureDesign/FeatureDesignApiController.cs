@@ -22,14 +22,14 @@ public sealed class FeatureDesignApiController(FeatureDesignApiService apiServic
     /// </summary>
     [HttpGet]
     public async Task<ApiResult<IReadOnlyList<AdminFeatureApiDto>>> ListApis([FromRoute, Required] string featureCode) =>
-        await OkResultAsync(apiService.ListApisAsync(featureCode, RequestCancellationToken));
+        ApiResult.Ok(await apiService.ListApisAsync(featureCode, RequestCancellationToken));
 
     /// <summary>
     /// 查询全部功能 API 树。
     /// </summary>
     [HttpGet("/api/admin/feature-design/apis/tree")]
     public async Task<ApiResult<IReadOnlyList<AdminFeatureApiTreeDto>>> ListApiTree() =>
-        await OkResultAsync(apiService.ListApiTreeAsync(RequestCancellationToken));
+        ApiResult.Ok(await apiService.ListApiTreeAsync(RequestCancellationToken));
 
     /// <summary>
     /// 新建功能 API。
@@ -38,7 +38,7 @@ public sealed class FeatureDesignApiController(FeatureDesignApiService apiServic
     public async Task<ApiResult<AdminFeatureApiDto>> CreateApi(
         [FromRoute, Required] string featureCode,
         [FromBody] SaveAdminFeatureApiRequest request) =>
-        await OkResultAsync(apiService.CreateApiAsync(featureCode, request, RequestCancellationToken));
+        ApiResult.Ok(await apiService.CreateApiAsync(featureCode, request, RequestCancellationToken));
 
     /// <summary>
     /// 更新功能 API。
@@ -48,7 +48,7 @@ public sealed class FeatureDesignApiController(FeatureDesignApiService apiServic
         [FromRoute, Required] string featureCode,
         [FromRoute, Required] string apiCode,
         [FromBody] SaveAdminFeatureApiRequest request) =>
-        await OkResultAsync(apiService.UpdateApiAsync(featureCode, apiCode, request, RequestCancellationToken));
+        ApiResult.Ok(await apiService.UpdateApiAsync(featureCode, apiCode, request, RequestCancellationToken));
 
     /// <summary>
     /// API 排序。
@@ -59,7 +59,7 @@ public sealed class FeatureDesignApiController(FeatureDesignApiService apiServic
         [FromBody] ReorderAdminFeatureApiRequest request)
     {
         await apiService.ReorderApisAsync(featureCode, request, RequestCancellationToken);
-        return OkResult(true);
+        return ApiResult.Ok(true);
     }
 
     /// <summary>
@@ -71,7 +71,7 @@ public sealed class FeatureDesignApiController(FeatureDesignApiService apiServic
         [FromRoute, Required] string apiCode)
     {
         await apiService.DeleteApiAsync(featureCode, apiCode, RequestCancellationToken);
-        return OkResult(true);
+        return ApiResult.Ok(true);
     }
 
     /// <summary>
@@ -81,6 +81,6 @@ public sealed class FeatureDesignApiController(FeatureDesignApiService apiServic
     public async Task<ApiResult<IReadOnlyList<AdminFeatureApiDto>>> GenerateCrudApis(
         [FromRoute, Required] string featureCode,
         [FromBody] GenerateCrudApisRequest request) =>
-        await OkResultAsync(apiService.GenerateCrudApisAsync(featureCode, request, RequestCancellationToken));
+        ApiResult.Ok(await apiService.GenerateCrudApisAsync(featureCode, request, RequestCancellationToken));
 }
 

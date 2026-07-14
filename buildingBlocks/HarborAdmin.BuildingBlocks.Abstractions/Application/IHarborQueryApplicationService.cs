@@ -1,4 +1,5 @@
 using HarborAdmin.BuildingBlocks.Abstractions.ModelResults;
+using HarborAdmin.BuildingBlocks.Abstractions.Results;
 
 namespace HarborAdmin.BuildingBlocks.Abstractions.Application;
 
@@ -13,12 +14,12 @@ public interface IHarborQueryApplicationService<TDto, in TQuery> : IHarborApplic
     /// <summary>
     /// 查询列表。
     /// </summary>
-    Task<IReadOnlyList<TDto>> ListAsync(CancellationToken cancellationToken);
+    Task<HarborResult<IReadOnlyList<TDto>>> ListAsync(CancellationToken cancellationToken);
 
     /// <summary>
     /// 查询详情。
     /// </summary>
-    Task<TDto> GetAsync(long id, CancellationToken cancellationToken);
+    Task<HarborResult<TDto>> GetAsync(long id, CancellationToken cancellationToken);
 
     /// <summary>
     /// 分页查询。
@@ -26,5 +27,5 @@ public interface IHarborQueryApplicationService<TDto, in TQuery> : IHarborApplic
     /// <param name="query">分页查询请求。</param>
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>分页查询结果。</returns>
-    Task<PagedResult<TDto>> PageAsync(TQuery query, CancellationToken cancellationToken);
+    Task<HarborResult<PagedResult<TDto>>> PageAsync(TQuery query, CancellationToken cancellationToken);
 }

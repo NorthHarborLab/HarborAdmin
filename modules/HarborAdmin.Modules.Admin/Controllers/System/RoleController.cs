@@ -18,27 +18,27 @@ public sealed class RoleController(RoleService roleService) : AdminCrudControlle
     /// 查询角色列表。
     /// </summary>
     [HttpGet("list")]
-    public async Task<ApiResult<PagedResult<SystemRoleDto>>> List([FromQuery] PageRequest query, CancellationToken cancellationToken) =>
+    public async Task<ActionResult<ApiResult<PagedResult<SystemRoleDto>>>> List([FromQuery] PageRequest query, CancellationToken cancellationToken) =>
         await PageResultAsync(query, roleService, cancellationToken);
 
     /// <summary>
     /// 创建角色。
     /// </summary>
     [HttpPost]
-    public async Task<ApiResult<SystemRoleDto>> Create([FromBody] SaveSystemRoleRequest request, CancellationToken cancellationToken) =>
+    public async Task<ActionResult<ApiResult<SystemRoleDto>>> Create([FromBody] SaveSystemRoleRequest request, CancellationToken cancellationToken) =>
         await CreateResultAsync(request, roleService, cancellationToken);
 
     /// <summary>
     /// 更新角色。
     /// </summary>
     [HttpPut("{id:long}")]
-    public async Task<ApiResult<SystemRoleDto>> Update(long id, [FromBody] SaveSystemRoleRequest request, CancellationToken cancellationToken) =>
+    public async Task<ActionResult<ApiResult<SystemRoleDto>>> Update(long id, [FromBody] SaveSystemRoleRequest request, CancellationToken cancellationToken) =>
         await UpdateResultAsync(id, request, roleService, cancellationToken);
 
     /// <summary>
     /// 删除角色。
     /// </summary>
     [HttpDelete("{id:long}")]
-    public async Task<ApiResult<bool>> Delete(long id, CancellationToken cancellationToken) =>
+    public async Task<ActionResult<ApiResult<bool>>> Delete(long id, CancellationToken cancellationToken) =>
         await DeleteResultAsync(id, roleService, cancellationToken);
 }

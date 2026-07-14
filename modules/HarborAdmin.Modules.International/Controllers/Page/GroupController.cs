@@ -19,12 +19,12 @@ public sealed class GroupController(InternationalPageService pageService) : Admi
     /// </summary>
     [HttpPost]
     public async Task<ApiResult<InternationalGroupNodeDto>> Create([FromBody] SaveInternationalGroupRequest request, CancellationToken cancellationToken) =>
-        await CreateResultAsync<SaveInternationalGroupRequest, InternationalGroupNodeDto>(request, cancellationToken, (body, token) => pageService.SaveGroupAsync(null, body, token));
+        ApiResult.Ok(await pageService.SaveGroupAsync(null, request, cancellationToken));
 
     /// <summary>
     /// 更新资源分组。
     /// </summary>
     [HttpPut("{id:long}")]
     public async Task<ApiResult<InternationalGroupNodeDto>> Update(long id, [FromBody] SaveInternationalGroupRequest request, CancellationToken cancellationToken) =>
-        await UpdateResultAsync<long, SaveInternationalGroupRequest, InternationalGroupNodeDto>(id, request, cancellationToken, (groupId, body, token) => pageService.SaveGroupAsync(groupId, body, token));
+        ApiResult.Ok(await pageService.SaveGroupAsync(id, request, cancellationToken));
 }

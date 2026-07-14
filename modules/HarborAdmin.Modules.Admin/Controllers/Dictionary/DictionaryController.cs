@@ -23,7 +23,7 @@ public sealed class DictionaryController(AdminDictionaryService dictionaryServic
     public async Task<ApiResult<IReadOnlyList<AdminDictionaryDto>>> ListDictionaries(
         [FromQuery] string? keyword,
         CancellationToken cancellationToken) =>
-        await OkResultAsync(dictionaryService.ListDictionariesAsync(keyword, cancellationToken));
+        ApiResult.Ok(await dictionaryService.ListDictionariesAsync(keyword, cancellationToken));
 
     /// <summary>
     /// 新建字典类型。
@@ -32,7 +32,7 @@ public sealed class DictionaryController(AdminDictionaryService dictionaryServic
     public async Task<ApiResult<AdminDictionaryDto>> CreateDictionary(
         [FromBody] SaveAdminDictionaryRequest request,
         CancellationToken cancellationToken) =>
-        await CreateResultAsync<SaveAdminDictionaryRequest, AdminDictionaryDto>(request, cancellationToken, dictionaryService.CreateDictionaryAsync);
+        ApiResult.Ok(await dictionaryService.CreateDictionaryAsync(request, cancellationToken));
 
     /// <summary>
     /// 更新字典类型。
@@ -42,7 +42,7 @@ public sealed class DictionaryController(AdminDictionaryService dictionaryServic
         string dictCode,
         [FromBody] SaveAdminDictionaryRequest request,
         CancellationToken cancellationToken) =>
-        await UpdateResultAsync<string, SaveAdminDictionaryRequest, AdminDictionaryDto>(dictCode, request, cancellationToken, dictionaryService.UpdateDictionaryAsync);
+        ApiResult.Ok(await dictionaryService.UpdateDictionaryAsync(dictCode, request, cancellationToken));
 
     /// <summary>
     /// 删除字典类型。
@@ -51,7 +51,7 @@ public sealed class DictionaryController(AdminDictionaryService dictionaryServic
     public async Task<ApiResult<bool>> DeleteDictionary(string dictCode, CancellationToken cancellationToken)
     {
         await dictionaryService.DeleteDictionaryAsync(dictCode, cancellationToken);
-        return OkResult(true);
+        return ApiResult.Ok(true);
     }
 
     /// <summary>
@@ -61,7 +61,7 @@ public sealed class DictionaryController(AdminDictionaryService dictionaryServic
     public async Task<ApiResult<IReadOnlyList<AdminDictionaryItemDto>>> ListItems(
         string dictCode,
         CancellationToken cancellationToken) =>
-        await OkResultAsync(dictionaryService.ListItemsAsync(dictCode, cancellationToken));
+        ApiResult.Ok(await dictionaryService.ListItemsAsync(dictCode, cancellationToken));
 
     /// <summary>
     /// 查询运行时字典选项。
@@ -71,7 +71,7 @@ public sealed class DictionaryController(AdminDictionaryService dictionaryServic
         string dictCode,
         [FromQuery] string? dataType,
         CancellationToken cancellationToken) =>
-        await OkResultAsync(dictionaryService.ListOptionsAsync(dictCode, dataType, cancellationToken));
+        ApiResult.Ok(await dictionaryService.ListOptionsAsync(dictCode, dataType, cancellationToken));
 
     /// <summary>
     /// 新建字典项。
@@ -81,7 +81,7 @@ public sealed class DictionaryController(AdminDictionaryService dictionaryServic
         string dictCode,
         [FromBody] SaveAdminDictionaryItemRequest request,
         CancellationToken cancellationToken) =>
-        await OkResultAsync(dictionaryService.CreateItemAsync(dictCode, request, cancellationToken));
+        ApiResult.Ok(await dictionaryService.CreateItemAsync(dictCode, request, cancellationToken));
 
     /// <summary>
     /// 更新字典项。
@@ -92,7 +92,7 @@ public sealed class DictionaryController(AdminDictionaryService dictionaryServic
         long itemId,
         [FromBody] SaveAdminDictionaryItemRequest request,
         CancellationToken cancellationToken) =>
-        await OkResultAsync(dictionaryService.UpdateItemAsync(dictCode, itemId, request, cancellationToken));
+        ApiResult.Ok(await dictionaryService.UpdateItemAsync(dictCode, itemId, request, cancellationToken));
 
     /// <summary>
     /// 删除字典项。
@@ -104,6 +104,6 @@ public sealed class DictionaryController(AdminDictionaryService dictionaryServic
         CancellationToken cancellationToken)
     {
         await dictionaryService.DeleteItemAsync(dictCode, itemId, cancellationToken);
-        return OkResult(true);
+        return ApiResult.Ok(true);
     }
 }

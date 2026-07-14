@@ -17,4 +17,25 @@ public sealed class AiModelQuotaRepository(
     UnitOfWorkManagerCloud unitOfWorkManager)
     : FreeSqlCrudRepository<AiModelQuota, IAiDbContext>(db, entityRegistry, unitOfWorkManager), IAiModelQuotaRepository
 {
+    /// <inheritdoc />
+    public Task<bool> ScopeExistsAsync(
+        string providerKey,
+        string? modelName,
+        string? businessKey,
+        string? producerKey,
+        long? excludeId,
+        CancellationToken cancellationToken = default)
+    {
+        var query = FreeSql.Select<AiModelQuota>()
+            .Where(entity => entity.ProviderKey == providerKey
+                             && entity.ModelName == modelName
+                             && entity.BusinessKey == businessKey
+                             && entity.ProducerKey == producerKey);
+        if (excludeId.HasValue)
+        {
+            query = query.Where(entity => entity.Id != excludeId.Value);
+        }
+
+        return query.AnyAsync(cancellationToken);
+    }
 }

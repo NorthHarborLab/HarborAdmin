@@ -21,26 +21,26 @@ public sealed class ResourceController(InternationalResourceBundleService resour
     /// </summary>
     [HttpGet("version")]
     public async Task<ApiResult<InternationalVersionDto>> GetVersion(CancellationToken cancellationToken) =>
-        await OkResultAsync(cancellationToken, resourceBundleService.GetVersionAsync);
+        ApiResult.Ok(await resourceBundleService.GetVersionAsync(cancellationToken));
 
     /// <summary>
     /// 获取带版本号的资源包。
     /// </summary>
     [HttpGet("bundle")]
     public async Task<ApiResult<InternationalBundleDto>> GetBundle(CancellationToken cancellationToken) =>
-        await OkResultAsync(cancellationToken, resourceBundleService.GetBundleAsync);
+        ApiResult.Ok(await resourceBundleService.GetBundleAsync(cancellationToken));
 
     /// <summary>
     /// 获取带版本号的单页面资源包。
     /// </summary>
     [HttpGet("pages/bundle")]
     public async Task<ApiResult<InternationalPageBundleDto>> GetPageBundle([FromQuery] string path, CancellationToken cancellationToken) =>
-        await OkResultAsync(resourceBundleService.GetPageBundleAsync(path, cancellationToken));
+        ApiResult.Ok(await resourceBundleService.GetPageBundleAsync(path, cancellationToken));
 
     /// <summary>
     /// 获取带版本号的单页面资源包。
     /// </summary>
     [HttpGet("pages/{pageKey}/bundle")]
     public async Task<ApiResult<InternationalPageBundleDto>> GetLegacyPageBundle(string pageKey, CancellationToken cancellationToken) =>
-        await OkResultAsync(resourceBundleService.GetPageBundleAsync(pageKey, cancellationToken));
+        ApiResult.Ok(await resourceBundleService.GetPageBundleAsync(pageKey, cancellationToken));
 }
